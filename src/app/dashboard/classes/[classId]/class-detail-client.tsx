@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { notFound } from "next/navigation";
+import { toast } from "sonner";
 import {
   CalendarClock,
   CalendarX2,
@@ -36,39 +36,64 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { bookingsForClass, classById, money, timezoneLabel, waitlistForClass } from "@/lib/demo";
+import { bookingsForClass, money, timezoneLabel, waitlistForClass } from "@/lib/demo";
+import { deadlineMinutesToLabel } from "@/lib/class-deadline";
 import { useMockAction } from "@/hooks/use-mock-action";
+import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
+import type { YogaClass } from "@/generated/prisma/client";
+import { cancelClass, deleteClass, duplicateClass } from "../actions";
 
-export function ClassDetailClient({ classId }: { classId: string }) {
-  const cls = classById(classId);
-  if (!cls) notFound();
-
+export function ClassDetailClient({ cls }: { cls: YogaClass }) {
   const router = useRouter();
-  const roster = bookingsForClass(classId);
+  // Bookings/waitlist tables don't exist yet (a later batch) — these demo
+  // lookups always return [] for a real (non-demo) class id, which is the
+  // correct "no bookings yet" state for every real class right now.
+  const roster = bookingsForClass(cls.id);
   const [attended, setAttended] = useState<Record<string, boolean>>(
     Object.fromEntries(roster.map((b) => [b.id, Boolean(b.attended)])),
   );
-  const [waitlistEntries, setWaitlistEntries] = useState(waitlistForClass(classId));
+  const [waitlistEntries, setWaitlistEntries] = useState(waitlistForClass(cls.id));
   const [confirmAction, setConfirmAction] = useState<"cancel" | "delete" | null>(null);
+  const [confirmPending, setConfirmPending] = useState(false);
+  const [duplicatePending, setDuplicatePending] = useState(false);
 
   const bookingAction = useMockAction();
   const attendanceAction = useMockAction();
   const waitlistAction = useMockAction();
-  const statusAction = useMockAction();
-  const duplicateAction = useMockAction();
 
-  const paid = roster.filter((b) => b.payment === "paid");
   const attendedCount = Object.values(attended).filter(Boolean).length;
 
-  function handleConfirmStatusChange() {
+  async function handleDuplicate() {
+    setDuplicatePending(true);
+    try {
+      const result = await duplicateClass(cls.id);
+      if (result.ok) {
+        toast.success(`Duplicated as "${cls.name} (copy)" — find it in your classes list`);
+      } else {
+        toast.error(result.error);
+      }
+    } finally {
+      setDuplicatePending(false);
+    }
+  }
+
+  async function handleConfirmStatusChange() {
     if (!confirmAction) return;
-    statusAction.run({
-      success: confirmAction === "cancel" ? "Class cancelled — students notified" : "Class deleted",
-      onDone: () => {
+    setConfirmPending(true);
+    try {
+      const result =
+        confirmAction === "cancel" ? await cancelClass(cls.id) : await deleteClass(cls.id);
+      if (result.ok) {
+        toast.success(confirmAction === "cancel" ? "Class cancelled" : "Class deleted");
         setConfirmAction(null);
         router.push("/dashboard/classes");
-      },
-    });
+      } else {
+        toast.error(result.error);
+        setConfirmPending(false);
+      }
+    } catch {
+      setConfirmPending(false);
+    }
   }
 
   return (
@@ -81,14 +106,14 @@ export function ClassDetailClient({ classId }: { classId: string }) {
         <div>
           <h1 className="text-3xl">{cls.name}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {cls.day} · {cls.time} {timezoneLabel(cls.timezone)} · {cls.duration} min ·{" "}
-            {cls.location}
+            {formatClassDate(cls, "long")} · {formatClassTime(cls)} {timezoneLabel(cls.timezone)} ·{" "}
+            {cls.durationMinutes} min · {cls.location ?? "No location set"}
           </p>
         </div>
         <div className="flex gap-2">
           <Button variant="quiet">Add student manually</Button>
           <Button variant="ghost" asChild>
-            <Link href={`/dashboard/classes/edit/${classId}`}>Edit class</Link>
+            <Link href={`/dashboard/classes/edit/${cls.id}`}>Edit class</Link>
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -97,18 +122,16 @@ export function ClassDetailClient({ classId }: { classId: string }) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                disabled={duplicateAction.pending}
-                onClick={() =>
-                  duplicateAction.run({
-                    success: `Duplicated as "${cls.name} (copy)" — find it in your classes list`,
-                  })
-                }
-              >
-                <Copy className="size-4" /> Duplicate class
+              <DropdownMenuItem disabled={duplicatePending} onClick={() => void handleDuplicate()}>
+                {duplicatePending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Copy className="size-4" />
+                )}
+                Duplicate class
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              {cls.status !== "cancelled" && (
+              {cls.status !== "CANCELLED" && (
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
                   onClick={() => setConfirmAction("cancel")}
@@ -116,7 +139,7 @@ export function ClassDetailClient({ classId }: { classId: string }) {
                   <XCircle className="size-4" /> Cancel class
                 </DropdownMenuItem>
               )}
-              {cls.status === "draft" && (
+              {cls.status === "DRAFT" && (
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
                   onClick={() => setConfirmAction("delete")}
@@ -134,23 +157,23 @@ export function ClassDetailClient({ classId }: { classId: string }) {
           <Users className="size-5 text-clay" />
           <div>
             <p className="text-xs text-muted-foreground">Booked</p>
-            <p className="display text-xl">
-              {cls.booked} / {cls.capacity}
-            </p>
+            <p className="display text-xl">0 / {cls.capacity}</p>
           </div>
         </div>
         <div className="surface flex items-center gap-3 p-5">
           <Wallet className="size-5 text-clay" />
           <div>
             <p className="text-xs text-muted-foreground">Collected</p>
-            <p className="display text-xl">{money(paid.reduce((s, b) => s + b.amount, 0))}</p>
+            <p className="display text-xl">{money(0)}</p>
           </div>
         </div>
         <div className="surface flex items-center gap-3 p-5">
           <CalendarClock className="size-5 text-clay" />
           <div>
             <p className="text-xs text-muted-foreground">Booking deadline</p>
-            <p className="text-sm font-medium">{cls.deadline}</p>
+            <p className="text-sm font-medium">
+              {deadlineMinutesToLabel(cls.deadlineMinutesBeforeStart)}
+            </p>
           </div>
         </div>
       </div>
@@ -321,10 +344,10 @@ export function ClassDetailClient({ classId }: { classId: string }) {
             </Button>
             <Button
               variant="destructive"
-              disabled={statusAction.pending}
-              onClick={handleConfirmStatusChange}
+              disabled={confirmPending}
+              onClick={() => void handleConfirmStatusChange()}
             >
-              {statusAction.pending ? (
+              {confirmPending ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />{" "}
                   {confirmAction === "cancel" ? "Cancelling…" : "Deleting…"}

@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { CalendarDays, Copy, MoreHorizontal, Trash2, XCircle } from "lucide-react";
+import { toast } from "sonner";
+import { CalendarDays, Copy, Loader2, MoreHorizontal, Trash2, XCircle } from "lucide-react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { EmptyState } from "@/components/EmptyState";
 import { StatusPill } from "@/components/StatusPill";
@@ -23,63 +25,59 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  classes as initialClasses,
-  timezoneLabel,
-  type ClassStatus,
-  type YogaClass,
-} from "@/lib/demo";
-import { useMockAction } from "@/hooks/use-mock-action";
+import { timezoneLabel } from "@/lib/demo";
+import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
+import type { YogaClass } from "@/generated/prisma/client";
+import { cancelClass, deleteClass, duplicateClass } from "./actions";
 
-function tone(status: ClassStatus) {
-  if (status === "published") return "good" as const;
-  if (status === "full") return "warn" as const;
-  if (status === "cancelled") return "bad" as const;
+function tone(status: YogaClass["status"]) {
+  if (status === "PUBLISHED") return "good" as const;
+  if (status === "FULL") return "warn" as const;
+  if (status === "CANCELLED") return "bad" as const;
   return "neutral" as const;
 }
 
 type ConfirmTarget = { id: string; action: "cancel" | "delete" };
 
-export function ClassesClient() {
-  const [classList, setClassList] = useState<YogaClass[]>(initialClasses);
+export function ClassesClient({ classes }: { classes: YogaClass[] }) {
+  const router = useRouter();
   const [confirmTarget, setConfirmTarget] = useState<ConfirmTarget | null>(null);
-  const statusAction = useMockAction();
-  const duplicateAction = useMockAction();
+  const [confirmPending, setConfirmPending] = useState(false);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
 
-  const confirmClass = confirmTarget ? classList.find((c) => c.id === confirmTarget.id) : null;
+  const seriesCount = new Set(classes.filter((c) => c.seriesId).map((c) => c.seriesId)).size;
 
-  function handleDuplicate(cls: YogaClass) {
-    duplicateAction.run({
-      success: `Duplicated as "${cls.name} (copy)"`,
-      onDone: () => {
-        setClassList((prev) => [
-          {
-            ...cls,
-            id: `${cls.id}-copy-${Date.now()}`,
-            name: `${cls.name} (copy)`,
-            status: "draft",
-            booked: 0,
-          },
-          ...prev,
-        ]);
-      },
-    });
+  async function handleDuplicate(cls: YogaClass) {
+    setDuplicatingId(cls.id);
+    try {
+      const result = await duplicateClass(cls.id);
+      if (result.ok) {
+        toast.success(`Duplicated as "${cls.name} (copy)"`);
+        router.refresh();
+      } else {
+        toast.error(result.error);
+      }
+    } finally {
+      setDuplicatingId(null);
+    }
   }
 
-  function handleConfirm() {
+  async function handleConfirm() {
     if (!confirmTarget) return;
     const { id, action } = confirmTarget;
-    statusAction.run({
-      success: action === "cancel" ? "Class cancelled — students notified" : "Class deleted",
-      onDone: () => {
-        setClassList((prev) =>
-          action === "delete"
-            ? prev.filter((c) => c.id !== id)
-            : prev.map((c) => (c.id === id ? { ...c, status: "cancelled" } : c)),
-        );
+    setConfirmPending(true);
+    try {
+      const result = action === "cancel" ? await cancelClass(id) : await deleteClass(id);
+      if (result.ok) {
+        toast.success(action === "cancel" ? "Class cancelled" : "Class deleted");
         setConfirmTarget(null);
-      },
-    });
+        router.refresh();
+      } else {
+        toast.error(result.error);
+      }
+    } finally {
+      setConfirmPending(false);
+    }
   }
 
   return (
@@ -88,8 +86,7 @@ export function ClassesClient() {
         <div>
           <h1 className="text-3xl">Classes</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {classList.length} classes · {classList.filter((c) => c.recurring).length} recurring
-            series
+            {classes.length} classes · {seriesCount} recurring series
           </p>
         </div>
         <Button asChild variant="clay">
@@ -97,7 +94,7 @@ export function ClassesClient() {
         </Button>
       </div>
 
-      {classList.length === 0 ? (
+      {classes.length === 0 ? (
         <EmptyState
           className="mt-6"
           icon={CalendarDays}
@@ -111,27 +108,31 @@ export function ClassesClient() {
         />
       ) : (
         <div className="mt-6 grid gap-4 md:grid-cols-2">
-          {classList.map((c) => (
+          {classes.map((c) => (
             <div key={c.id} className="surface overflow-hidden">
-              <img
-                src={c.cover}
-                alt={c.name}
-                loading="lazy"
-                width={1200}
-                height={800}
-                className="h-36 w-full object-cover"
-              />
+              {c.coverUrl ? (
+                <img
+                  src={c.coverUrl}
+                  alt={c.name}
+                  loading="lazy"
+                  width={1200}
+                  height={800}
+                  className="h-36 w-full object-cover"
+                />
+              ) : (
+                <div className="h-36 w-full bg-sand" />
+              )}
               <div className="p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h2 className="text-lg">{c.name}</h2>
                     <p className="text-sm text-muted-foreground">
-                      {c.recurring ?? `${c.date}`} · {c.time} {timezoneLabel(c.timezone)} ·{" "}
-                      {c.duration} min
+                      {c.recurringLabel ?? formatClassDate(c)} · {formatClassTime(c)}{" "}
+                      {timezoneLabel(c.timezone)} · {c.durationMinutes} min
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
-                    <StatusPill tone={tone(c.status)}>{c.status}</StatusPill>
+                    <StatusPill tone={tone(c.status)}>{c.status.toLowerCase()}</StatusPill>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" aria-label="More actions">
@@ -140,13 +141,18 @@ export function ClassesClient() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
-                          disabled={duplicateAction.pending}
-                          onClick={() => handleDuplicate(c)}
+                          disabled={duplicatingId === c.id}
+                          onClick={() => void handleDuplicate(c)}
                         >
-                          <Copy className="size-4" /> Duplicate class
+                          {duplicatingId === c.id ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <Copy className="size-4" />
+                          )}
+                          Duplicate class
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        {c.status !== "cancelled" && (
+                        {c.status !== "CANCELLED" && (
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
                             onClick={() => setConfirmTarget({ id: c.id, action: "cancel" })}
@@ -154,7 +160,7 @@ export function ClassesClient() {
                             <XCircle className="size-4" /> Cancel class
                           </DropdownMenuItem>
                         )}
-                        {c.status === "draft" && (
+                        {c.status === "DRAFT" && (
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
                             onClick={() => setConfirmTarget({ id: c.id, action: "delete" })}
@@ -170,18 +176,13 @@ export function ClassesClient() {
                 <div className="mt-4 flex items-center justify-between text-sm">
                   <PriceTag
                     price={c.price}
-                    originalPrice={c.originalPrice}
+                    originalPrice={c.originalPrice ?? undefined}
                     priceClassName="font-medium"
                   />
-                  <span className="text-muted-foreground">
-                    {c.booked} / {c.capacity} booked
-                  </span>
+                  <span className="text-muted-foreground">0 / {c.capacity} booked</span>
                 </div>
                 <div className="mt-2 h-1.5 rounded-full bg-secondary">
-                  <div
-                    className="h-1.5 rounded-full bg-clay"
-                    style={{ width: `${Math.round((c.booked / c.capacity) * 100)}%` }}
-                  />
+                  <div className="h-1.5 rounded-full bg-clay" style={{ width: "0%" }} />
                 </div>
 
                 <div className="mt-5 flex gap-2">
@@ -209,7 +210,7 @@ export function ClassesClient() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmTarget?.action === "cancel"
-                ? `${confirmClass?.booked ?? 0} booked student${confirmClass?.booked === 1 ? "" : "s"} will be notified and refunded.`
+                ? "Booked students (once bookings exist) will be notified and refunded."
                 : "This draft class will be permanently deleted. This can't be undone."}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -217,8 +218,12 @@ export function ClassesClient() {
             <Button variant="outline" onClick={() => setConfirmTarget(null)}>
               Never mind
             </Button>
-            <Button variant="destructive" disabled={statusAction.pending} onClick={handleConfirm}>
-              {statusAction.pending
+            <Button
+              variant="destructive"
+              disabled={confirmPending}
+              onClick={() => void handleConfirm()}
+            >
+              {confirmPending
                 ? confirmTarget?.action === "cancel"
                   ? "Cancelling…"
                   : "Deleting…"

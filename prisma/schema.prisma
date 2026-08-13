@@ -13,9 +13,9 @@ datasource db {
 }
 
 model User {
-  id     String  @id @default(cuid())
-  email  String  @unique
-  name   String?
+  id    String  @id @default(cuid())
+  email String  @unique
+  name  String?
 
   hashedPassword String
 
@@ -29,8 +29,6 @@ model User {
   passwordResetTokenHash String?
   passwordResetExpiresAt DateTime?
 
-  @@index([passwordResetTokenHash])
-
   // Referral code captured at signup, consumed once onboarding creates
   // the Instructor row (later batch).
   pendingReferralCode String?
@@ -39,6 +37,8 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([passwordResetTokenHash])
 }
 
 enum CurrencyCode {
@@ -78,7 +78,7 @@ model Instructor {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   name             String
-  slug             String  @unique
+  slug             String   @unique
   photoUrl         String?
   bio              String?
   location         String?
@@ -90,12 +90,13 @@ model Instructor {
   currency              CurrencyCode @default(NGN)
   onboardingCompletedAt DateTime?
 
-  payoutProvider   PayoutProvider @default(STRIPE)
-  payoutStatus     PayoutStatus   @default(NOT_CONNECTED)
-  payoutAccountId  String?
-  payoutBankLabel  String?
+  payoutProvider  PayoutProvider @default(STRIPE)
+  payoutStatus    PayoutStatus   @default(NOT_CONNECTED)
+  payoutAccountId String?
+  payoutBankLabel String?
 
   socials InstructorSocial[]
+  classes YogaClass[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -109,4 +110,61 @@ model InstructorSocial {
   handle       String
 
   @@unique([instructorId, platform])
+}
+
+enum ClassMode {
+  IN_PERSON
+  ONLINE
+}
+
+enum ClassStatus {
+  DRAFT
+  PUBLISHED
+  FULL
+  CANCELLED
+  COMPLETED
+}
+
+model YogaClass {
+  id           String     @id @default(cuid())
+  instructorId String
+  instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+
+  // Groups occurrences generated from one recurring series; null for
+  // one-off classes.
+  seriesId String?
+
+  name        String
+  coverUrl    String?
+  type        String?
+  description String?
+
+  startAt         DateTime
+  timezone        String
+  durationMinutes Int
+  mode            ClassMode
+  location        String?
+
+  // Stored in the instructor's currency's display unit (e.g. 8000 =
+  // NGN 8,000) — converted to minor units only at the payment-provider
+  // boundary in a later batch.
+  price         Int
+  originalPrice Int?
+  capacity      Int
+
+  status ClassStatus @default(DRAFT)
+
+  recurringLabel             String?
+  recurringDays              String[] @default([])
+  deadlineMinutesBeforeStart Int      @default(120)
+  cancellationPolicy         String?
+
+  publishedAt DateTime?
+  cancelledAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([instructorId])
+  @@index([seriesId])
 }

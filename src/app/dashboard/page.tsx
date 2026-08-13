@@ -7,8 +7,10 @@ import { DashboardShell } from "@/components/DashboardShell";
 import { EmptyState } from "@/components/EmptyState";
 import { StatusPill, paymentTone } from "@/components/StatusPill";
 import { Button } from "@/components/ui/button";
+import { prisma } from "@/lib/db";
 import { getCurrentInstructor } from "@/lib/get-current-instructor";
-import { attention, bookings, classById, classes, money, stats, timezoneLabel } from "@/lib/demo";
+import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
+import { attention, bookings, classById, money, stats, timezoneLabel } from "@/lib/demo";
 
 export const metadata: Metadata = {
   title: "Dashboard — Flowbuk",
@@ -27,7 +29,15 @@ export default async function Dashboard() {
     redirect("/onboarding");
   }
 
-  const upcoming = classes.filter((c) => c.status === "published" || c.status === "full");
+  const upcoming = await prisma.yogaClass.findMany({
+    where: {
+      instructorId: instructor.id,
+      status: { in: ["PUBLISHED", "FULL"] },
+      startAt: { gte: new Date() },
+    },
+    orderBy: { startAt: "asc" },
+    take: 5,
+  });
   const recent = bookings.slice(0, 5);
 
   return (
@@ -78,22 +88,25 @@ export default async function Dashboard() {
             <div className="mt-3 space-y-3">
               {upcoming.map((c) => (
                 <div key={c.id} className="surface flex items-center gap-4 p-4">
-                  <img
-                    src={c.cover}
-                    alt={c.name}
-                    loading="lazy"
-                    width={1200}
-                    height={800}
-                    className="size-16 rounded-lg object-cover"
-                  />
+                  {c.coverUrl ? (
+                    <img
+                      src={c.coverUrl}
+                      alt={c.name}
+                      loading="lazy"
+                      width={1200}
+                      height={800}
+                      className="size-16 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="size-16 shrink-0 rounded-lg bg-sand" />
+                  )}
                   <div className="min-w-0 flex-1">
                     <p className="font-medium">{c.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      {c.day} · {c.time} {timezoneLabel(c.timezone)} · {c.duration} min
+                      {formatClassDate(c)} · {formatClassTime(c)} {timezoneLabel(c.timezone)} ·{" "}
+                      {c.durationMinutes} min
                     </p>
-                    <p className="mt-1 text-sm">
-                      {c.booked} / {c.capacity} booked
-                    </p>
+                    <p className="mt-1 text-sm">0 / {c.capacity} booked</p>
                   </div>
                   <Button asChild variant="quiet" size="sm">
                     <Link href={`/dashboard/classes/${c.id}`}>View class</Link>

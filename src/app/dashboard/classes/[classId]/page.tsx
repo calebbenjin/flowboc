@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { notFound, redirect } from "next/navigation";
+import { prisma } from "@/lib/db";
+import { getCurrentInstructor } from "@/lib/get-current-instructor";
 import { ClassDetailClient } from "./class-detail-client";
 
 export const metadata: Metadata = {
@@ -18,5 +21,12 @@ export default async function ClassDetailPage({
   params: Promise<{ classId: string }>;
 }) {
   const { classId } = await params;
-  return <ClassDetailClient classId={classId} />;
+
+  const instructor = await getCurrentInstructor();
+  if (!instructor) redirect("/onboarding");
+
+  const cls = await prisma.yogaClass.findUnique({ where: { id: classId } });
+  if (!cls || cls.instructorId !== instructor.id) notFound();
+
+  return <ClassDetailClient cls={cls} />;
 }

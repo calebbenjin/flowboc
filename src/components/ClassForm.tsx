@@ -7,56 +7,43 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { currencies, instructor, timezones, type YogaClass } from "@/lib/demo";
+import { currencies, timezones } from "@/lib/demo";
+import { DEADLINE_OPTIONS, deadlineMinutesToLabel } from "@/lib/class-deadline";
+import { useInstructor } from "@/components/InstructorProvider";
 
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const dayNames: Record<string, string> = {
-  Mon: "Monday",
-  Tue: "Tuesday",
-  Wed: "Wednesday",
-  Thu: "Thursday",
-  Fri: "Friday",
-  Sat: "Saturday",
-  Sun: "Sunday",
+
+export type ClassFormInitial = {
+  name: string;
+  type: string;
+  description: string;
+  coverUrl: string | null;
+  recurring: boolean;
+  recurringDays: string[];
+  date: string;
+  time: string;
+  timezone: string;
+  durationMinutes: number;
+  online: boolean;
+  location: string;
+  capacity: number;
+  price: number;
+  originalPrice: number | null;
+  deadlineMinutesBeforeStart: number;
+  cancellationPolicy: string;
 };
-const deadlineOptions = [
-  "2 hours before start",
-  "1 hour before start",
-  "24 hours before start",
-  "Until class starts",
-];
-
-function parseRecurringDays(recurring?: string) {
-  if (!recurring) return [];
-  return days.filter((d) => recurring.includes(dayNames[d] ?? d));
-}
-
-// Best-effort conversion of the display strings in demo data ("7:00 AM",
-// "Tue, 11 Aug") into the value formats native date/time inputs expect.
-function to24HourTime(label?: string) {
-  const m = label ? /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(label.trim()) : null;
-  if (!m || !m[1] || !m[2] || !m[3]) return "07:00";
-  let hour = parseInt(m[1], 10) % 12;
-  if (m[3].toUpperCase() === "PM") hour += 12;
-  return `${String(hour).padStart(2, "0")}:${m[2]}`;
-}
-
-function toISODate(label?: string) {
-  if (!label) return "";
-  const parsed = new Date(`${label} ${new Date().getFullYear()}`);
-  if (Number.isNaN(parsed.getTime())) return "";
-  const year = parsed.getFullYear();
-  const month = String(parsed.getMonth() + 1).padStart(2, "0");
-  const day = String(parsed.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
 
 export type ClassFormProps = {
-  initial?: YogaClass;
+  initial?: ClassFormInitial;
   onSubmit: (e: FormEvent<HTMLFormElement>) => void;
   primaryLabel: string;
   secondaryLabel: string;
   onSecondary?: () => void;
+  // When true, the secondary button also submits the form (tagged
+  // name="intent" value="draft" vs the primary's value="publish") instead
+  // of just navigating away — used by "Create a class" for its "Save as
+  // draft" action.
+  secondarySubmits?: boolean;
   pending?: boolean;
 };
 
@@ -66,37 +53,51 @@ export function ClassForm({
   primaryLabel,
   secondaryLabel,
   onSecondary,
+  secondarySubmits = false,
   pending = false,
 }: ClassFormProps) {
-  const [recurring, setRecurring] = useState(Boolean(initial?.recurring));
-  const [online, setOnline] = useState(initial?.mode === "Online");
-  const [pickedDays, setPickedDays] = useState<string[]>(
-    initial ? parseRecurringDays(initial.recurring) : ["Tue", "Thu"],
-  );
+  const instructor = useInstructor();
+  const [recurring, setRecurring] = useState(initial?.recurring ?? false);
+  const [online, setOnline] = useState(initial?.online ?? false);
+  const [pickedDays, setPickedDays] = useState<string[]>(initial?.recurringDays ?? ["Tue", "Thu"]);
 
-  const deadlineList =
-    initial?.deadline && !deadlineOptions.includes(initial.deadline)
-      ? [initial.deadline, ...deadlineOptions]
-      : deadlineOptions;
+  const initialDeadlineLabel = initial
+    ? deadlineMinutesToLabel(initial.deadlineMinutesBeforeStart)
+    : DEADLINE_OPTIONS[0].label;
+  const standardLabels: string[] = DEADLINE_OPTIONS.map((o) => o.label);
+  const deadlineList = standardLabels.includes(initialDeadlineLabel)
+    ? standardLabels
+    : [initialDeadlineLabel, ...standardLabels];
 
   return (
     <form className="mt-6 space-y-8" onSubmit={onSubmit}>
+      <input type="hidden" name="recurring" value={recurring ? "true" : "false"} />
+      <input type="hidden" name="recurringDays" value={pickedDays.join(",")} />
+      <input type="hidden" name="online" value={online ? "true" : "false"} />
+
       <section className="surface space-y-4 p-6">
         <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">The class</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="cname">Class name</Label>
-            <Input id="cname" placeholder="Morning Flow" defaultValue={initial?.name} required />
+            <Input
+              id="cname"
+              name="name"
+              placeholder="Morning Flow"
+              defaultValue={initial?.name}
+              required
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="ctype">Class type</Label>
-            <Input id="ctype" placeholder="Vinyasa" defaultValue={initial?.type} />
+            <Input id="ctype" name="type" placeholder="Vinyasa" defaultValue={initial?.type} />
           </div>
         </div>
         <div className="space-y-2">
           <Label htmlFor="cdesc">Description</Label>
           <Textarea
             id="cdesc"
+            name="description"
             rows={3}
             placeholder="What should students expect?"
             defaultValue={initial?.description}
@@ -104,10 +105,10 @@ export function ClassForm({
         </div>
         <div className="space-y-2">
           <Label htmlFor="ccover">Cover photo</Label>
-          {initial?.cover ? (
+          {initial?.coverUrl ? (
             <div className="flex items-center gap-4">
               <img
-                src={initial.cover}
+                src={initial.coverUrl}
                 alt=""
                 className="h-20 w-20 shrink-0 rounded-lg object-cover"
               />
@@ -162,16 +163,23 @@ export function ClassForm({
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-2">
             <Label htmlFor="cdate">{recurring ? "Starts on" : "Date"}</Label>
-            <Input id="cdate" type="date" defaultValue={toISODate(initial?.date)} required />
+            <Input id="cdate" name="date" type="date" defaultValue={initial?.date} required />
           </div>
           <div className="space-y-2">
             <Label htmlFor="ctime">Start time</Label>
-            <Input id="ctime" type="time" defaultValue={to24HourTime(initial?.time)} required />
+            <Input
+              id="ctime"
+              name="time"
+              type="time"
+              defaultValue={initial?.time ?? "07:00"}
+              required
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="ctz">Timezone</Label>
             <select
               id="ctz"
+              name="timezone"
               defaultValue={initial?.timezone ?? "Africa/Lagos"}
               className="h-9 w-full rounded-md border border-input bg-card px-3 text-sm"
             >
@@ -184,7 +192,12 @@ export function ClassForm({
           </div>
           <div className="space-y-2">
             <Label htmlFor="cdur">Duration (min)</Label>
-            <Input id="cdur" type="number" defaultValue={initial?.duration ?? 60} />
+            <Input
+              id="cdur"
+              name="durationMinutes"
+              type="number"
+              defaultValue={initial?.durationMinutes ?? 60}
+            />
           </div>
         </div>
 
@@ -202,6 +215,7 @@ export function ClassForm({
           <Label htmlFor="cloc">{online ? "Meeting link" : "Location"}</Label>
           <Input
             id="cloc"
+            name="location"
             placeholder={online ? "https://zoom.us/j/…" : "Freedom Park Studio, Lekki"}
             defaultValue={initial?.location}
           />
@@ -217,8 +231,9 @@ export function ClassForm({
             <Label htmlFor="ccur">Currency</Label>
             <select
               id="ccur"
+              disabled
               defaultValue={instructor.currency}
-              className="h-9 w-full rounded-md border border-input bg-card px-3 text-sm"
+              className="h-9 w-full rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground"
             >
               {currencies.map((c) => (
                 <option key={c.code} value={c.code}>
@@ -226,22 +241,32 @@ export function ClassForm({
                 </option>
               ))}
             </select>
+            <p className="text-xs text-muted-foreground">
+              Matches your account currency. Change it from your profile.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="ccap">Max capacity</Label>
-            <Input id="ccap" type="number" defaultValue={initial?.capacity ?? 12} />
+            <Input id="ccap" name="capacity" type="number" defaultValue={initial?.capacity ?? 12} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="cprice">Price</Label>
-            <Input id="cprice" type="number" placeholder="8000" defaultValue={initial?.price} />
+            <Input
+              id="cprice"
+              name="price"
+              type="number"
+              placeholder="8000"
+              defaultValue={initial?.price}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="coprice">Original price (optional)</Label>
             <Input
               id="coprice"
+              name="originalPrice"
               type="number"
               placeholder="e.g. 9500 to show a discount"
-              defaultValue={initial?.originalPrice}
+              defaultValue={initial?.originalPrice ?? undefined}
             />
           </div>
         </div>
@@ -250,7 +275,8 @@ export function ClassForm({
             <Label htmlFor="cdead">Booking deadline</Label>
             <select
               id="cdead"
-              defaultValue={initial?.deadline}
+              name="deadline"
+              defaultValue={initialDeadlineLabel}
               className="h-9 w-full rounded-md border border-input bg-card px-3 text-sm"
             >
               {deadlineList.map((d) => (
@@ -262,8 +288,9 @@ export function ClassForm({
             <Label htmlFor="ccancel">Cancellation policy</Label>
             <Input
               id="ccancel"
+              name="cancellationPolicy"
               defaultValue={
-                initial?.cancellation ?? "Free cancellation up to 12 hours before class."
+                initial?.cancellationPolicy ?? "Free cancellation up to 12 hours before class."
               }
             />
           </div>
@@ -271,10 +298,24 @@ export function ClassForm({
       </section>
 
       <div className="flex flex-wrap justify-end gap-3">
-        <Button type="button" variant="ghost" onClick={onSecondary} disabled={pending}>
+        <Button
+          type={secondarySubmits ? "submit" : "button"}
+          name={secondarySubmits ? "intent" : undefined}
+          value={secondarySubmits ? "draft" : undefined}
+          variant="ghost"
+          onClick={secondarySubmits ? undefined : onSecondary}
+          disabled={pending}
+        >
           {secondaryLabel}
         </Button>
-        <Button type="submit" variant="clay" size="lg" disabled={pending}>
+        <Button
+          type="submit"
+          name={secondarySubmits ? "intent" : undefined}
+          value={secondarySubmits ? "publish" : undefined}
+          variant="clay"
+          size="lg"
+          disabled={pending}
+        >
           {pending ? (
             <>
               <Loader2 className="size-4 animate-spin" /> Saving…

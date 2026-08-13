@@ -3,18 +3,11 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { payoutProviderForCurrency } from "@/lib/payout";
+import { requireInstructor } from "@/lib/require-instructor";
 import { checkSlugAvailable } from "@/app/onboarding/actions";
 import type { CurrencyCode, SocialPlatform } from "@/generated/prisma/enums";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
-
-async function requireInstructor() {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not authenticated");
-  const instructor = await prisma.instructor.findUnique({ where: { userId: session.user.id } });
-  if (!instructor) throw new Error("No instructor profile for this account");
-  return instructor;
-}
 
 export async function updateProfile(input: {
   name: string;

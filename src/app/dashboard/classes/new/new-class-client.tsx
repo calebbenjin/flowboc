@@ -2,13 +2,72 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { DashboardShell } from "@/components/DashboardShell";
 import { ClassForm } from "@/components/ClassForm";
-import { useMockAction } from "@/hooks/use-mock-action";
+import { createClass, type ClassInput } from "../actions";
+
+function readClassFormData(formData: FormData): Omit<ClassInput, "status"> {
+  const num = (key: string, fallback = 0) => {
+    const raw = formData.get(key);
+    const n = raw ? Number(raw) : NaN;
+    return Number.isFinite(n) ? n : fallback;
+  };
+  const optionalNum = (key: string) => {
+    const raw = formData.get(key);
+    if (!raw) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  return {
+    name: String(formData.get("name") ?? ""),
+    type: String(formData.get("type") ?? ""),
+    description: String(formData.get("description") ?? ""),
+    recurring: formData.get("recurring") === "true",
+    recurringDays: String(formData.get("recurringDays") ?? "")
+      .split(",")
+      .filter(Boolean),
+    date: String(formData.get("date") ?? ""),
+    time: String(formData.get("time") ?? ""),
+    timezone: String(formData.get("timezone") ?? "Africa/Lagos"),
+    durationMinutes: num("durationMinutes", 60),
+    online: formData.get("online") === "true",
+    location: String(formData.get("location") ?? ""),
+    capacity: num("capacity", 12),
+    price: num("price", 0),
+    originalPrice: optionalNum("originalPrice"),
+    deadlineLabel: String(formData.get("deadline") ?? "2 hours before start"),
+    cancellationPolicy: String(formData.get("cancellationPolicy") ?? ""),
+  };
+}
 
 export function NewClassClient() {
   const router = useRouter();
-  const { pending, run } = useMockAction();
+  const [pending, setPending] = useState(false);
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const intent = String(formData.get("intent") ?? "publish");
+
+    setPending(true);
+    try {
+      const result = await createClass({
+        ...readClassFormData(formData),
+        status: intent === "draft" ? "DRAFT" : "PUBLISHED",
+      });
+      if (result.ok) {
+        toast.success(intent === "draft" ? "Saved as draft" : "Class published");
+        router.push("/dashboard/classes");
+      } else {
+        toast.error(result.error);
+      }
+    } finally {
+      setPending(false);
+    }
+  }
 
   return (
     <DashboardShell>
@@ -21,14 +80,9 @@ export function NewClassClient() {
         <ClassForm
           primaryLabel="Publish class"
           secondaryLabel="Save as draft"
+          secondarySubmits
           pending={pending}
-          onSubmit={(e) => {
-            e.preventDefault();
-            run({
-              success: "Class published",
-              onDone: () => router.push("/dashboard/classes"),
-            });
-          }}
+          onSubmit={handleSubmit}
         />
       </div>
     </DashboardShell>

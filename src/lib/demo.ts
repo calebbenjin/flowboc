@@ -38,7 +38,7 @@ export const timezones = [
 
 export type TimezoneCode = (typeof timezones)[number]["value"];
 
-export function timezoneLabel(value: TimezoneCode) {
+export function timezoneLabel(value: string) {
   return timezones.find((t) => t.value === value)?.label ?? value;
 }
 

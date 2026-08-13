@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/db";
+import { getCurrentInstructor } from "@/lib/get-current-instructor";
 import { ClassesClient } from "./classes-client";
 
 export const metadata: Metadata = {
@@ -12,6 +15,14 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image" },
 };
 
-export default function ClassesPage() {
-  return <ClassesClient />;
+export default async function ClassesPage() {
+  const instructor = await getCurrentInstructor();
+  if (!instructor) redirect("/onboarding");
+
+  const classes = await prisma.yogaClass.findMany({
+    where: { instructorId: instructor.id },
+    orderBy: { startAt: "asc" },
+  });
+
+  return <ClassesClient classes={classes} />;
 }
