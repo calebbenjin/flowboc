@@ -3,44 +3,131 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { signIn } from "next-auth/react";
 import { toast } from "sonner";
 import { Check, Loader2, MailCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { useMockAction } from "@/hooks/use-mock-action";
+import { forgotPassword, resendOtp, resetPassword, signUp, verifyOtp } from "./actions";
 
-type Mode = "signup" | "login" | "verify" | "forgot" | "forgot-sent";
+type Mode = "signup" | "login" | "verify" | "forgot" | "forgot-sent" | "reset";
 
 export function AuthClient() {
-  const [mode, setMode] = useState<Mode>("signup");
-  const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState("");
   const router = useRouter();
   const searchParams = useSearchParams();
   const refParam = searchParams.get("ref");
-  const [referralCode, setReferralCode] = useState(refParam ?? "");
-  const { pending, run } = useMockAction();
+  const resetToken = searchParams.get("token");
 
-  function handleAuthSubmit(e: FormEvent<HTMLFormElement>) {
+  const [mode, setMode] = useState<Mode>(resetToken ? "reset" : "signup");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [otp, setOtp] = useState("");
+  const [referralCode, setReferralCode] = useState(refParam ?? "");
+  const [pending, setPending] = useState(false);
+
+  async function handleAuthSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (mode === "signup") {
-      run({ success: "Account created", onDone: () => setMode("verify") });
-    } else {
-      run({ success: "Welcome back", onDone: () => router.push("/dashboard") });
+    const formData = new FormData(e.currentTarget);
+    const emailValue = String(formData.get("email") ?? "");
+    const passwordValue = String(formData.get("password") ?? "");
+    setEmail(emailValue);
+    setPassword(passwordValue);
+
+    setPending(true);
+    try {
+      if (mode === "signup") {
+        const nameValue = String(formData.get("name") ?? "");
+        const referralValue = String(formData.get("referralCode") ?? "");
+        const result = await signUp({
+          name: nameValue,
+          email: emailValue,
+          password: passwordValue,
+          referralCode: referralValue,
+        });
+        if (result.ok) {
+          toast.success("Account created");
+          setMode("verify");
+        } else {
+          toast.error(result.error);
+        }
+      } else {
+        const result = await signIn("credentials", {
+          email: emailValue,
+          password: passwordValue,
+          redirect: false,
+        });
+        if (result?.error) {
+          toast.error("Invalid email or password");
+        } else {
+          toast.success("Welcome back");
+          router.push("/dashboard");
+        }
+      }
+    } finally {
+      setPending(false);
     }
   }
 
-  function handleVerify(e: FormEvent<HTMLFormElement>) {
+  async function handleVerify(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (otp.length !== 6) return;
-    run({ success: "Email verified", onDone: () => router.push("/onboarding") });
+
+    setPending(true);
+    try {
+      const result = await verifyOtp({ email, code: otp });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Email verified");
+
+      const signInResult = await signIn("credentials", { email, password, redirect: false });
+      router.push(signInResult?.error ? "/auth" : "/onboarding");
+    } finally {
+      setPending(false);
+    }
   }
 
-  function handleForgotSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleResend() {
+    const result = await resendOtp({ email });
+    if (result.ok) {
+      toast.success("Code resent");
+    } else {
+      toast.error(result.error);
+    }
+  }
+
+  async function handleForgotSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    run({ success: "Reset link sent", onDone: () => setMode("forgot-sent") });
+    setPending(true);
+    try {
+      await forgotPassword({ email });
+      setMode("forgot-sent");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function handleResetSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const newPassword = String(formData.get("newPassword") ?? "");
+
+    setPending(true);
+    try {
+      const result = await resetPassword({ token: resetToken ?? "", newPassword });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Password reset. Please log in.");
+      router.replace("/auth");
+      setMode("login");
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -89,7 +176,7 @@ export function AuthClient() {
             <button
               type="button"
               className="mt-4 text-sm text-muted-foreground underline underline-offset-4"
-              onClick={() => toast.success("Code resent")}
+              onClick={handleResend}
             >
               Resend code
             </button>
@@ -105,6 +192,7 @@ export function AuthClient() {
                 <Label htmlFor="femail">Email</Label>
                 <Input
                   id="femail"
+                  name="email"
                   type="email"
                   required
                   value={email}
@@ -148,6 +236,44 @@ export function AuthClient() {
               Back to log in
             </button>
           </div>
+        ) : mode === "reset" ? (
+          <div className="surface mt-6 p-8">
+            <h1 className="text-2xl">Set a new password</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Choose a new password for your account.
+            </p>
+            <form className="mt-6 space-y-4" onSubmit={handleResetSubmit}>
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">New password</Label>
+                <Input
+                  id="newPassword"
+                  name="newPassword"
+                  type="password"
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+              <Button type="submit" variant="clay" size="lg" className="w-full" disabled={pending}>
+                {pending ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" /> Resetting…
+                  </>
+                ) : (
+                  "Reset password"
+                )}
+              </Button>
+            </form>
+            <button
+              type="button"
+              className="mt-4 text-sm text-muted-foreground underline underline-offset-4"
+              onClick={() => {
+                router.replace("/auth");
+                setMode("login");
+              }}
+            >
+              Back to log in
+            </button>
+          </div>
         ) : (
           <div className="surface mt-6 p-8">
             <h1 className="text-2xl">
@@ -170,13 +296,14 @@ export function AuthClient() {
               {mode === "signup" && (
                 <div className="space-y-2">
                   <Label htmlFor="name">Full name</Label>
-                  <Input id="name" placeholder="Sarah Boone" required />
+                  <Input id="name" name="name" placeholder="Sarah Boone" required />
                 </div>
               )}
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
+                  name="email"
                   type="email"
                   placeholder="you@studio.com"
                   required
@@ -186,13 +313,20 @@ export function AuthClient() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" placeholder="••••••••" required />
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder="••••••••"
+                  required
+                />
               </div>
               {mode === "signup" && (
                 <div className="space-y-2">
                   <Label htmlFor="refcode">Referral code (optional)</Label>
                   <Input
                     id="refcode"
+                    name="referralCode"
                     value={referralCode}
                     onChange={(e) => setReferralCode(e.target.value)}
                     placeholder="e.g. SARAH20"

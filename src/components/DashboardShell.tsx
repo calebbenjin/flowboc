@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { toast } from "sonner";
+import { signOut } from "next-auth/react";
 import {
   CalendarDays,
   LayoutDashboard,
@@ -38,11 +38,8 @@ const nav = [
 const mobileNav = nav.filter((item) => item.mobile);
 
 function UserMenu({ compact = false }: { compact?: boolean }) {
-  const router = useRouter();
-
   function handleLogout() {
-    toast.success("You've been logged out");
-    router.push("/auth");
+    void signOut({ callbackUrl: "/auth" });
   }
 
   const initials = instructor.name
