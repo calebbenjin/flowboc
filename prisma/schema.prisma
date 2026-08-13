@@ -35,6 +35,78 @@ model User {
   // the Instructor row (later batch).
   pendingReferralCode String?
 
+  instructor Instructor?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+enum CurrencyCode {
+  NGN
+  USD
+  GBP
+  EUR
+  ZAR
+  KES
+}
+
+enum SocialPlatform {
+  INSTAGRAM
+  TIKTOK
+  YOUTUBE
+  FACEBOOK
+  TWITTER
+  WHATSAPP
+  LINKEDIN
+}
+
+enum PayoutProvider {
+  STRIPE
+  PAYSTACK
+}
+
+enum PayoutStatus {
+  NOT_CONNECTED
+  PENDING
+  CONNECTED
+  RESTRICTED
+}
+
+model Instructor {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name             String
+  slug             String  @unique
+  photoUrl         String?
+  bio              String?
+  location         String?
+  email            String
+  phone            String?
+  consultationLink String?
+  specialties      String[] @default([])
+
+  currency              CurrencyCode @default(NGN)
+  onboardingCompletedAt DateTime?
+
+  payoutProvider   PayoutProvider @default(STRIPE)
+  payoutStatus     PayoutStatus   @default(NOT_CONNECTED)
+  payoutAccountId  String?
+  payoutBankLabel  String?
+
+  socials InstructorSocial[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model InstructorSocial {
+  id           String         @id @default(cuid())
+  instructorId String
+  instructor   Instructor     @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+  platform     SocialPlatform
+  handle       String
+
+  @@unique([instructorId, platform])
 }
