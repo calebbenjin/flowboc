@@ -1,21 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ArrowUpRight, AlertCircle, CalendarDays, CheckCircle2, Users } from "lucide-react";
 import { BookingLinkAction } from "@/components/BookingLinkAction";
 import { DashboardShell } from "@/components/DashboardShell";
 import { EmptyState } from "@/components/EmptyState";
 import { StatusPill, paymentTone } from "@/components/StatusPill";
 import { Button } from "@/components/ui/button";
-import {
-  attention,
-  bookings,
-  classById,
-  classes,
-  instructor,
-  money,
-  stats,
-  timezoneLabel,
-} from "@/lib/demo";
+import { getCurrentInstructor } from "@/lib/get-current-instructor";
+import { attention, bookings, classById, classes, money, stats, timezoneLabel } from "@/lib/demo";
 
 export const metadata: Metadata = {
   title: "Dashboard — Flowbuk",
@@ -28,7 +21,12 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image" },
 };
 
-export default function Dashboard() {
+export default async function Dashboard() {
+  const instructor = await getCurrentInstructor();
+  if (!instructor) {
+    redirect("/onboarding");
+  }
+
   const upcoming = classes.filter((c) => c.status === "published" || c.status === "full");
   const recent = bookings.slice(0, 5);
 

@@ -22,7 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { instructor } from "@/lib/demo";
+import { useInstructor } from "@/components/InstructorProvider";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -38,6 +38,8 @@ const nav = [
 const mobileNav = nav.filter((item) => item.mobile);
 
 function UserMenu({ compact = false }: { compact?: boolean }) {
+  const instructor = useInstructor();
+
   function handleLogout() {
     void signOut({ callbackUrl: "/auth" });
   }
@@ -90,6 +92,7 @@ function UserMenu({ compact = false }: { compact?: boolean }) {
 
 export function DashboardShell({ children }: { children: ReactNode }) {
   const path = usePathname();
+  const instructor = useInstructor();
 
   return (
     <div className="min-h-screen bg-background">

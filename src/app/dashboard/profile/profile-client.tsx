@@ -2,9 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState, type FormEvent } from "react";
+import { signOut } from "next-auth/react";
+import { upload } from "@vercel/blob/client";
+import { toast } from "sonner";
 import { ArrowUpRight, Gift, Landmark, Loader2 } from "lucide-react";
 import { DashboardShell } from "@/components/DashboardShell";
+import { useInstructor } from "@/components/InstructorProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,8 +21,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { currencies, instructor, referralProgram, socialPlatforms } from "@/lib/demo";
-import { useMockAction } from "@/hooks/use-mock-action";
+import { currencies, referralProgram, socialPlatforms } from "@/lib/demo";
+import type { CurrencyCode, SocialPlatform } from "@/generated/prisma/enums";
+import { deleteAccount, updatePhoto, updateProfile, updateSocials } from "./actions";
 
 const quickLinks = [
   {
@@ -39,11 +44,109 @@ const quickLinks = [
 
 export function ProfileClient() {
   const router = useRouter();
-  const profileAction = useMockAction();
-  const socialsAction = useMockAction();
-  const deleteAction = useMockAction();
+  const instructor = useInstructor();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [profilePending, setProfilePending] = useState(false);
+  const [socialsPending, setSocialsPending] = useState(false);
+  const [deletePending, setDeletePending] = useState(false);
+  const [photoPending, setPhotoPending] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
+
+  async function handleProfileSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+
+    setProfilePending(true);
+    try {
+      const result = await updateProfile({
+        name: String(formData.get("name") ?? ""),
+        location: String(formData.get("location") ?? ""),
+        bio: String(formData.get("bio") ?? ""),
+        email: String(formData.get("email") ?? ""),
+        phone: String(formData.get("phone") ?? ""),
+        currency: String(formData.get("currency") ?? "NGN") as CurrencyCode,
+        slug: String(formData.get("slug") ?? ""),
+        consultationLink: String(formData.get("consultationLink") ?? ""),
+      });
+      if (result.ok) {
+        toast.success("Profile updated");
+        router.refresh();
+      } else {
+        toast.error(result.error);
+      }
+    } finally {
+      setProfilePending(false);
+    }
+  }
+
+  async function handleSocialsSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+
+    const handles: Partial<Record<SocialPlatform, string>> = {};
+    for (const p of socialPlatforms) {
+      const platform = p.platform.toUpperCase() as SocialPlatform;
+      handles[platform] = String(formData.get(`social-${p.platform}`) ?? "");
+    }
+
+    setSocialsPending(true);
+    try {
+      const result = await updateSocials(handles);
+      if (result.ok) {
+        toast.success("Socials updated");
+        router.refresh();
+      } else {
+        toast.error(result.error);
+      }
+    } finally {
+      setSocialsPending(false);
+    }
+  }
+
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    setPhotoPending(true);
+    try {
+      const blob = await upload(file.name, file, {
+        access: "public",
+        handleUploadUrl: "/api/upload",
+      });
+      const result = await updatePhoto(blob.url);
+      if (result.ok) {
+        toast.success("Photo updated");
+        router.refresh();
+      } else {
+        toast.error(result.error);
+      }
+    } catch {
+      toast.error("Couldn't upload photo. Please try again.");
+    } finally {
+      setPhotoPending(false);
+    }
+  }
+
+  async function handleDelete() {
+    setDeletePending(true);
+    try {
+      const result = await deleteAccount();
+      if (!result.ok) {
+        toast.error(result.error);
+        setDeletePending(false);
+        return;
+      }
+      // The JWT session cookie stays valid until it's explicitly cleared, so
+      // sign out immediately rather than navigating anywhere that would
+      // re-query the now-deleted account.
+      await signOut({ callbackUrl: "/" });
+    } catch {
+      setDeletePending(false);
+    }
+  }
 
   return (
     <DashboardShell>
@@ -71,21 +174,42 @@ export function ProfileClient() {
         </div>
 
         <div className="surface mt-6 flex flex-wrap items-center gap-5 p-6">
-          <img
-            src={instructor.photo}
-            alt={instructor.name}
-            loading="lazy"
-            width={800}
-            height={800}
-            className="size-20 rounded-full object-cover"
-          />
+          {instructor.photoUrl ? (
+            <img
+              src={instructor.photoUrl}
+              alt={instructor.name}
+              loading="lazy"
+              width={800}
+              height={800}
+              className="size-20 rounded-full object-cover"
+            />
+          ) : (
+            <div className="grid size-20 shrink-0 place-items-center rounded-full bg-clay/12 text-lg font-medium text-clay">
+              {instructor.name
+                .split(" ")
+                .map((n) => n[0])
+                .join("")}
+            </div>
+          )}
           <div className="flex-1">
             <p className="font-medium">{instructor.name}</p>
             <p className="text-sm text-muted-foreground">flowbuk.com/{instructor.slug}</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="quiet" size="sm">
-              Change photo
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="hidden"
+              onChange={(e) => void handlePhotoChange(e)}
+            />
+            <Button
+              variant="quiet"
+              size="sm"
+              disabled={photoPending}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {photoPending ? <Loader2 className="size-4 animate-spin" /> : "Change photo"}
             </Button>
             <Button asChild size="sm" variant="ghost">
               <Link href={`/${instructor.slug}`}>View page</Link>
@@ -93,40 +217,35 @@ export function ProfileClient() {
           </div>
         </div>
 
-        <form
-          className="surface mt-6 space-y-4 p-6"
-          onSubmit={(e) => {
-            e.preventDefault();
-            profileAction.run({ success: "Profile updated" });
-          }}
-        >
+        <form className="surface mt-6 space-y-4 p-6" onSubmit={handleProfileSubmit}>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="n">Display name</Label>
-              <Input id="n" defaultValue={instructor.name} />
+              <Input id="n" name="name" defaultValue={instructor.name} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="l">Location</Label>
-              <Input id="l" defaultValue={instructor.location} />
+              <Input id="l" name="location" defaultValue={instructor.location ?? ""} />
             </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="b">Bio</Label>
-            <Textarea id="b" rows={3} defaultValue={instructor.bio} />
+            <Textarea id="b" name="bio" rows={3} defaultValue={instructor.bio ?? ""} />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="e">Email</Label>
-              <Input id="e" defaultValue={instructor.email} />
+              <Input id="e" name="email" defaultValue={instructor.email} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="p">Phone</Label>
-              <Input id="p" defaultValue={instructor.phone} />
+              <Input id="p" name="phone" defaultValue={instructor.phone ?? ""} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="c">Currency</Label>
               <select
                 id="c"
+                name="currency"
                 defaultValue={instructor.currency}
                 className="h-9 w-full rounded-md border border-input bg-card px-3 text-sm"
               >
@@ -142,14 +261,15 @@ export function ProfileClient() {
             <Label htmlFor="s">Booking link</Label>
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">flowbuk.com/</span>
-              <Input id="s" defaultValue={instructor.slug} />
+              <Input id="s" name="slug" defaultValue={instructor.slug} />
             </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="consult">Consultation booking link</Label>
             <Input
               id="consult"
-              defaultValue={instructor.consultationLink}
+              name="consultationLink"
+              defaultValue={instructor.consultationLink ?? ""}
               placeholder="https://calendly.com/you/consultation"
             />
             <p className="text-xs text-muted-foreground">
@@ -158,8 +278,8 @@ export function ProfileClient() {
             </p>
           </div>
           <div className="flex justify-end">
-            <Button type="submit" variant="clay" disabled={profileAction.pending}>
-              {profileAction.pending ? (
+            <Button type="submit" variant="clay" disabled={profilePending}>
+              {profilePending ? (
                 <>
                   <Loader2 className="size-4 animate-spin" /> Saving…
                 </>
@@ -170,13 +290,7 @@ export function ProfileClient() {
           </div>
         </form>
 
-        <form
-          className="surface mt-6 space-y-4 p-6"
-          onSubmit={(e) => {
-            e.preventDefault();
-            socialsAction.run({ success: "Socials updated" });
-          }}
-        >
+        <form className="surface mt-6 space-y-4 p-6" onSubmit={handleSocialsSubmit}>
           <div>
             <h2 className="text-sm font-medium">Socials</h2>
             <p className="text-xs text-muted-foreground">
@@ -189,15 +303,19 @@ export function ProfileClient() {
                 <Label htmlFor={`social-${p.platform}`}>{p.label}</Label>
                 <Input
                   id={`social-${p.platform}`}
+                  name={`social-${p.platform}`}
                   placeholder={p.placeholder}
-                  defaultValue={instructor.socials.find((s) => s.platform === p.platform)?.handle}
+                  defaultValue={
+                    instructor.socials.find((s) => s.platform === p.platform.toUpperCase())
+                      ?.handle ?? ""
+                  }
                 />
               </div>
             ))}
           </div>
           <div className="flex justify-end">
-            <Button type="submit" variant="clay" disabled={socialsAction.pending}>
-              {socialsAction.pending ? (
+            <Button type="submit" variant="clay" disabled={socialsPending}>
+              {socialsPending ? (
                 <>
                   <Loader2 className="size-4 animate-spin" /> Saving…
                 </>
@@ -256,15 +374,10 @@ export function ProfileClient() {
             </Button>
             <Button
               variant="destructive"
-              disabled={confirmText !== "DELETE" || deleteAction.pending}
-              onClick={() =>
-                deleteAction.run({
-                  success: "Account deleted",
-                  onDone: () => router.push("/"),
-                })
-              }
+              disabled={confirmText !== "DELETE" || deletePending}
+              onClick={() => void handleDelete()}
             >
-              {deleteAction.pending ? (
+              {deletePending ? (
                 <>
                   <Loader2 className="size-4 animate-spin" /> Deleting…
                 </>

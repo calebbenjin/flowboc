@@ -1,15 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { Building2, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { currencies, instructor, payoutProviderForCurrency, payoutProviderInfo } from "@/lib/demo";
-import { useMockAction } from "@/hooks/use-mock-action";
+import { currencies, payoutProviderInfo } from "@/lib/demo";
+import { payoutProviderForCurrency } from "@/lib/payout";
+import { checkSlugAvailable, completeOnboarding, saveProfile, skipOnboarding } from "./actions";
+import type { CurrencyCode } from "@/generated/prisma/enums";
 
 const specialties = [
   "Vinyasa",
@@ -24,17 +28,111 @@ const specialties = [
 
 type Step = "profile" | "payout" | "done";
 
-export function OnboardingClient() {
+type Defaults = {
+  name: string;
+  location: string;
+  bio: string;
+  phone: string;
+  instagram: string;
+  specialties: string[];
+  slug: string;
+  currency: CurrencyCode;
+};
+
+export function OnboardingClient({ defaults }: { defaults: Defaults }) {
+  const router = useRouter();
   const [step, setStep] = useState<Step>("profile");
-  const [slug, setSlug] = useState(instructor.slug);
-  const [currency, setCurrency] = useState(instructor.currency);
-  const [picked, setPicked] = useState<string[]>(["Vinyasa", "Yin"]);
-  const [payoutConnected, setPayoutConnected] = useState(false);
-  const profileAction = useMockAction();
-  const payoutAction = useMockAction();
+  const [slug, setSlug] = useState(defaults.slug);
+  const [slugStatus, setSlugStatus] = useState<{
+    checking: boolean;
+    message: string | null;
+    ok: boolean;
+  }>({ checking: false, message: null, ok: true });
+  const [currency, setCurrency] = useState<CurrencyCode>(defaults.currency);
+  const [picked, setPicked] = useState<string[]>(defaults.specialties);
+  const [profilePending, setProfilePending] = useState(false);
+  const [payoutPending, setPayoutPending] = useState(false);
+  const [skipPending, setSkipPending] = useState(false);
 
   const provider = payoutProviderForCurrency(currency);
-  const providerInfo = payoutProviderInfo[provider];
+  const providerInfo = payoutProviderInfo[provider === "PAYSTACK" ? "paystack" : "stripe"];
+
+  async function handleSlugBlur() {
+    const trimmed = slug.trim().toLowerCase();
+    if (!trimmed || trimmed === defaults.slug) {
+      setSlugStatus({ checking: false, message: null, ok: true });
+      return;
+    }
+    setSlugStatus({ checking: true, message: null, ok: true });
+    const result = await checkSlugAvailable(trimmed);
+    setSlugStatus({
+      checking: false,
+      ok: result.available,
+      message: result.available ? "This link is available" : (result.reason ?? "Unavailable"),
+    });
+  }
+
+  async function handleProfileSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+
+    setProfilePending(true);
+    try {
+      const result = await saveProfile({
+        name: String(formData.get("name") ?? ""),
+        location: String(formData.get("location") ?? ""),
+        bio: String(formData.get("bio") ?? ""),
+        phone: String(formData.get("phone") ?? ""),
+        instagramHandle: String(formData.get("instagram") ?? ""),
+        specialties: picked,
+        slug,
+        currency,
+      });
+      if (result.ok) {
+        toast.success("Profile saved");
+        setStep("payout");
+      } else {
+        toast.error(result.error);
+      }
+    } finally {
+      setProfilePending(false);
+    }
+  }
+
+  async function finishOnboarding() {
+    const result = await completeOnboarding();
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    setStep("done");
+  }
+
+  async function handleSkip() {
+    setSkipPending(true);
+    try {
+      const result = await skipOnboarding();
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      router.push("/dashboard");
+    } finally {
+      setSkipPending(false);
+    }
+  }
+
+  async function handleConnectPayout() {
+    setPayoutPending(true);
+    try {
+      // Real Stripe Connect / Paystack subaccount onboarding lands in a
+      // later batch — for now this just marks onboarding complete.
+      await finishOnboarding();
+      toast.success(`Connected to ${providerInfo.name}`);
+    } finally {
+      setPayoutPending(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-sand/60 px-4 py-12">
@@ -50,17 +148,13 @@ export function OnboardingClient() {
             </div>
             <h1 className="mt-5 text-2xl">Your booking page is ready</h1>
             <p className="mt-2 text-sm text-muted-foreground">flowbuk.com/{slug}</p>
-            {payoutConnected ? (
-              <p className="mt-4 text-muted-foreground">Create your first class.</p>
-            ) : (
-              <p className="mt-4 text-muted-foreground">
-                Create your first class. You can{" "}
-                <Link href="/dashboard/payouts" className="text-clay hover:underline">
-                  connect a payout account
-                </Link>{" "}
-                anytime before your first booking.
-              </p>
-            )}
+            <p className="mt-4 text-muted-foreground">
+              Create your first class. You can{" "}
+              <Link href="/dashboard/payouts" className="text-clay hover:underline">
+                connect a payout account
+              </Link>{" "}
+              anytime before your first booking.
+            </p>
             <div className="mt-7 flex flex-wrap justify-center gap-3">
               <Button asChild variant="clay" size="lg">
                 <Link href="/dashboard/classes/new">Create first class</Link>
@@ -98,32 +192,17 @@ export function OnboardingClient() {
             <div className="flex items-center justify-between pt-2">
               <Badge variant="secondary">Step 2 of 2</Badge>
               <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    setPayoutConnected(false);
-                    setStep("done");
-                  }}
-                >
+                <Button type="button" variant="ghost" onClick={() => void finishOnboarding()}>
                   I&apos;ll do this later
                 </Button>
                 <Button
                   type="button"
                   variant="clay"
                   size="lg"
-                  disabled={payoutAction.pending}
-                  onClick={() =>
-                    payoutAction.run({
-                      success: `Connected to ${providerInfo.name}`,
-                      onDone: () => {
-                        setPayoutConnected(true);
-                        setStep("done");
-                      },
-                    })
-                  }
+                  disabled={payoutPending}
+                  onClick={() => void handleConnectPayout()}
                 >
-                  {payoutAction.pending ? (
+                  {payoutPending ? (
                     <>
                       <Loader2 className="size-4 animate-spin" /> Connecting…
                     </>
@@ -135,13 +214,7 @@ export function OnboardingClient() {
             </div>
           </div>
         ) : (
-          <form
-            className="surface mt-8 space-y-6 p-8"
-            onSubmit={(e) => {
-              e.preventDefault();
-              profileAction.run({ success: "Profile saved", onDone: () => setStep("payout") });
-            }}
-          >
+          <form className="surface mt-8 space-y-6 p-8" onSubmit={handleProfileSubmit}>
             <div>
               <h1 className="text-2xl">Set up your profile</h1>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -152,29 +225,30 @@ export function OnboardingClient() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="pname">Display name</Label>
-                <Input id="pname" defaultValue={instructor.name} />
+                <Input id="pname" name="name" defaultValue={defaults.name} required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="loc">Location</Label>
-                <Input id="loc" defaultValue={instructor.location} />
+                <Input id="loc" name="location" defaultValue={defaults.location} />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="bio">Bio</Label>
-              <Textarea id="bio" rows={3} defaultValue={instructor.bio} />
+              <Textarea id="bio" name="bio" rows={3} defaultValue={defaults.bio} />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone</Label>
-                <Input id="phone" defaultValue={instructor.phone} />
+                <Input id="phone" name="phone" defaultValue={defaults.phone} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="ig">Instagram</Label>
                 <Input
                   id="ig"
-                  defaultValue={instructor.socials.find((s) => s.platform === "instagram")?.handle}
+                  name="instagram"
+                  defaultValue={defaults.instagram}
                   placeholder="@yourhandle"
                 />
               </div>
@@ -208,15 +282,29 @@ export function OnboardingClient() {
                 <Label htmlFor="slug">Booking page link</Label>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">flowbuk.com/</span>
-                  <Input id="slug" value={slug} onChange={(e) => setSlug(e.target.value)} />
+                  <Input
+                    id="slug"
+                    value={slug}
+                    onChange={(e) => setSlug(e.target.value)}
+                    onBlur={() => void handleSlugBlur()}
+                  />
                 </div>
+                {slugStatus.checking ? (
+                  <p className="text-xs text-muted-foreground">Checking availability…</p>
+                ) : slugStatus.message ? (
+                  <p
+                    className={slugStatus.ok ? "text-xs text-success" : "text-xs text-destructive"}
+                  >
+                    {slugStatus.message}
+                  </p>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="cur">Currency</Label>
                 <select
                   id="cur"
                   value={currency}
-                  onChange={(e) => setCurrency(e.target.value as typeof currency)}
+                  onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
                   className="h-9 w-full rounded-md border border-input bg-card px-3 text-sm"
                 >
                   {currencies.map((c) => (
@@ -231,11 +319,21 @@ export function OnboardingClient() {
             <div className="flex items-center justify-between pt-2">
               <Badge variant="secondary">Step 1 of 2</Badge>
               <div className="flex gap-2">
-                <Button type="button" variant="ghost" asChild>
-                  <Link href="/dashboard">Skip for now</Link>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={skipPending}
+                  onClick={() => void handleSkip()}
+                >
+                  Skip for now
                 </Button>
-                <Button type="submit" variant="clay" size="lg" disabled={profileAction.pending}>
-                  {profileAction.pending ? (
+                <Button
+                  type="submit"
+                  variant="clay"
+                  size="lg"
+                  disabled={profilePending || !slugStatus.ok}
+                >
+                  {profilePending ? (
                     <>
                       <Loader2 className="size-4 animate-spin" /> Saving…
                     </>

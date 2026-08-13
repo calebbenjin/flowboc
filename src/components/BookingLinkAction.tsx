@@ -5,12 +5,14 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Check, Copy, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { instructor } from "@/lib/demo";
+import { useInstructor } from "@/components/InstructorProvider";
+import { siteUrl } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 export function BookingLinkAction({ className }: { className?: string }) {
+  const instructor = useInstructor();
   const [copied, setCopied] = useState(false);
-  const bookingUrl = `https://flowbuk.com/${instructor.slug}`;
+  const bookingUrl = `${siteUrl}/${instructor.slug}`;
 
   async function handleCopy() {
     await navigator.clipboard.writeText(bookingUrl);
@@ -23,7 +25,7 @@ export function BookingLinkAction({ className }: { className?: string }) {
     <div className={cn("inline-flex items-center gap-2", className)}>
       <Button asChild variant="clay">
         <Link href={`/${instructor.slug}`} target="_blank" rel="noopener noreferrer">
-          View the booking demo <ExternalLink className="size-4" />
+          View your booking page <ExternalLink className="size-4" />
         </Link>
       </Button>
       <Button
