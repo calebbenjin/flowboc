@@ -2,6 +2,8 @@ export const siteUrl = process.env["NEXT_PUBLIC_SITE_URL"] ?? "https://flowbuk.c
 
 export const siteName = "Flowbuk";
 
+export const supportEmail = "hello@flowbuk.com";
+
 export const siteTitle = "Flowbuk — Simple booking for yoga instructors";
 
 export const siteDescription =

@@ -1,6 +1,11 @@
 "use server";
 
 import { prisma } from "@/lib/db";
+import {
+  sendBookingConfirmationEmail,
+  sendCapacityReachedEmail,
+  sendInstructorNewBookingEmail,
+} from "@/lib/email";
 
 type ActionResult = { ok: true; bookingId: string } | { ok: false; error: string };
 
@@ -26,7 +31,7 @@ export async function createBookingIntent(input: {
   }
 
   try {
-    const bookingId = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       // Serializes concurrent booking attempts for this class so the
       // capacity check below can't race — two requests for the last spot
       // can't both read "1 remaining" and both succeed.
@@ -34,7 +39,9 @@ export async function createBookingIntent(input: {
 
       const cls = await tx.yogaClass.findUnique({
         where: { id: input.classId },
-        include: { instructor: { select: { slug: true, currency: true } } },
+        include: {
+          instructor: { select: { slug: true, currency: true, name: true, email: true } },
+        },
       });
 
       if (!cls || cls.instructor.slug !== input.slug) {
@@ -85,12 +92,48 @@ export async function createBookingIntent(input: {
         },
       });
 
-      if (cls.status === "PUBLISHED" && confirmedCount + 1 >= cls.capacity) {
+      const justFilled = cls.status === "PUBLISHED" && confirmedCount + 1 >= cls.capacity;
+      if (justFilled) {
         await tx.yogaClass.update({ where: { id: cls.id }, data: { status: "FULL" } });
       }
 
-      return booking.id;
+      return { bookingId: booking.id, cls, justFilled };
     });
+
+    const { bookingId, cls, justFilled } = result;
+
+    // Fired after the transaction commits — email delivery is slow and
+    // external, and shouldn't hold the advisory lock or booking row open.
+    // Each send is independently caught: one recipient's address bouncing
+    // (e.g. Resend's sandbox rejecting a non-whitelisted "to") shouldn't
+    // skip the others.
+    await sendBookingConfirmationEmail({
+      to: email,
+      studentName: name,
+      className: cls.name,
+      startAt: cls.startAt,
+      timezone: cls.timezone,
+      location: cls.location,
+      instructorName: cls.instructor.name,
+    }).catch((err: unknown) => console.error("Failed to send student booking confirmation:", err));
+
+    await sendInstructorNewBookingEmail({
+      to: cls.instructor.email,
+      studentName: name,
+      className: cls.name,
+      startAt: cls.startAt,
+      timezone: cls.timezone,
+    }).catch((err: unknown) => console.error("Failed to send instructor new-booking notice:", err));
+
+    if (justFilled) {
+      await sendCapacityReachedEmail({
+        to: cls.instructor.email,
+        className: cls.name,
+        startAt: cls.startAt,
+        timezone: cls.timezone,
+        capacity: cls.capacity,
+      }).catch((err: unknown) => console.error("Failed to send capacity-reached notice:", err));
+    }
 
     return { ok: true, bookingId };
   } catch (err) {

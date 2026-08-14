@@ -222,6 +222,7 @@ model Booking {
 
   bookedAt             DateTime  @default(now())
   reservationExpiresAt DateTime?
+  reminderSentAt       DateTime?
 
   source BookingSource @default(ONLINE)
 
@@ -290,4 +291,20 @@ model Referral {
   joinedAt DateTime @default(now())
 
   @@index([referrerInstructorId])
+}
+
+// Public, unauthenticated form — no instructorId, this isn't scoped to a
+// tenant.
+model ContactMessage {
+  id      String  @id @default(cuid())
+  name    String
+  email   String
+  subject String?
+  message String
+  ip      String?
+
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([ip, createdAt])
 }

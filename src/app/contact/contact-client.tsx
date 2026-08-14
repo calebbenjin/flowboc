@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Check, Mail, MessageCircle } from "lucide-react";
+import { toast } from "sonner";
+import { Check, Loader2, Mail, MessageCircle } from "lucide-react";
 import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
 import { Reveal, Section, Eyebrow } from "@/components/landing/primitives";
@@ -9,13 +10,32 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { submitContactForm } from "./actions";
 
 export function ContactClient() {
   const [sent, setSent] = useState(false);
+  const [pending, setPending] = useState(false);
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSent(true);
+    const formData = new FormData(e.currentTarget);
+
+    setPending(true);
+    try {
+      const result = await submitContactForm({
+        name: String(formData.get("name") ?? ""),
+        email: String(formData.get("email") ?? ""),
+        subject: String(formData.get("subject") ?? ""),
+        message: String(formData.get("message") ?? ""),
+      });
+      if (result.ok) {
+        setSent(true);
+      } else {
+        toast.error(result.error);
+      }
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -80,28 +100,46 @@ export function ContactClient() {
                     </p>
                   </div>
                 ) : (
-                  <form className="space-y-4" onSubmit={handleSubmit}>
+                  <form className="space-y-4" onSubmit={(e) => void handleSubmit(e)}>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor="name">Name</Label>
-                        <Input id="name" required placeholder="Your name" />
+                        <Input id="name" name="name" required placeholder="Your name" />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="email">Email</Label>
-                        <Input id="email" type="email" required placeholder="you@example.com" />
+                        <Input
+                          id="email"
+                          name="email"
+                          type="email"
+                          required
+                          placeholder="you@example.com"
+                        />
                       </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="subject">Subject</Label>
-                      <Input id="subject" placeholder="What's this about?" />
+                      <Input id="subject" name="subject" placeholder="What's this about?" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="message">Message</Label>
-                      <Textarea id="message" rows={5} required placeholder="How can we help?" />
+                      <Textarea
+                        id="message"
+                        name="message"
+                        rows={5}
+                        required
+                        placeholder="How can we help?"
+                      />
                     </div>
                     <div className="flex justify-end">
-                      <Button type="submit" variant="clay">
-                        Send message
+                      <Button type="submit" variant="clay" disabled={pending}>
+                        {pending ? (
+                          <>
+                            <Loader2 className="size-4 animate-spin" /> Sending…
+                          </>
+                        ) : (
+                          "Send message"
+                        )}
                       </Button>
                     </div>
                   </form>

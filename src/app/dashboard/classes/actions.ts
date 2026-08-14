@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { requireInstructor } from "@/lib/require-instructor";
 import { deadlineLabelToMinutes } from "@/lib/class-deadline";
 import { zonedDateTimeToUtc } from "@/lib/timezone";
+import { sendCancellationEmail } from "@/lib/email";
 import type { ClassStatus } from "@/generated/prisma/enums";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
@@ -197,15 +198,43 @@ export async function duplicateClass(classId: string): Promise<ActionResult> {
 }
 
 export async function cancelClass(classId: string): Promise<ActionResult> {
-  await requireOwnedClass(classId);
+  const { instructor, cls } = await requireOwnedClass(classId);
 
-  await prisma.yogaClass.update({
-    where: { id: classId },
-    data: { status: "CANCELLED", cancelledAt: new Date() },
+  const bookings = await prisma.booking.findMany({
+    where: { classId, status: "CONFIRMED" },
   });
 
-  // Notifying/refunding booked students happens once Booking exists
-  // (a later batch) — no bookings can exist yet in this batch.
+  await prisma.$transaction([
+    prisma.yogaClass.update({
+      where: { id: classId },
+      data: { status: "CANCELLED", cancelledAt: new Date() },
+    }),
+    prisma.booking.updateMany({
+      where: { classId, status: "CONFIRMED" },
+      data: { status: "CANCELLED" },
+    }),
+  ]);
+
+  // Refunding is still manual — real refunds need a payment provider.
+  // allSettled rather than all: one student's address bouncing shouldn't
+  // stop the rest of the class from being notified.
+  const results = await Promise.allSettled(
+    bookings.map((b) =>
+      sendCancellationEmail({
+        to: b.studentEmail,
+        studentName: b.studentName,
+        className: cls.name,
+        instructorName: instructor.name,
+        startAt: cls.startAt,
+        timezone: cls.timezone,
+      }),
+    ),
+  );
+  for (const result of results) {
+    if (result.status === "rejected") {
+      console.error("Failed to send a class-cancellation email:", result.reason);
+    }
+  }
 
   return { ok: true };
 }

@@ -2,6 +2,14 @@
 
 import { prisma } from "@/lib/db";
 import { requireInstructor } from "@/lib/require-instructor";
+import { siteUrl } from "@/lib/site";
+import {
+  sendBookingConfirmationEmail,
+  sendCancellationEmail,
+  sendCapacityReachedEmail,
+  sendInstructorNewBookingEmail,
+  sendWaitlistSpotOpenEmail,
+} from "@/lib/email";
 import type { PaymentStatus } from "@/generated/prisma/enums";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
@@ -54,8 +62,29 @@ export async function addStudentManually(
     },
   });
 
-  if (cls.status === "PUBLISHED" && confirmedCount + 1 >= cls.capacity) {
+  const justFilled = cls.status === "PUBLISHED" && confirmedCount + 1 >= cls.capacity;
+  if (justFilled) {
     await prisma.yogaClass.update({ where: { id: classId }, data: { status: "FULL" } });
+  }
+
+  await sendBookingConfirmationEmail({
+    to: email,
+    studentName: name,
+    className: cls.name,
+    startAt: cls.startAt,
+    timezone: cls.timezone,
+    location: cls.location,
+    instructorName: instructor.name,
+  }).catch((err: unknown) => console.error("Failed to send manual-booking confirmation:", err));
+
+  if (justFilled) {
+    await sendCapacityReachedEmail({
+      to: instructor.email,
+      className: cls.name,
+      startAt: cls.startAt,
+      timezone: cls.timezone,
+      capacity: cls.capacity,
+    }).catch((err: unknown) => console.error("Failed to send capacity-reached notice:", err));
   }
 
   return { ok: true };
@@ -82,6 +111,38 @@ export async function cancelBooking(bookingId: string): Promise<ActionResult> {
   const cls = await prisma.yogaClass.findUnique({ where: { id: booking.classId } });
   if (cls?.status === "FULL") {
     await prisma.yogaClass.update({ where: { id: cls.id }, data: { status: "PUBLISHED" } });
+  }
+
+  if (cls) {
+    await sendCancellationEmail({
+      to: booking.studentEmail,
+      studentName: booking.studentName,
+      className: cls.name,
+      instructorName: instructor.name,
+      startAt: cls.startAt,
+      timezone: cls.timezone,
+    }).catch((err: unknown) => console.error("Failed to send booking-cancellation email:", err));
+
+    // Waitlist notify-on-opening: email only, no auto-promotion — the
+    // instructor still moves someone over manually.
+    const nextWaiting = await prisma.waitlistEntry.findFirst({
+      where: { classId: cls.id, notifiedAt: null },
+      orderBy: { joinedAt: "asc" },
+    });
+    if (nextWaiting) {
+      await sendWaitlistSpotOpenEmail({
+        to: nextWaiting.email,
+        name: nextWaiting.name,
+        className: cls.name,
+        startAt: cls.startAt,
+        timezone: cls.timezone,
+        bookUrl: `${siteUrl}/${instructor.slug}`,
+      }).catch((err: unknown) => console.error("Failed to send waitlist spot-open email:", err));
+      await prisma.waitlistEntry.update({
+        where: { id: nextWaiting.id },
+        data: { notifiedAt: new Date() },
+      });
+    }
   }
 
   return { ok: true };
@@ -122,9 +183,28 @@ export async function promoteWaitlistEntry(entryId: string): Promise<ActionResul
     prisma.waitlistEntry.delete({ where: { id: entryId } }),
   ]);
 
-  if (cls.status === "PUBLISHED" && confirmedCount + 1 >= cls.capacity) {
+  const justFilled = cls.status === "PUBLISHED" && confirmedCount + 1 >= cls.capacity;
+  if (justFilled) {
     await prisma.yogaClass.update({ where: { id: cls.id }, data: { status: "FULL" } });
   }
+
+  await sendBookingConfirmationEmail({
+    to: entry.email,
+    studentName: entry.name,
+    className: cls.name,
+    startAt: cls.startAt,
+    timezone: cls.timezone,
+    location: cls.location,
+    instructorName: instructor.name,
+  }).catch((err: unknown) => console.error("Failed to send waitlist-promotion confirmation:", err));
+
+  await sendInstructorNewBookingEmail({
+    to: instructor.email,
+    studentName: entry.name,
+    className: cls.name,
+    startAt: cls.startAt,
+    timezone: cls.timezone,
+  }).catch((err: unknown) => console.error("Failed to send instructor new-booking notice:", err));
 
   return { ok: true };
 }

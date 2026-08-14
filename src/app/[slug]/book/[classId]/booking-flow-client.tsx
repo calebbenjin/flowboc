@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { PriceTag } from "@/components/PriceTag";
 import { money, timezoneLabel } from "@/lib/demo";
 import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
+import { googleCalendarUrl } from "@/lib/calendar";
 import { createBookingIntent } from "./actions";
 
 type Step = "details" | "payment" | "done";
@@ -41,6 +42,7 @@ export function BookingFlowClient({
   const [step, setStep] = useState<Step>("details");
   const [name, setName] = useState("");
   const [pending, setPending] = useState(false);
+  const [bookingId, setBookingId] = useState<string | null>(null);
 
   if (cls.spots <= 0) {
     return (
@@ -80,6 +82,7 @@ export function BookingFlowClient({
         notes: String(formData.get("nt") ?? ""),
       });
       if (result.ok) {
+        setBookingId(result.bookingId);
         setStep("payment");
       } else {
         toast.error(result.error);
@@ -251,12 +254,28 @@ export function BookingFlowClient({
             </p>
 
             <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <Button variant="quiet">
-                <CalendarPlus className="size-4" /> Add to Google Calendar
+              <Button variant="quiet" asChild>
+                <a
+                  href={googleCalendarUrl({
+                    title: cls.name,
+                    startAt: cls.startAt,
+                    durationMinutes: cls.durationMinutes,
+                    location: cls.location,
+                    details: `Booked with ${instructorName} via Flowbuk`,
+                  })}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <CalendarPlus className="size-4" /> Add to Google Calendar
+                </a>
               </Button>
-              <Button variant="quiet">
-                <Download className="size-4" /> Download .ics
-              </Button>
+              {bookingId && (
+                <Button variant="quiet" asChild>
+                  <a href={`/api/calendar/${bookingId}`} download>
+                    <Download className="size-4" /> Download .ics
+                  </a>
+                </Button>
+              )}
             </div>
 
             <Link href={`/${slug}`} className="mt-6 inline-block text-sm text-clay hover:underline">
