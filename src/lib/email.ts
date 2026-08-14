@@ -4,10 +4,10 @@ import { supportEmail } from "@/lib/site";
 
 const resend = new Resend(process.env["RESEND_API_KEY"]);
 
-// No verified sending domain yet — Resend's shared sandbox sender works
-// without one, but can only deliver to the email address on the Resend
-// account. Swap to a verified flowbuk.com address once that's set up.
-const FROM = "Flowbuk <onboarding@resend.dev>";
+// flowboc.com is verified with Resend, so this can deliver to any
+// recipient — the shared onboarding@resend.dev sandbox sender (used before
+// verification) could only deliver to the address on the Resend account.
+const FROM = "Flowbuk <notifications@flowboc.com>";
 
 type ClassTiming = { startAt: Date; timezone: string };
 

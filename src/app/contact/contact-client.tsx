@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { supportEmail } from "@/lib/site";
 import { submitContactForm } from "./actions";
 
 export function ContactClient() {
@@ -68,10 +69,10 @@ export function ContactClient() {
                   <div>
                     <p className="font-medium">Email us</p>
                     <a
-                      href="mailto:hello@flowbuk.com"
+                      href={`mailto:${supportEmail}`}
                       className="text-sm text-clay hover:underline"
                     >
-                      hello@flowbuk.com
+                      {supportEmail}
                     </a>
                   </div>
                 </div>

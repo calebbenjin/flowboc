@@ -13,6 +13,7 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
+import { siteHost } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import { Pill } from "./primitives";
 
@@ -20,7 +21,7 @@ import { Pill } from "./primitives";
 
 export function BrowserFrame({
   children,
-  url = "flowbuk.com/dashboard",
+  url = `${siteHost}/dashboard`,
   className,
 }: {
   children: React.ReactNode;
@@ -64,7 +65,7 @@ export function PhoneFrame({
       <div className="overflow-hidden rounded-[1.6rem] bg-background">
         <div className="flex items-center justify-between px-4 pb-1 pt-3 text-[0.6rem] text-muted-foreground">
           <span>9:41</span>
-          <span>flowbuk.com</span>
+          <span>{siteHost}</span>
         </div>
         {children}
       </div>
@@ -151,7 +152,7 @@ export function DashboardMock({ compact = false }: { compact?: boolean }) {
             <p className="text-[0.72rem] text-muted-foreground">This week</p>
           </div>
           <Pill tone="clay">
-            <Link2 className="size-3" /> flowbuk.com/sarah-yoga
+            <Link2 className="size-3" /> {siteHost}/sarah-yoga
           </Pill>
         </div>
 
@@ -425,7 +426,7 @@ export function ShareMock() {
     <div className="space-y-2.5 rounded-xl border border-border bg-card p-4">
       <p className="text-[0.75rem] font-medium">Share your page</p>
       <div className="flex items-center gap-2 rounded-md border border-border px-2.5 py-2 text-[0.68rem] text-muted-foreground">
-        <Link2 className="size-3.5" /> flowbuk.com/sarah-yoga
+        <Link2 className="size-3.5" /> {siteHost}/sarah-yoga
       </div>
       <div className="flex gap-2 text-[0.66rem]">
         {["Instagram", "WhatsApp", "Email"].map((s) => (

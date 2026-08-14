@@ -12,6 +12,7 @@ import { getCurrentInstructor } from "@/lib/get-current-instructor";
 import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
 import { getAttentionItems } from "./queries";
 import { bookings, classById, money, stats, timezoneLabel } from "@/lib/demo";
+import { siteHost } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Dashboard — Flowbuk",
@@ -177,7 +178,9 @@ export default async function Dashboard() {
 
           <div className="surface mt-6 p-5">
             <p className="text-xs uppercase tracking-wider text-muted-foreground">Booking link</p>
-            <p className="mt-2 text-sm font-medium">flowbuk.com/{instructor.slug}</p>
+            <p className="mt-2 text-sm font-medium">
+              {siteHost}/{instructor.slug}
+            </p>
             <Link
               href={`/${instructor.slug}`}
               className="mt-3 inline-flex items-center gap-1 text-sm text-clay hover:underline"

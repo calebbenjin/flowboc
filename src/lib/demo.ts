@@ -1,6 +1,7 @@
 import morningFlow from "@/assets/class-morning-flow.jpg";
 import eveningYin from "@/assets/class-evening-yin.jpg";
 import instructorPhoto from "@/assets/instructor.jpg";
+import { siteHost } from "@/lib/site";
 
 export type ClassStatus = "draft" | "published" | "full" | "cancelled" | "completed";
 export type PaymentStatus = "pending" | "paid" | "failed" | "refunded" | "cancelled";
@@ -66,7 +67,7 @@ export const instructor = {
   photo: instructorPhoto.src,
   bio: "Yoga instructor helping people build strength, flexibility and mindfulness. Slow mornings, steady breath, no rush.",
   location: "Lekki, Lagos",
-  email: "sarah@flowbuk.com",
+  email: "sarah@flowboc.com",
   phone: "+234 802 000 1122",
   consultationLink: "https://calendly.com/sarah-yoga/consultation",
   socials: [
@@ -83,7 +84,7 @@ export const instructor = {
 export const referralProgram = {
   commissionRate: 20,
   code: "SARAH20",
-  link: `flowbuk.com/r/SARAH20`,
+  link: `${siteHost}/r/SARAH20`,
 };
 
 export type ReferralStatus = "pending" | "active" | "churned";

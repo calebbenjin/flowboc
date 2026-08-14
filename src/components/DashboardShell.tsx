@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useInstructor } from "@/components/InstructorProvider";
+import { siteHost } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -124,7 +125,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
           <div className="surface mt-8 p-4">
             <p className="text-xs text-muted-foreground">Your booking page</p>
-            <p className="mt-1 truncate text-sm font-medium">flowbuk.com/{instructor.slug}</p>
+            <p className="mt-1 truncate text-sm font-medium">
+              {siteHost}/{instructor.slug}
+            </p>
             <Link
               href={`/${instructor.slug}`}
               className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-clay hover:underline"

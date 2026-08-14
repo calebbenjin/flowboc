@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LegalLayout } from "@/components/landing/LegalLayout";
+import { supportEmail } from "@/lib/site";
 
 const title = "Terms of Service — Flowbuk";
 const description = "The terms that govern your use of Flowbuk.";
@@ -123,8 +124,8 @@ const sections = [
     body: (
       <p>
         Questions about these terms? Reach us at{" "}
-        <a href="mailto:hello@flowbuk.com" className="text-clay hover:underline">
-          hello@flowbuk.com
+        <a href={`mailto:${supportEmail}`} className="text-clay hover:underline">
+          {supportEmail}
         </a>
         .
       </p>

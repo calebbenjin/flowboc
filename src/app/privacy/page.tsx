@@ -120,8 +120,8 @@ const sections = [
     body: (
       <p>
         Questions about this policy or your data? Reach us at{" "}
-        <a href="mailto:privacy@flowbuk.com" className="text-clay hover:underline">
-          privacy@flowbuk.com
+        <a href="mailto:privacy@flowboc.com" className="text-clay hover:underline">
+          privacy@flowboc.com
         </a>
         .
       </p>

@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
+import { siteHost } from "@/lib/site";
 
 export const alt = "Flowbuk — Simple booking for yoga instructors";
 export const size = { width: 1200, height: 630 };
@@ -15,7 +16,7 @@ const MUTED = "#6b655d";
 const EYEBROW = "Booking software for yoga instructors";
 const HEADLINE = "Create your class. Share your link. Get paid.";
 const SUBHEAD = "Classes, payments, students and reminders — all in one booking page.";
-const DOMAIN = "flowbuk.com";
+const DOMAIN = siteHost;
 
 const FONT_TEXT = Array.from(
   new Set(`${EYEBROW.toUpperCase()}${HEADLINE}${SUBHEAD}${DOMAIN}`),

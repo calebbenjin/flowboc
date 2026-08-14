@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { siteHost } from "@/lib/site";
 
 function escapeIcsText(text: string): string {
   return text
@@ -37,7 +38,7 @@ export async function GET(
     "PRODID:-//Flowbuk//Booking//EN",
     "CALSCALE:GREGORIAN",
     "BEGIN:VEVENT",
-    `UID:${booking.id}@flowbuk.com`,
+    `UID:${booking.id}@${siteHost}`,
     `DTSTAMP:${formatIcsDate(new Date())}`,
     `DTSTART:${formatIcsDate(cls.startAt)}`,
     `DTEND:${formatIcsDate(endAt)}`,

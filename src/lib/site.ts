@@ -1,8 +1,13 @@
-export const siteUrl = process.env["NEXT_PUBLIC_SITE_URL"] ?? "https://flowbuk.com";
+export const siteUrl = process.env["NEXT_PUBLIC_SITE_URL"] ?? "https://flowboc.com";
+
+// Bare host, no protocol — for display strings like "flowboc.com/{slug}".
+// Derived from siteUrl rather than hardcoded again so the domain only ever
+// lives in one place.
+export const siteHost = siteUrl.replace(/^https?:\/\//, "");
 
 export const siteName = "Flowbuk";
 
-export const supportEmail = "hello@flowbuk.com";
+export const supportEmail = "hello@flowboc.com";
 
 export const siteTitle = "Flowbuk — Simple booking for yoga instructors";
 

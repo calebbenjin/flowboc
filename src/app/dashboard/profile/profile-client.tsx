@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { currencies, referralProgram, socialPlatforms } from "@/lib/demo";
+import { siteHost } from "@/lib/site";
 import type { CurrencyCode, SocialPlatform } from "@/generated/prisma/enums";
 import { deleteAccount, updatePhoto, updateProfile, updateSocials } from "./actions";
 
@@ -193,7 +194,9 @@ export function ProfileClient() {
           )}
           <div className="flex-1">
             <p className="font-medium">{instructor.name}</p>
-            <p className="text-sm text-muted-foreground">flowbuk.com/{instructor.slug}</p>
+            <p className="text-sm text-muted-foreground">
+              {siteHost}/{instructor.slug}
+            </p>
           </div>
           <div className="flex gap-2">
             <input
@@ -260,7 +263,7 @@ export function ProfileClient() {
           <div className="space-y-2">
             <Label htmlFor="s">Booking link</Label>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">flowbuk.com/</span>
+              <span className="text-sm text-muted-foreground">{siteHost}/</span>
               <Input id="s" name="slug" defaultValue={instructor.slug} />
             </div>
           </div>

@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { currencies, payoutProviderInfo } from "@/lib/demo";
 import { payoutProviderForCurrency } from "@/lib/payout";
+import { siteHost } from "@/lib/site";
 import { checkSlugAvailable, completeOnboarding, saveProfile, skipOnboarding } from "./actions";
 import type { CurrencyCode } from "@/generated/prisma/enums";
 
@@ -147,7 +148,9 @@ export function OnboardingClient({ defaults }: { defaults: Defaults }) {
               <Check className="size-6 text-success" />
             </div>
             <h1 className="mt-5 text-2xl">Your booking page is ready</h1>
-            <p className="mt-2 text-sm text-muted-foreground">flowbuk.com/{slug}</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {siteHost}/{slug}
+            </p>
             <p className="mt-4 text-muted-foreground">
               Create your first class. You can{" "}
               <Link href="/dashboard/payouts" className="text-clay hover:underline">
@@ -281,7 +284,7 @@ export function OnboardingClient({ defaults }: { defaults: Defaults }) {
               <div className="space-y-2">
                 <Label htmlFor="slug">Booking page link</Label>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">flowbuk.com/</span>
+                  <span className="text-sm text-muted-foreground">{siteHost}/</span>
                   <Input
                     id="slug"
                     value={slug}

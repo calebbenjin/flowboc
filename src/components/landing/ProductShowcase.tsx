@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
+import { siteHost } from "@/lib/site";
 import { Section, SectionHeader } from "./primitives";
 import { BrowserFrame, DashboardMock } from "./product-ui";
 
@@ -20,7 +21,7 @@ export function ProductShowcase() {
         serif="Your entire class business."
       />
       <div className="relative mx-auto mt-14 max-w-5xl">
-        <BrowserFrame url="flowbuk.com/dashboard">
+        <BrowserFrame url={`${siteHost}/dashboard`}>
           <DashboardMock compact />
         </BrowserFrame>
         {annotations.map((a, i) => (
