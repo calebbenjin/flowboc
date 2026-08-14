@@ -165,6 +165,77 @@ model YogaClass {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  bookings Booking[]
+  waitlist WaitlistEntry[]
+
   @@index([instructorId])
   @@index([seriesId])
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+  WAITLIST
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum BookingSource {
+  ONLINE
+  MANUAL
+}
+
+model Booking {
+  id      String    @id @default(cuid())
+  classId String
+  class   YogaClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  // Denormalized for fast "all my bookings" dashboard queries without a
+  // join through YogaClass.
+  instructorId String
+
+  studentName      String
+  studentEmail     String
+  studentPhone     String?
+  emergencyContact String?
+  notes            String?
+
+  status        BookingStatus @default(CONFIRMED)
+  paymentStatus PaymentStatus @default(PENDING)
+  amount        Int
+  currency      CurrencyCode
+
+  attended Boolean @default(false)
+
+  bookedAt             DateTime  @default(now())
+  reservationExpiresAt DateTime?
+
+  source BookingSource @default(ONLINE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([classId])
+  @@index([instructorId])
+  @@index([studentEmail])
+}
+
+model WaitlistEntry {
+  id      String    @id @default(cuid())
+  classId String
+  class   YogaClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  name  String
+  email String
+
+  joinedAt   DateTime  @default(now())
+  notifiedAt DateTime?
+
+  @@unique([classId, email])
 }

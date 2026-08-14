@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { useState } from "react";
 import {
   Instagram,
@@ -32,10 +31,41 @@ import {
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/EmptyState";
 import { PriceTag } from "@/components/PriceTag";
-import { useMockAction } from "@/hooks/use-mock-action";
-import { classes, instructor, timezoneLabel, type SocialPlatform } from "@/lib/demo";
+import { toast } from "sonner";
+import { timezoneLabel, type SocialPlatform } from "@/lib/demo";
+import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
+import { joinWaitlist } from "./actions";
 
-const socialIcons: Record<SocialPlatform, typeof Instagram> = {
+export type PublicInstructor = {
+  name: string;
+  slug: string;
+  photoUrl: string | null;
+  bio: string | null;
+  location: string | null;
+  email: string;
+  phone: string | null;
+  consultationLink: string | null;
+  specialties: string[];
+  socials: { platform: string; handle: string }[];
+};
+
+export type PublicClass = {
+  id: string;
+  name: string;
+  coverUrl: string | null;
+  description: string | null;
+  startAt: Date;
+  timezone: string;
+  durationMinutes: number;
+  mode: "IN_PERSON" | "ONLINE";
+  location: string | null;
+  price: number;
+  originalPrice: number | null;
+  capacity: number;
+  spots: number;
+};
+
+const socialIcons: Record<string, typeof Instagram> = {
   instagram: Instagram,
   tiktok: Music2,
   youtube: Youtube,
@@ -45,9 +75,9 @@ const socialIcons: Record<SocialPlatform, typeof Instagram> = {
   linkedin: Linkedin,
 };
 
-function socialHref(platform: SocialPlatform, handle: string) {
+function socialHref(platform: string, handle: string) {
   if (/^https?:\/\//.test(handle)) return handle;
-  switch (platform) {
+  switch (platform as SocialPlatform) {
     case "instagram":
       return `https://instagram.com/${handle.replace(/^@/, "")}`;
     case "tiktok":
@@ -62,17 +92,19 @@ function socialHref(platform: SocialPlatform, handle: string) {
       return `https://wa.me/${handle.replace(/[^\d]/g, "")}`;
     case "linkedin":
       return `https://${handle.replace(/^https?:\/\//, "")}`;
+    default:
+      return handle;
   }
 }
 
-function ShareButton() {
+function ShareButton({ instructorName }: { instructorName: string }) {
   const [copied, setCopied] = useState(false);
 
   const handleShare = async () => {
     const url = window.location.href;
     if (navigator.share) {
       try {
-        await navigator.share({ title: `${instructor.name} — Book a yoga class`, url });
+        await navigator.share({ title: `${instructorName} — Book a yoga class`, url });
       } catch {
         // user dismissed the native share sheet
       }
@@ -99,11 +131,13 @@ function ShareButton() {
 }
 
 function WaitlistDialog({
+  slug,
   classId,
   classLabel,
   onOpenChange,
   onJoined,
 }: {
+  slug: string;
   classId: string | null;
   classLabel?: string | undefined;
   onOpenChange: (open: boolean) => void;
@@ -111,7 +145,27 @@ function WaitlistDialog({
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const { pending, run } = useMockAction();
+  const [pending, setPending] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!classId) return;
+
+    setPending(true);
+    try {
+      const result = await joinWaitlist({ slug, classId, name, email });
+      if (result.ok) {
+        toast.success("You're on the waitlist");
+        onJoined(classId);
+        setName("");
+        setEmail("");
+      } else {
+        toast.error(result.error);
+      }
+    } finally {
+      setPending(false);
+    }
+  }
 
   return (
     <Dialog open={classId !== null} onOpenChange={onOpenChange}>
@@ -122,21 +176,7 @@ function WaitlistDialog({
             We&apos;ll email you if a spot opens up{classLabel ? ` for ${classLabel}` : ""}.
           </DialogDescription>
         </DialogHeader>
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!classId) return;
-            run({
-              success: "You're on the waitlist",
-              onDone: () => {
-                onJoined(classId);
-                setName("");
-                setEmail("");
-              },
-            });
-          }}
-        >
+        <form className="space-y-4" onSubmit={(e) => void handleSubmit(e)}>
           <div className="space-y-2">
             <Label htmlFor="wname">Full name</Label>
             <Input
@@ -173,10 +213,13 @@ function WaitlistDialog({
   );
 }
 
-export function PublicPageClient({ slug }: { slug: string }) {
-  if (slug !== instructor.slug) notFound();
-
-  const upcoming = classes.filter((c) => c.status === "published" || c.status === "full");
+export function PublicPageClient({
+  instructor,
+  classes,
+}: {
+  instructor: PublicInstructor;
+  classes: PublicClass[];
+}) {
   const [waitlistOpenFor, setWaitlistOpenFor] = useState<string | null>(null);
   const [joinedWaitlist, setJoinedWaitlist] = useState<Set<string>>(new Set());
 
@@ -184,34 +227,49 @@ export function PublicPageClient({ slug }: { slug: string }) {
     <div className="min-h-screen bg-sand/50">
       <div className="mx-auto max-w-3xl px-4 py-12 lg:px-0">
         <header className="surface flex flex-col items-start gap-6 p-8 sm:flex-row sm:items-center">
-          <img
-            src={instructor.photo}
-            alt={instructor.name}
-            width={800}
-            height={800}
-            className="size-24 rounded-full object-cover"
-          />
+          {instructor.photoUrl ? (
+            <img
+              src={instructor.photoUrl}
+              alt={instructor.name}
+              width={800}
+              height={800}
+              className="size-24 rounded-full object-cover"
+            />
+          ) : (
+            <div className="grid size-24 shrink-0 place-items-center rounded-full bg-clay/12 text-2xl font-medium text-clay">
+              {instructor.name
+                .split(" ")
+                .map((n) => n[0])
+                .join("")}
+            </div>
+          )}
           <div className="flex-1">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <h1 className="text-3xl">{instructor.name}</h1>
-              <ShareButton />
+              <ShareButton instructorName={instructor.name} />
             </div>
-            <p className="mt-2 max-w-md text-muted-foreground">{instructor.bio}</p>
+            {instructor.bio && (
+              <p className="mt-2 max-w-md text-muted-foreground">{instructor.bio}</p>
+            )}
             <div className="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5">
-                <MapPin className="size-4" /> {instructor.location}
-              </span>
+              {instructor.location && (
+                <span className="inline-flex items-center gap-1.5">
+                  <MapPin className="size-4" /> {instructor.location}
+                </span>
+              )}
               <span className="inline-flex items-center gap-1.5">
                 <Mail className="size-4" /> {instructor.email}
               </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Phone className="size-4" /> {instructor.phone}
-              </span>
+              {instructor.phone && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Phone className="size-4" /> {instructor.phone}
+                </span>
+              )}
             </div>
             {instructor.socials.length > 0 && (
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 {instructor.socials.map((s) => {
-                  const Icon = socialIcons[s.platform];
+                  const Icon = socialIcons[s.platform] ?? Instagram;
                   return (
                     <a
                       key={s.platform}
@@ -227,16 +285,18 @@ export function PublicPageClient({ slug }: { slug: string }) {
                 })}
               </div>
             )}
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              {instructor.specialties.map((s) => (
-                <span
-                  key={s}
-                  className="rounded-full bg-accent px-3 py-1 text-xs text-accent-foreground"
-                >
-                  {s}
-                </span>
-              ))}
-            </div>
+            {instructor.specialties.length > 0 && (
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                {instructor.specialties.map((s) => (
+                  <span
+                    key={s}
+                    className="rounded-full bg-accent px-3 py-1 text-xs text-accent-foreground"
+                  >
+                    {s}
+                  </span>
+                ))}
+              </div>
+            )}
             {instructor.consultationLink && (
               <div className="mt-4">
                 <Button asChild variant="quiet" size="sm">
@@ -253,7 +313,7 @@ export function PublicPageClient({ slug }: { slug: string }) {
           Upcoming classes
         </h2>
 
-        {upcoming.length === 0 ? (
+        {classes.length === 0 ? (
           <EmptyState
             className="mt-4"
             icon={CalendarX2}
@@ -262,37 +322,49 @@ export function PublicPageClient({ slug }: { slug: string }) {
           />
         ) : (
           <div className="mt-4 space-y-4">
-            {upcoming.map((c) => {
-              const spots = c.capacity - c.booked;
+            {classes.map((c) => {
               const onWaitlist = joinedWaitlist.has(c.id);
               return (
                 <article key={c.id} className="surface overflow-hidden sm:flex">
-                  <img
-                    src={c.cover}
-                    alt={c.name}
-                    loading="lazy"
-                    width={1200}
-                    height={800}
-                    className="h-40 w-full object-cover sm:h-auto sm:w-48"
-                  />
+                  {c.coverUrl ? (
+                    <img
+                      src={c.coverUrl}
+                      alt={c.name}
+                      loading="lazy"
+                      width={1200}
+                      height={800}
+                      className="h-40 w-full object-cover sm:h-auto sm:w-48"
+                    />
+                  ) : (
+                    <div className="h-40 w-full bg-sand sm:h-auto sm:w-48" />
+                  )}
                   <div className="flex flex-1 flex-col justify-between gap-4 p-6 sm:flex-row sm:items-center">
                     <div>
                       <h3 className="text-xl">{c.name}</h3>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        {c.day} · {c.time} {timezoneLabel(c.timezone)} · {c.duration} min · {c.mode}
+                        {formatClassDate(c)} · {formatClassTime(c)} {timezoneLabel(c.timezone)} ·{" "}
+                        {c.durationMinutes} min · {c.mode === "ONLINE" ? "Online" : "In-person"}
                       </p>
-                      <p className="mt-2 max-w-sm text-sm text-muted-foreground">{c.description}</p>
+                      {c.description && (
+                        <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+                          {c.description}
+                        </p>
+                      )}
                       <p className="mt-3 text-sm">
-                        {spots > 0 ? (
-                          <span className="text-success">{spots} spots available</span>
+                        {c.spots > 0 ? (
+                          <span className="text-success">{c.spots} spots available</span>
                         ) : (
                           <span className="text-clay">Class full</span>
                         )}
                       </p>
                     </div>
                     <div className="text-right">
-                      <PriceTag price={c.price} originalPrice={c.originalPrice} stacked />
-                      {spots > 0 ? (
+                      <PriceTag
+                        price={c.price}
+                        originalPrice={c.originalPrice ?? undefined}
+                        stacked
+                      />
+                      {c.spots > 0 ? (
                         <Button asChild variant="clay" className="mt-3">
                           <Link href={`/${instructor.slug}/book/${c.id}`}>Book class</Link>
                         </Button>
@@ -318,6 +390,7 @@ export function PublicPageClient({ slug }: { slug: string }) {
         )}
 
         <WaitlistDialog
+          slug={instructor.slug}
           classId={waitlistOpenFor}
           classLabel={classes.find((c) => c.id === waitlistOpenFor)?.name}
           onOpenChange={(open) => !open && setWaitlistOpenFor(null)}

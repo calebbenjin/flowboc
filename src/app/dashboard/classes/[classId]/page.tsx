@@ -28,5 +28,13 @@ export default async function ClassDetailPage({
   const cls = await prisma.yogaClass.findUnique({ where: { id: classId } });
   if (!cls || cls.instructorId !== instructor.id) notFound();
 
-  return <ClassDetailClient cls={cls} />;
+  const [bookings, waitlist] = await Promise.all([
+    prisma.booking.findMany({
+      where: { classId },
+      orderBy: { bookedAt: "desc" },
+    }),
+    prisma.waitlistEntry.findMany({ where: { classId }, orderBy: { joinedAt: "asc" } }),
+  ]);
+
+  return <ClassDetailClient cls={cls} bookings={bookings} waitlist={waitlist} />;
 }
