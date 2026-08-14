@@ -95,8 +95,9 @@ model Instructor {
   payoutAccountId String?
   payoutBankLabel String?
 
-  socials InstructorSocial[]
-  classes YogaClass[]
+  socials   InstructorSocial[]
+  classes   YogaClass[]
+  pageViews PageView[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -238,4 +239,19 @@ model WaitlistEntry {
   notifiedAt DateTime?
 
   @@unique([classId, email])
+}
+
+// One row per public booking-page load. No pre-aggregated weekly-metrics
+// table — analytics queries group these (and Bookings) by week on demand;
+// MVP data volume doesn't need pre-aggregation.
+model PageView {
+  id           String     @id @default(cuid())
+  instructorId String
+  instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+  path         String
+
+  createdAt DateTime @default(now())
+
+  @@index([instructorId])
+  @@index([createdAt])
 }

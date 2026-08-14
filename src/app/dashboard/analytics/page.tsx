@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { getCurrentInstructor } from "@/lib/get-current-instructor";
+import { getFillRateAndTopClasses, getWeeklyMetrics } from "./queries";
 import { AnalyticsClient } from "./analytics-client";
 
 export const metadata: Metadata = {
@@ -12,6 +15,16 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image" },
 };
 
-export default function AnalyticsPage() {
-  return <AnalyticsClient />;
+export default async function AnalyticsPage() {
+  const instructor = await getCurrentInstructor();
+  if (!instructor) redirect("/onboarding");
+
+  const [weeklyMetrics, { fillRate, topClasses }] = await Promise.all([
+    getWeeklyMetrics(instructor.id),
+    getFillRateAndTopClasses(instructor.id),
+  ]);
+
+  return (
+    <AnalyticsClient weeklyMetrics={weeklyMetrics} fillRate={fillRate} topClasses={topClasses} />
+  );
 }

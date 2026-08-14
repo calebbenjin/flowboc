@@ -10,8 +10,9 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { classes, money, weeklyMetrics } from "@/lib/demo";
+import { money } from "@/lib/demo";
 import { cn } from "@/lib/utils";
+import type { TopClass, WeeklyMetric } from "./queries";
 
 const periods = [
   { label: "4 weeks", count: 4 },
@@ -23,7 +24,7 @@ function pctDelta(current: number, previous: number) {
   return ((current - previous) / previous) * 100;
 }
 
-function sum(rows: typeof weeklyMetrics, key: "revenue" | "views" | "bookings") {
+function sum(rows: WeeklyMetric[], key: "revenue" | "views" | "bookings") {
   return rows.reduce((s, r) => s + r[key], 0);
 }
 
@@ -76,17 +77,25 @@ const bookingsConfig = {
   bookings: { label: "Bookings", color: "var(--color-chart-engagement)" },
 } satisfies ChartConfig;
 
-export function AnalyticsClient() {
+export function AnalyticsClient({
+  weeklyMetrics,
+  fillRate,
+  topClasses,
+}: {
+  weeklyMetrics: WeeklyMetric[];
+  fillRate: number;
+  topClasses: TopClass[];
+}) {
   const [range, setRange] = useState(8);
 
-  const data = useMemo(() => weeklyMetrics.slice(-range), [range]);
+  const data = useMemo(() => weeklyMetrics.slice(-range), [weeklyMetrics, range]);
   const prevData = useMemo(
     () =>
       weeklyMetrics.slice(
         Math.max(0, weeklyMetrics.length - range * 2),
         weeklyMetrics.length - range,
       ),
-    [range],
+    [weeklyMetrics, range],
   );
 
   const totalRevenue = sum(data, "revenue");
@@ -96,18 +105,6 @@ export function AnalyticsClient() {
   const prevConversionViews = sum(prevData, "views");
   const prevConversion =
     prevConversionViews > 0 ? (sum(prevData, "bookings") / prevConversionViews) * 100 : 0;
-
-  const activeClasses = classes.filter((c) => c.status === "published" || c.status === "full");
-  const fillRate =
-    activeClasses.length > 0
-      ? (activeClasses.reduce((sum, c) => sum + c.booked / c.capacity, 0) / activeClasses.length) *
-        100
-      : 0;
-
-  const topClasses = [...classes]
-    .map((c) => ({ ...c, earned: c.price * c.booked }))
-    .sort((a, b) => b.earned - a.earned)
-    .slice(0, 4);
 
   return (
     <DashboardShell>

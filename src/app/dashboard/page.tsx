@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/db";
 import { getCurrentInstructor } from "@/lib/get-current-instructor";
 import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
-import { attention, bookings, classById, money, stats, timezoneLabel } from "@/lib/demo";
+import { getAttentionItems } from "./queries";
+import { bookings, classById, money, stats, timezoneLabel } from "@/lib/demo";
 
 export const metadata: Metadata = {
   title: "Dashboard — Flowbuk",
@@ -29,15 +30,18 @@ export default async function Dashboard() {
     redirect("/onboarding");
   }
 
-  const upcoming = await prisma.yogaClass.findMany({
-    where: {
-      instructorId: instructor.id,
-      status: { in: ["PUBLISHED", "FULL"] },
-      startAt: { gte: new Date() },
-    },
-    orderBy: { startAt: "asc" },
-    take: 5,
-  });
+  const [upcoming, attention] = await Promise.all([
+    prisma.yogaClass.findMany({
+      where: {
+        instructorId: instructor.id,
+        status: { in: ["PUBLISHED", "FULL"] },
+        startAt: { gte: new Date() },
+      },
+      orderBy: { startAt: "asc" },
+      take: 5,
+    }),
+    getAttentionItems(instructor.id),
+  ]);
   const recent = bookings.slice(0, 5);
 
   return (
@@ -160,7 +164,7 @@ export default async function Dashboard() {
           ) : (
             <div className="mt-3 space-y-3">
               {attention.map((a) => (
-                <div key={a.kind} className="surface flex gap-3 p-4">
+                <div key={a.id} className="surface flex gap-3 p-4">
                   <AlertCircle className="mt-0.5 size-4 shrink-0 text-clay" />
                   <div>
                     <p className="text-sm font-medium">{a.kind}</p>

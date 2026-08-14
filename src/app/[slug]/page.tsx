@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import { PublicPageClient } from "./public-page-client";
 
@@ -33,6 +34,8 @@ export default async function PublicPage({ params }: { params: Promise<{ slug: s
     include: { socials: true },
   });
   if (!instructor || !instructor.onboardingCompletedAt) notFound();
+
+  after(() => prisma.pageView.create({ data: { instructorId: instructor.id, path: `/${slug}` } }));
 
   const classes = await prisma.yogaClass.findMany({
     where: {
