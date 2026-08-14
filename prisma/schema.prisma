@@ -95,9 +95,15 @@ model Instructor {
   payoutAccountId String?
   payoutBankLabel String?
 
-  socials   InstructorSocial[]
-  classes   YogaClass[]
-  pageViews PageView[]
+  referralCode       String @unique
+  commissionRate     Int    @default(20)
+  referralClickCount Int    @default(0)
+
+  socials       InstructorSocial[]
+  classes       YogaClass[]
+  pageViews     PageView[]
+  referralsMade Referral[]         @relation("ReferralsMade")
+  referredBy    Referral?          @relation("ReferredBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -254,4 +260,34 @@ model PageView {
 
   @@index([instructorId])
   @@index([createdAt])
+}
+
+enum ReferralStatus {
+  PENDING
+  ACTIVE
+  CHURNED
+}
+
+// "conversion" (PENDING -> ACTIVE) is meant to trigger on the referred
+// instructor's first paid booking, via the payments batch's webhook —
+// that batch is on hold pending Stripe/Paystack account setup, so every
+// Referral stays PENDING for now. commissionEarned likewise stays 0: Flowbuk
+// has no subscription billing of its own yet, so there's no revenue event
+// to calculate a percentage of.
+model Referral {
+  id String @id @default(cuid())
+
+  referrerInstructorId String
+  referrerInstructor   Instructor @relation("ReferralsMade", fields: [referrerInstructorId], references: [id], onDelete: Cascade)
+
+  referredInstructorId String     @unique
+  referredInstructor   Instructor @relation("ReferredBy", fields: [referredInstructorId], references: [id], onDelete: Cascade)
+
+  status           ReferralStatus @default(PENDING)
+  plan             String?
+  commissionEarned Int            @default(0)
+
+  joinedAt DateTime @default(now())
+
+  @@index([referrerInstructorId])
 }

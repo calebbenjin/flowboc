@@ -3,9 +3,23 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { payoutProviderForCurrency } from "@/lib/payout";
+import { consumeReferralCode, generateReferralCode } from "@/lib/referral-code";
 import { isReservedSlug, isValidSlugFormat } from "@/lib/reserved-slugs";
 import { slugify } from "@/lib/slug";
 import type { CurrencyCode } from "@/generated/prisma/enums";
+
+// Referral attribution only makes sense the moment an Instructor is first
+// created — clears the code either way so it can't be consumed twice or
+// linger on the User row.
+async function consumePendingReferral(
+  userId: string,
+  instructorId: string,
+  pendingCode: string | null,
+) {
+  if (!pendingCode) return;
+  await consumeReferralCode(instructorId, pendingCode);
+  await prisma.user.update({ where: { id: userId }, data: { pendingReferralCode: null } });
+}
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -61,32 +75,41 @@ export async function saveProfile(input: {
 
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
   const payoutProvider = payoutProviderForCurrency(input.currency);
+  const existingInstructor = await prisma.instructor.findUnique({ where: { userId } });
 
-  const instructor = await prisma.instructor.upsert({
-    where: { userId },
-    create: {
-      userId,
-      name,
-      slug,
-      email: user.email,
-      location: input.location?.trim() || null,
-      bio: input.bio?.trim() || null,
-      phone: input.phone?.trim() || null,
-      specialties: input.specialties,
-      currency: input.currency,
-      payoutProvider,
-    },
-    update: {
-      name,
-      slug,
-      location: input.location?.trim() || null,
-      bio: input.bio?.trim() || null,
-      phone: input.phone?.trim() || null,
-      specialties: input.specialties,
-      currency: input.currency,
-      payoutProvider,
-    },
-  });
+  const instructor = existingInstructor
+    ? await prisma.instructor.update({
+        where: { userId },
+        data: {
+          name,
+          slug,
+          location: input.location?.trim() || null,
+          bio: input.bio?.trim() || null,
+          phone: input.phone?.trim() || null,
+          specialties: input.specialties,
+          currency: input.currency,
+          payoutProvider,
+        },
+      })
+    : await prisma.instructor.create({
+        data: {
+          userId,
+          name,
+          slug,
+          email: user.email,
+          location: input.location?.trim() || null,
+          bio: input.bio?.trim() || null,
+          phone: input.phone?.trim() || null,
+          specialties: input.specialties,
+          currency: input.currency,
+          payoutProvider,
+          referralCode: await generateReferralCode(name),
+        },
+      });
+
+  if (!existingInstructor) {
+    await consumePendingReferral(userId, instructor.id, user.pendingReferralCode);
+  }
 
   const instagramHandle = input.instagramHandle?.trim();
   if (instagramHandle) {
@@ -136,17 +159,21 @@ export async function skipOnboarding(): Promise<ActionResult> {
     slug = `${base}-${suffix++}`;
   }
 
-  await prisma.instructor.create({
+  const name = user.name || "Instructor";
+  const instructor = await prisma.instructor.create({
     data: {
       userId,
-      name: user.name || "Instructor",
+      name,
       slug,
       email: user.email,
       currency: "NGN",
       payoutProvider: payoutProviderForCurrency("NGN"),
       onboardingCompletedAt: new Date(),
+      referralCode: await generateReferralCode(name),
     },
   });
+
+  await consumePendingReferral(userId, instructor.id, user.pendingReferralCode);
 
   return { ok: true };
 }
