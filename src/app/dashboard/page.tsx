@@ -10,9 +10,10 @@ import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/db";
 import { getCurrentInstructor } from "@/lib/get-current-instructor";
 import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
-import { getAttentionItems } from "./queries";
-import { bookings, classById, money, stats, timezoneLabel } from "@/lib/demo";
+import { getAttentionItems, getDashboardStats, getRecentBookings } from "./queries";
+import { money, timezoneLabel } from "@/lib/demo";
 import { siteHost } from "@/lib/site";
+import { formatDistanceToNow } from "date-fns";
 
 export const metadata: Metadata = {
   title: "Dashboard — Flowbuk",
@@ -31,7 +32,7 @@ export default async function Dashboard() {
     redirect("/onboarding");
   }
 
-  const [upcoming, attention] = await Promise.all([
+  const [upcoming, attention, stats, recent] = await Promise.all([
     prisma.yogaClass.findMany({
       where: {
         instructorId: instructor.id,
@@ -42,15 +43,21 @@ export default async function Dashboard() {
       take: 5,
     }),
     getAttentionItems(instructor.id),
+    getDashboardStats(instructor.id),
+    getRecentBookings(instructor.id),
   ]);
-  const recent = bookings.slice(0, 5);
+  const today = new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  }).format(new Date());
 
   return (
     <DashboardShell>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl">Good morning, {instructor.name.split(" ")[0]} 👋</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Tuesday, 11 August</p>
+          <p className="mt-1 text-sm text-muted-foreground">{today}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <BookingLinkAction />
@@ -62,10 +69,10 @@ export default async function Dashboard() {
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { label: "Revenue this month", value: money(stats.revenue) },
-          { label: "Upcoming classes", value: stats.upcoming },
-          { label: "Bookings", value: stats.bookings },
-          { label: "Students", value: stats.students },
+          { label: "Revenue this month", value: money(stats.revenueThisMonth) },
+          { label: "Upcoming classes", value: stats.upcomingClasses },
+          { label: "Bookings", value: stats.totalBookings },
+          { label: "Students", value: stats.totalStudents },
         ].map((s) => (
           <div key={s.label} className="surface p-5">
             <p className="text-xs uppercase tracking-wider text-muted-foreground">{s.label}</p>
@@ -136,13 +143,15 @@ export default async function Dashboard() {
               {recent.map((b) => (
                 <div key={b.id} className="flex items-center justify-between gap-4 p-4">
                   <div className="min-w-0">
-                    <p className="truncate font-medium">{b.student}</p>
+                    <p className="truncate font-medium">{b.studentName}</p>
                     <p className="truncate text-sm text-muted-foreground">
-                      {classById(b.classId)?.name} · {b.bookedAt}
+                      {b.className} · {formatDistanceToNow(b.bookedAt, { addSuffix: true })}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <StatusPill tone={paymentTone(b.payment)}>{b.payment}</StatusPill>
+                    <StatusPill tone={paymentTone(b.paymentStatus.toLowerCase())}>
+                      {b.paymentStatus.toLowerCase()}
+                    </StatusPill>
                     <span className="text-sm font-medium">{money(b.amount)}</span>
                   </div>
                 </div>

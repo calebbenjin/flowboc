@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -14,6 +15,8 @@ const links = [
 ];
 
 export function Navbar() {
+  const { status } = useSession();
+  const authed = status === "authenticated";
   const [open, setOpen] = React.useState(false);
   const [scrolled, setScrolled] = React.useState(false);
 
@@ -51,12 +54,20 @@ export function Navbar() {
         </div>
 
         <div className="hidden items-center gap-2 md:flex">
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/auth">Log in</Link>
-          </Button>
-          <Button asChild variant="clay" size="sm">
-            <Link href="/auth">Start Free</Link>
-          </Button>
+          {authed ? (
+            <Button asChild variant="clay" size="sm">
+              <Link href="/dashboard">Dashboard</Link>
+            </Button>
+          ) : (
+            <>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/auth">Log in</Link>
+              </Button>
+              <Button asChild variant="clay" size="sm">
+                <Link href="/auth">Start Free</Link>
+              </Button>
+            </>
+          )}
         </div>
 
         <button
@@ -85,12 +96,20 @@ export function Navbar() {
             ))}
           </div>
           <div className="mt-3 flex flex-col gap-2">
-            <Button asChild variant="quiet" size="lg">
-              <Link href="/auth">Log in</Link>
-            </Button>
-            <Button asChild variant="clay" size="lg">
-              <Link href="/auth">Start Free</Link>
-            </Button>
+            {authed ? (
+              <Button asChild variant="clay" size="lg">
+                <Link href="/dashboard">Dashboard</Link>
+              </Button>
+            ) : (
+              <>
+                <Button asChild variant="quiet" size="lg">
+                  <Link href="/auth">Log in</Link>
+                </Button>
+                <Button asChild variant="clay" size="lg">
+                  <Link href="/auth">Start Free</Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       ) : null}

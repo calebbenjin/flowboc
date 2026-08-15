@@ -21,32 +21,32 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { currencies, referralProgram, socialPlatforms } from "@/lib/demo";
+import { currencies, socialPlatforms } from "@/lib/demo";
 import { siteHost } from "@/lib/site";
 import type { CurrencyCode, SocialPlatform } from "@/generated/prisma/enums";
 import { deleteAccount, updatePhoto, updateProfile, updateSocials } from "./actions";
-
-const quickLinks = [
-  {
-    href: "/dashboard/referrals",
-    icon: Gift,
-    title: "Referral Program",
-    body: `Earn ${referralProgram.commissionRate}% commission on every subscription you refer.`,
-    cta: "View referrals",
-  },
-  {
-    href: "/dashboard/payouts",
-    icon: Landmark,
-    title: "Payouts",
-    body: "Connect a payout account to get paid directly for every class you teach.",
-    cta: "Manage payouts",
-  },
-];
 
 export function ProfileClient() {
   const router = useRouter();
   const instructor = useInstructor();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const quickLinks = [
+    {
+      href: "/dashboard/referrals",
+      icon: Gift,
+      title: "Referral Program",
+      body: `Earn ${instructor.commissionRate}% commission on every subscription you refer.`,
+      cta: "View referrals",
+    },
+    {
+      href: "/dashboard/payouts",
+      icon: Landmark,
+      title: "Payouts",
+      body: "Connect a payout account to get paid directly for every class you teach.",
+      cta: "Manage payouts",
+    },
+  ];
 
   const [profilePending, setProfilePending] = useState(false);
   const [socialsPending, setSocialsPending] = useState(false);

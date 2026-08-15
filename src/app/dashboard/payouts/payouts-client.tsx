@@ -12,11 +12,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { instructor, payoutProviderForCurrency, payoutProviderInfo } from "@/lib/demo";
+import { useInstructor } from "@/components/InstructorProvider";
+import { payoutProviderForCurrency, payoutProviderInfo } from "@/lib/demo";
 
 type PayoutStatus = "not_connected" | "pending" | "connected";
 
 export function PayoutsClient() {
+  const instructor = useInstructor();
   const [status, setStatus] = useState<PayoutStatus>("not_connected");
   const [dialogOpen, setDialogOpen] = useState(false);
 
