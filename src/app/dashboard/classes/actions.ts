@@ -6,11 +6,15 @@ import { requireInstructor } from "@/lib/require-instructor";
 import { deadlineLabelToMinutes } from "@/lib/class-deadline";
 import { zonedDateTimeToUtc } from "@/lib/timezone";
 import { sendCancellationEmail } from "@/lib/email";
+import { RECURRING_HORIZON_OPTIONS, DEFAULT_RECURRING_HORIZON_DAYS } from "@/lib/class-recurrence";
+import { isTrialExpired } from "@/lib/trial";
 import type { ClassStatus } from "@/generated/prisma/enums";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
-const RECURRING_HORIZON_DAYS = 84; // ~12 weeks
+const TRIAL_EXPIRED_PUBLISH_ERROR =
+  "Your trial has ended. Add a payment method to publish classes.";
+
 const WEEKDAY_ABBREVS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const WEEKDAY_FULL: Record<string, string> = {
   Mon: "Monday",
@@ -46,8 +50,10 @@ export type ClassInput = {
   name: string;
   type?: string;
   description?: string;
+  coverUrl?: string | null;
   recurring: boolean;
   recurringDays: string[];
+  horizonDays: number;
   date: string;
   time: string;
   timezone: string;
@@ -70,6 +76,15 @@ function validate(input: ClassInput): string | null {
   if (!Number.isFinite(input.durationMinutes) || input.durationMinutes < 1) {
     return "Duration must be at least 1 minute.";
   }
+  if (
+    input.recurring &&
+    input.recurringDays.length > 0 &&
+    !RECURRING_HORIZON_OPTIONS.includes(
+      input.horizonDays as (typeof RECURRING_HORIZON_OPTIONS)[number],
+    )
+  ) {
+    return "Please choose how long the class should repeat.";
+  }
   return null;
 }
 
@@ -78,12 +93,16 @@ export async function createClass(input: ClassInput): Promise<ActionResult> {
 
   const error = validate(input);
   if (error) return { ok: false, error };
+  if (input.status === "PUBLISHED" && isTrialExpired(instructor)) {
+    return { ok: false, error: TRIAL_EXPIRED_PUBLISH_ERROR };
+  }
 
   const baseData = {
     instructorId: instructor.id,
     name: input.name.trim(),
     type: input.type?.trim() || null,
     description: input.description?.trim() || null,
+    coverUrl: input.coverUrl || null,
     timezone: input.timezone,
     durationMinutes: input.durationMinutes,
     mode: input.online ? ("ONLINE" as const) : ("IN_PERSON" as const),
@@ -101,7 +120,12 @@ export async function createClass(input: ClassInput): Promise<ActionResult> {
     const seriesId = randomUUID();
     const recurringLabel = buildRecurringLabel(input.recurringDays);
     const occurrenceDates: string[] = [];
-    for (let i = 0; i < RECURRING_HORIZON_DAYS; i++) {
+    const horizonDays = RECURRING_HORIZON_OPTIONS.includes(
+      input.horizonDays as (typeof RECURRING_HORIZON_OPTIONS)[number],
+    )
+      ? input.horizonDays
+      : DEFAULT_RECURRING_HORIZON_DAYS;
+    for (let i = 0; i < horizonDays; i++) {
       const d = addDaysToDateString(input.date, i);
       if (input.recurringDays.includes(weekdayAbbrev(d))) occurrenceDates.push(d);
     }
@@ -137,10 +161,15 @@ async function requireOwnedClass(classId: string) {
 }
 
 export async function updateClass(classId: string, input: ClassInput): Promise<ActionResult> {
-  await requireOwnedClass(classId);
+  const { instructor, cls } = await requireOwnedClass(classId);
 
   const error = validate(input);
   if (error) return { ok: false, error };
+  // Only blocks newly publishing a class — editing one that's already live
+  // (e.g. fixing a typo) isn't a new "publish" event.
+  if (input.status === "PUBLISHED" && cls.status !== "PUBLISHED" && isTrialExpired(instructor)) {
+    return { ok: false, error: TRIAL_EXPIRED_PUBLISH_ERROR };
+  }
 
   await prisma.yogaClass.update({
     where: { id: classId },
@@ -148,6 +177,7 @@ export async function updateClass(classId: string, input: ClassInput): Promise<A
       name: input.name.trim(),
       type: input.type?.trim() || null,
       description: input.description?.trim() || null,
+      coverUrl: input.coverUrl || null,
       timezone: input.timezone,
       durationMinutes: input.durationMinutes,
       mode: input.online ? "ONLINE" : "IN_PERSON",

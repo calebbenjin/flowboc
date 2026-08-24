@@ -23,7 +23,7 @@ export function BookingLinkAction({ className }: { className?: string }) {
 
   return (
     <div className={cn("inline-flex items-center gap-2", className)}>
-      <Button asChild variant="clay">
+      <Button asChild className="bg-[#6355ff] hover:bg-[#6355ff]/90 text-white">
         <Link href={`/${instructor.slug}`} target="_blank" rel="noopener noreferrer">
           View your booking page <ExternalLink className="size-4" />
         </Link>

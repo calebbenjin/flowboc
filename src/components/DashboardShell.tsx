@@ -15,6 +15,8 @@ import {
   Landmark,
   LogOut,
   ChevronsUpDown,
+  Link2,
+  Mail,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -23,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useInstructor } from "@/components/InstructorProvider";
+import { TrialBanner } from "@/components/TrialBanner";
 import { siteHost } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +34,8 @@ const nav = [
   { to: "/dashboard/classes", label: "Classes", icon: CalendarDays, mobile: true },
   { to: "/dashboard/analytics", label: "Analytics", icon: LineChart, mobile: true },
   { to: "/dashboard/students", label: "Students", icon: Users, mobile: true },
+  // { to: "/dashboard/links", label: "Links", icon: Link2, mobile: false },
+  { to: "/dashboard/newsletter", label: "Newsletter", icon: Mail, mobile: false },
   { to: "/dashboard/referrals", label: "Referrals", icon: Gift, mobile: false },
   { to: "/dashboard/payouts", label: "Payouts", icon: Landmark, mobile: false },
   { to: "/dashboard/profile", label: "Profile", icon: UserRound, mobile: true },
@@ -153,6 +158,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               <UserMenu compact />
             </div>
           </div>
+          <TrialBanner />
           {children}
         </div>
       </div>

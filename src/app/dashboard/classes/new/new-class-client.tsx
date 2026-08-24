@@ -25,10 +25,12 @@ function readClassFormData(formData: FormData): Omit<ClassInput, "status"> {
     name: String(formData.get("name") ?? ""),
     type: String(formData.get("type") ?? ""),
     description: String(formData.get("description") ?? ""),
+    coverUrl: String(formData.get("coverUrl") ?? "").trim() || null,
     recurring: formData.get("recurring") === "true",
     recurringDays: String(formData.get("recurringDays") ?? "")
       .split(",")
       .filter(Boolean),
+    horizonDays: num("horizonDays", 30),
     date: String(formData.get("date") ?? ""),
     time: String(formData.get("time") ?? ""),
     timezone: String(formData.get("timezone") ?? "Africa/Lagos"),

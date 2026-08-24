@@ -6,6 +6,7 @@ import { payoutProviderForCurrency } from "@/lib/payout";
 import { consumeReferralCode, generateReferralCode } from "@/lib/referral-code";
 import { isReservedSlug, isValidSlugFormat } from "@/lib/reserved-slugs";
 import { slugify } from "@/lib/slug";
+import { newTrialEndsAt } from "@/lib/trial";
 import type { CurrencyCode } from "@/generated/prisma/enums";
 
 // Referral attribution only makes sense the moment an Instructor is first
@@ -103,6 +104,7 @@ export async function saveProfile(input: {
           specialties: input.specialties,
           currency: input.currency,
           payoutProvider,
+          trialEndsAt: newTrialEndsAt(),
           referralCode: await generateReferralCode(name),
         },
       });
@@ -169,6 +171,7 @@ export async function skipOnboarding(): Promise<ActionResult> {
       currency: "NGN",
       payoutProvider: payoutProviderForCurrency("NGN"),
       onboardingCompletedAt: new Date(),
+      trialEndsAt: newTrialEndsAt(),
       referralCode: await generateReferralCode(name),
     },
   });

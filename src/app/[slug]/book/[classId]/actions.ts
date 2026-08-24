@@ -6,6 +6,7 @@ import {
   sendCapacityReachedEmail,
   sendInstructorNewBookingEmail,
 } from "@/lib/email";
+import { isTrialExpired } from "@/lib/trial";
 
 type ActionResult = { ok: true; bookingId: string } | { ok: false; error: string };
 
@@ -40,7 +41,16 @@ export async function createBookingIntent(input: {
       const cls = await tx.yogaClass.findUnique({
         where: { id: input.classId },
         include: {
-          instructor: { select: { slug: true, currency: true, name: true, email: true } },
+          instructor: {
+            select: {
+              slug: true,
+              currency: true,
+              name: true,
+              email: true,
+              planStatus: true,
+              trialEndsAt: true,
+            },
+          },
         },
       });
 
@@ -49,6 +59,11 @@ export async function createBookingIntent(input: {
       }
       if (cls.status !== "PUBLISHED" && cls.status !== "FULL") {
         throw new BookingError("This class is no longer open for booking.");
+      }
+      if (isTrialExpired(cls.instructor)) {
+        throw new BookingError(
+          "This instructor's trial has ended, so new bookings are paused. Please check back soon.",
+        );
       }
 
       const deadline = new Date(cls.startAt.getTime() - cls.deadlineMinutesBeforeStart * 60_000);

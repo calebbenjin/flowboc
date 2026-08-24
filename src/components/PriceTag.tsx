@@ -6,7 +6,7 @@ export function PriceTag({
   originalPrice,
   stacked = false,
   className,
-  priceClassName = "display text-2xl",
+  priceClassName = "display text-xl",
 }: {
   price: number;
   originalPrice?: number | undefined;
@@ -27,11 +27,11 @@ export function PriceTag({
       <span className={priceClassName}>{money(price)}</span>
       {pct !== null && (
         <span className={cn("inline-flex items-baseline gap-2", stacked && "flex-row-reverse")}>
-          <span className="rounded-full bg-clay/12 px-2 py-0.5 text-xs font-medium text-clay">
-            {pct}% off
-          </span>
           <span className="text-sm text-muted-foreground line-through">
             {money(originalPrice!)}
+          </span>
+          <span className="rounded-xs bg-clay/20 px-2 py-0.5 text-xs font-medium text-clay">
+            {pct}% OFF
           </span>
         </span>
       )}

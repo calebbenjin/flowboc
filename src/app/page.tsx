@@ -5,11 +5,8 @@ import { SocialProof } from "@/components/landing/SocialProof";
 import { ProblemSection } from "@/components/landing/ProblemSection";
 import { FeatureGrid } from "@/components/landing/FeatureGrid";
 import { HowItWorks } from "@/components/landing/HowItWorks";
-import { ProductShowcase } from "@/components/landing/ProductShowcase";
-import { StudentExperience } from "@/components/landing/StudentExperience";
 import { InstructorExperience } from "@/components/landing/InstructorExperience";
 import { TestimonialVideos } from "@/components/landing/TestimonialVideos";
-import { BuiltAround } from "@/components/landing/BuiltAround";
 import { Pricing } from "@/components/landing/Pricing";
 import { FAQ } from "@/components/landing/FAQ";
 import { FinalCTA } from "@/components/landing/FinalCTA";
@@ -48,11 +45,8 @@ export default function Landing() {
         <ProblemSection />
         <FeatureGrid />
         <HowItWorks />
-        <ProductShowcase />
-        <StudentExperience />
         <InstructorExperience />
         <TestimonialVideos />
-        <BuiltAround />
         <Pricing />
         <FAQ />
         <FinalCTA />
