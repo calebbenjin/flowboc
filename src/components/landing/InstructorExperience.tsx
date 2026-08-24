@@ -13,7 +13,7 @@ const lines = [
 
 export function InstructorExperience() {
   return (
-    <Section>
+    <Section className="bg-sand/30">
       <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
         <Reveal>
           <img

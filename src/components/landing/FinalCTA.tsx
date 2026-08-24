@@ -22,7 +22,7 @@ export function FinalCTA() {
             </p>
             <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Button asChild size="xl" variant="clay" className="w-full sm:w-auto">
-                <Link href="/auth">Start Free — No Credit Card Required</Link>
+                <Link href="/auth">Start Your 14-Day Trial — No Card Required</Link>
               </Button>
               <Button
                 asChild

@@ -11,6 +11,7 @@ export const RESERVED_SLUGS = new Set([
   "r",
   "referral-program",
   "terms",
+  "unsubscribe",
   "_next",
   "favicon.ico",
   "robots.txt",

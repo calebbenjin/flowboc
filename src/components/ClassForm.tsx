@@ -1,17 +1,23 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { Loader2 } from "lucide-react";
+import { useRef, useState, type FormEvent } from "react";
+import { upload } from "@vercel/blob/client";
+import { toast } from "sonner";
+import { ImagePlus, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 import { currencies, timezones } from "@/lib/demo";
 import { DEADLINE_OPTIONS, deadlineMinutesToLabel } from "@/lib/class-deadline";
 import { useInstructor } from "@/components/InstructorProvider";
+import { RECURRING_HORIZON_OPTIONS } from "@/lib/class-recurrence";
 
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DEFAULT_HORIZON_DAYS = 30;
+const horizonLabels: Record<number, string> = { 14: "2 weeks", 30: "1 month", 60: "2 months" };
 
 export type ClassFormInitial = {
   name: string;
@@ -20,6 +26,7 @@ export type ClassFormInitial = {
   coverUrl: string | null;
   recurring: boolean;
   recurringDays: string[];
+  horizonDays?: number;
   date: string;
   time: string;
   timezone: string;
@@ -47,6 +54,103 @@ export type ClassFormProps = {
   pending?: boolean;
 };
 
+function CoverPhotoUpload({
+  value,
+  onChange,
+}: {
+  value: string | null;
+  onChange: (url: string | null) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+
+  async function handleFile(file: File) {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose an image file.");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const blob = await upload(file.name, file, {
+        access: "public",
+        handleUploadUrl: "/api/upload",
+      });
+      onChange(blob.url);
+    } catch {
+      toast.error("Couldn't upload image. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => fileInputRef.current?.click()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click();
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragActive(true);
+      }}
+      onDragLeave={() => setDragActive(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragActive(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file) void handleFile(file);
+      }}
+      className={cn(
+        "relative flex h-28 cursor-pointer items-center gap-4 overflow-hidden rounded-lg border border-dashed border-border text-sm text-muted-foreground transition-colors hover:bg-accent/40",
+        dragActive && "border-clay bg-clay/5",
+        value ? "justify-start p-3" : "justify-center",
+      )}
+    >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) void handleFile(file);
+        }}
+      />
+      {uploading ? (
+        <Loader2 className="size-5 animate-spin" />
+      ) : value ? (
+        <>
+          <img src={value} alt="" className="h-20 w-20 shrink-0 rounded-lg object-cover" />
+          <span>Drop an image or click to replace</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label="Remove cover photo"
+            className="absolute right-2 top-2"
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange(null);
+            }}
+          >
+            <X className="size-4" />
+          </Button>
+        </>
+      ) : (
+        <span className="flex items-center gap-2">
+          <ImagePlus className="size-4" />
+          Drop an image or click to upload
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function ClassForm({
   initial,
   onSubmit,
@@ -60,6 +164,8 @@ export function ClassForm({
   const [recurring, setRecurring] = useState(initial?.recurring ?? false);
   const [online, setOnline] = useState(initial?.online ?? false);
   const [pickedDays, setPickedDays] = useState<string[]>(initial?.recurringDays ?? ["Tue", "Thu"]);
+  const [horizonDays, setHorizonDays] = useState(initial?.horizonDays ?? DEFAULT_HORIZON_DAYS);
+  const [coverUrl, setCoverUrl] = useState<string | null>(initial?.coverUrl ?? null);
 
   const initialDeadlineLabel = initial
     ? deadlineMinutesToLabel(initial.deadlineMinutesBeforeStart)
@@ -73,7 +179,9 @@ export function ClassForm({
     <form className="mt-6 space-y-8" onSubmit={onSubmit}>
       <input type="hidden" name="recurring" value={recurring ? "true" : "false"} />
       <input type="hidden" name="recurringDays" value={pickedDays.join(",")} />
+      <input type="hidden" name="horizonDays" value={horizonDays} />
       <input type="hidden" name="online" value={online ? "true" : "false"} />
+      <input type="hidden" name="coverUrl" value={coverUrl ?? ""} />
 
       <section className="surface space-y-4 p-6">
         <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">The class</h2>
@@ -104,23 +212,8 @@ export function ClassForm({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="ccover">Cover photo</Label>
-          {initial?.coverUrl ? (
-            <div className="flex items-center gap-4">
-              <img
-                src={initial.coverUrl}
-                alt=""
-                className="h-20 w-20 shrink-0 rounded-lg object-cover"
-              />
-              <div className="flex h-20 flex-1 items-center justify-center rounded-lg border border-dashed border-border text-sm text-muted-foreground">
-                Drop an image or click to replace
-              </div>
-            </div>
-          ) : (
-            <div className="flex h-28 items-center justify-center rounded-lg border border-dashed border-border text-sm text-muted-foreground">
-              Drop an image or click to upload
-            </div>
-          )}
+          <Label>Cover photo</Label>
+          <CoverPhotoUpload value={coverUrl} onChange={setCoverUrl} />
         </div>
       </section>
 
@@ -157,6 +250,30 @@ export function ClassForm({
                 </button>
               );
             })}
+          </div>
+        )}
+
+        {/* Only offered on creation: editing doesn't regenerate a series'
+            occurrences, so changing this on an existing class would do nothing. */}
+        {recurring && !initial && (
+          <div className="space-y-2">
+            <Label>Repeat for</Label>
+            <div className="flex flex-wrap gap-2">
+              {RECURRING_HORIZON_OPTIONS.map((n) => (
+                <button
+                  type="button"
+                  key={n}
+                  onClick={() => setHorizonDays(n)}
+                  className={
+                    horizonDays === n
+                      ? "rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
+                      : "rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent"
+                  }
+                >
+                  {horizonLabels[n] ?? `${n} days`}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 

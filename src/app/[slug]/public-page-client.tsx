@@ -18,6 +18,8 @@ import {
   CalendarClock,
   CalendarX2,
   Loader2,
+  Send,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -28,13 +30,15 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/EmptyState";
 import { PriceTag } from "@/components/PriceTag";
+import { Reveal } from "@/components/landing/primitives";
 import { toast } from "sonner";
 import { timezoneLabel, type SocialPlatform } from "@/lib/demo";
 import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
-import { joinWaitlist } from "./actions";
+import { joinWaitlist, subscribeToNewsletter } from "./actions";
 
 export type PublicInstructor = {
   name: string;
@@ -47,10 +51,17 @@ export type PublicInstructor = {
   consultationLink: string | null;
   specialties: string[];
   socials: { platform: string; handle: string }[];
+  links: { id: string; label: string; url: string }[];
 };
+
+function trackLinkClick(linkId: string) {
+  navigator.sendBeacon?.("/api/links/click", JSON.stringify({ linkId }));
+}
 
 export type PublicClass = {
   id: string;
+  seriesId: string | null;
+  recurringLabel: string | null;
   name: string;
   coverUrl: string | null;
   description: string | null;
@@ -127,6 +138,84 @@ function ShareButton({ instructorName }: { instructorName: string }) {
         </>
       )}
     </Button>
+  );
+}
+
+function NewsletterSignupDialog({ slug }: { slug: string }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [website, setWebsite] = useState(""); // honeypot, kept off-screen
+  const [pending, setPending] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setPending(true);
+    try {
+      const result = await subscribeToNewsletter({ slug, name, email, website });
+      if (result.ok) {
+        toast.success("You're subscribed!");
+        setOpen(false);
+        setName("");
+        setEmail("");
+      } else {
+        toast.error(result.error);
+      }
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="quiet" size="sm">
+          <Send className="size-4" /> Subscribe
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Stay in the loop</DialogTitle>
+          <DialogDescription>Get updates on new classes and openings by email.</DialogDescription>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={(e) => void handleSubmit(e)}>
+          <div className="space-y-2">
+            <Label htmlFor="nname">Name (optional)</Label>
+            <Input id="nname" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="nemail">Email</Label>
+            <Input
+              id="nemail"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="sarah@mail.com"
+            />
+          </div>
+          <div className="sr-only" aria-hidden="true">
+            <Label htmlFor="nwebsite">Website</Label>
+            <Input
+              id="nwebsite"
+              tabIndex={-1}
+              autoComplete="off"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+            />
+          </div>
+          <Button type="submit" variant="clay" className="w-full" disabled={pending}>
+            {pending ? (
+              <>
+                <Loader2 className="size-4 animate-spin" /> Subscribing…
+              </>
+            ) : (
+              "Subscribe"
+            )}
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -213,6 +302,41 @@ function WaitlistDialog({
   );
 }
 
+type PublicClassGroup =
+  | { type: "single"; cls: PublicClass }
+  | { type: "series"; seriesId: string; occurrences: PublicClass[] };
+
+function groupPublicClasses(classes: PublicClass[]): PublicClassGroup[] {
+  const seriesOccurrences = new Map<string, PublicClass[]>();
+  const order: Array<{ type: "single"; cls: PublicClass } | { type: "series"; seriesId: string }> =
+    [];
+
+  for (const c of classes) {
+    if (!c.seriesId) {
+      order.push({ type: "single", cls: c });
+      continue;
+    }
+    const existing = seriesOccurrences.get(c.seriesId);
+    if (existing) {
+      existing.push(c);
+    } else {
+      seriesOccurrences.set(c.seriesId, [c]);
+      order.push({ type: "series", seriesId: c.seriesId });
+    }
+  }
+
+  return order.map((entry) =>
+    entry.type === "single"
+      ? entry
+      : {
+          type: "series" as const,
+          seriesId: entry.seriesId,
+          // Set right before pushing to `order`, so this is always present.
+          occurrences: seriesOccurrences.get(entry.seriesId)!,
+        },
+  );
+}
+
 export function PublicPageClient({
   instructor,
   classes,
@@ -222,96 +346,129 @@ export function PublicPageClient({
 }) {
   const [waitlistOpenFor, setWaitlistOpenFor] = useState<string | null>(null);
   const [joinedWaitlist, setJoinedWaitlist] = useState<Set<string>>(new Set());
+  const [selectedOccurrence, setSelectedOccurrence] = useState<Record<string, string>>({});
+
+  const groups = groupPublicClasses(classes);
 
   return (
-    <div className="min-h-screen bg-sand/50">
+    <div className="min-h-screen bg-sand/10">
       <div className="mx-auto max-w-3xl px-4 py-12 lg:px-0">
-        <header className="surface flex flex-col items-start gap-6 p-8 sm:flex-row sm:items-center">
-          {instructor.photoUrl ? (
-            <img
-              src={instructor.photoUrl}
-              alt={instructor.name}
-              width={800}
-              height={800}
-              className="size-24 rounded-full object-cover"
-            />
-          ) : (
-            <div className="grid size-24 shrink-0 place-items-center rounded-full bg-clay/12 text-2xl font-medium text-clay">
-              {instructor.name
-                .split(" ")
-                .map((n) => n[0])
-                .join("")}
-            </div>
-          )}
-          <div className="flex-1">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <h1 className="text-3xl">{instructor.name}</h1>
-              <ShareButton instructorName={instructor.name} />
-            </div>
-            {instructor.bio && (
-              <p className="mt-2 max-w-md text-muted-foreground">{instructor.bio}</p>
+        <Reveal>
+          <header className="flex flex-col gap-6 p-8 sm:flex-row items-center">
+            {instructor.photoUrl ? (
+              <img
+                src={instructor.photoUrl}
+                alt={instructor.name}
+                width={600}
+                height={600}
+                className="size-48 rounded-full object-cover shadow-2xl"
+              />
+            ) : (
+              <div className="grid size-40 shrink-0 place-items-center rounded-full bg-clay/12 text-2xl font-medium text-clay">
+                {instructor.name
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")}
+              </div>
             )}
-            <div className="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
-              {instructor.location && (
+            <div className="flex-1">
+              <div className="flex flex-wrap items-center text-center sm:justify-start justify-center gap-3">
+                <h1 className="text-3xl">{instructor.name}</h1>
+              </div>
+              {instructor.socials.length > 0 && (
+                <div className="mt-4 flex flex-wrap items-center sm:justify-start justify-center gap-2">
+                  {instructor.socials.map((s) => {
+                    const Icon = socialIcons[s.platform] ?? Instagram;
+                    return (
+                      <a
+                        key={s.platform}
+                        href={socialHref(s.platform, s.handle)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={s.platform}
+                        className="grid size-9 place-items-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:text-clay"
+                      >
+                        <Icon className="size-4" />
+                      </a>
+                    );
+                  })}
+                </div>
+              )}
+              {instructor.bio && (
+                <p className="mt-2 max-w-md text-muted-foreground sm:text-left text-center">
+                  {instructor.bio}
+                </p>
+              )}
+              {instructor.specialties.length > 0 && (
+                <div className="mt-4 flex flex-wrap items-center sm:justify-start justify-center gap-2">
+                  {instructor.specialties.map((s) => (
+                    <span
+                      key={s}
+                      className="rounded-full bg-accent px-3 py-1 text-xs text-accent-foreground"
+                    >
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="mt-4 flex flex-wrap sm:justify-start justify-center gap-2 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <NewsletterSignupDialog slug={instructor.slug} />
+                  <ShareButton instructorName={instructor.name} />
+                </div>
+                {/* {instructor.location && (
                 <span className="inline-flex items-center gap-1.5">
                   <MapPin className="size-4" /> {instructor.location}
                 </span>
-              )}
-              <span className="inline-flex items-center gap-1.5">
+              )} */}
+                {/* <span className="inline-flex items-center gap-1.5">
                 <Mail className="size-4" /> {instructor.email}
-              </span>
-              {instructor.phone && (
+              </span> */}
+                {/* {instructor.phone && (
                 <span className="inline-flex items-center gap-1.5">
                   <Phone className="size-4" /> {instructor.phone}
                 </span>
-              )}
+              )} */}
+              </div>
             </div>
-            {instructor.socials.length > 0 && (
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                {instructor.socials.map((s) => {
-                  const Icon = socialIcons[s.platform] ?? Instagram;
-                  return (
-                    <a
-                      key={s.platform}
-                      href={socialHref(s.platform, s.handle)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={s.platform}
-                      className="grid size-9 place-items-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:text-clay"
-                    >
-                      <Icon className="size-4" />
-                    </a>
-                  );
-                })}
-              </div>
-            )}
-            {instructor.specialties.length > 0 && (
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                {instructor.specialties.map((s) => (
-                  <span
-                    key={s}
-                    className="rounded-full bg-accent px-3 py-1 text-xs text-accent-foreground"
-                  >
-                    {s}
-                  </span>
-                ))}
-              </div>
-            )}
-            {instructor.consultationLink && (
-              <div className="mt-4">
-                <Button asChild variant="quiet" size="sm">
-                  <a href={instructor.consultationLink} target="_blank" rel="noopener noreferrer">
-                    <CalendarClock className="size-4" /> Book a consultation
-                  </a>
-                </Button>
-              </div>
-            )}
-          </div>
-        </header>
+          </header>
+        </Reveal>
 
-        <h2 className="mt-12 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+        {/* {instructor.consultationLink && (
+          <div className="mt-4">
+            <Button
+              asChild
+              variant="outline"
+              size="lg"
+              className="surface py-6 font-bold w-full sm:w-auto"
+            >
+              <a href={instructor.consultationLink} target="_blank" rel="noopener noreferrer">
+                <CalendarClock className="size-8" /> Book a consultation
+              </a>
+            </Button>
+          </div>
+        )} */}
+
+        {/* {instructor.links.length > 0 && (
+          <div className="mt-6 flex flex-col gap-3">
+            {instructor.links.map((l) => (
+              <a
+                key={l.id}
+                href={l.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => trackLinkClick(l.id)}
+                className="surface block px-6 py-4 text-center font-medium transition-colors hover:bg-accent"
+              >
+                {l.label}
+              </a>
+            ))}
+          </div>
+        )} */}
+
+        {/* <h2 className="mt-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
           Upcoming classes
-        </h2>
+        </h2> */}
 
         {classes.length === 0 ? (
           <EmptyState
@@ -321,69 +478,42 @@ export function PublicPageClient({
             body="Check back soon, or follow along on social for the next drop."
           />
         ) : (
-          <div className="mt-4 space-y-4">
-            {classes.map((c) => {
-              const onWaitlist = joinedWaitlist.has(c.id);
-              return (
-                <article key={c.id} className="surface overflow-hidden sm:flex">
-                  {c.coverUrl ? (
-                    <img
-                      src={c.coverUrl}
-                      alt={c.name}
-                      loading="lazy"
-                      width={1200}
-                      height={800}
-                      className="h-40 w-full object-cover sm:h-auto sm:w-48"
+          <div className="sm:mt-12 mt-2 space-y-4">
+            {groups.map((group, i) => {
+              const delay = Math.min(i, 6) * 0.08;
+
+              if (group.type === "single") {
+                return (
+                  <Reveal key={group.cls.id} delay={delay}>
+                    <ClassCard
+                      c={group.cls}
+                      slug={instructor.slug}
+                      onWaitlist={joinedWaitlist.has(group.cls.id)}
+                      onJoinWaitlist={() => setWaitlistOpenFor(group.cls.id)}
                     />
-                  ) : (
-                    <div className="h-40 w-full bg-sand sm:h-auto sm:w-48" />
-                  )}
-                  <div className="flex flex-1 flex-col justify-between gap-4 p-6 sm:flex-row sm:items-center">
-                    <div>
-                      <h3 className="text-xl">{c.name}</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {formatClassDate(c)} · {formatClassTime(c)} {timezoneLabel(c.timezone)} ·{" "}
-                        {c.durationMinutes} min · {c.mode === "ONLINE" ? "Online" : "In-person"}
-                      </p>
-                      {c.description && (
-                        <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-                          {c.description}
-                        </p>
-                      )}
-                      <p className="mt-3 text-sm">
-                        {c.spots > 0 ? (
-                          <span className="text-success">{c.spots} spots available</span>
-                        ) : (
-                          <span className="text-clay">Class full</span>
-                        )}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <PriceTag
-                        price={c.price}
-                        originalPrice={c.originalPrice ?? undefined}
-                        stacked
-                      />
-                      {c.spots > 0 ? (
-                        <Button asChild variant="clay" className="mt-3">
-                          <Link href={`/${instructor.slug}/book/${c.id}`}>Book class</Link>
-                        </Button>
-                      ) : onWaitlist ? (
-                        <Button variant="quiet" className="mt-3" disabled>
-                          <Check className="size-4" /> On waitlist
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="quiet"
-                          className="mt-3"
-                          onClick={() => setWaitlistOpenFor(c.id)}
-                        >
-                          Join waitlist
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </article>
+                  </Reveal>
+                );
+              }
+
+              const selectedId = selectedOccurrence[group.seriesId] ?? group.occurrences[0]!.id;
+              const selected =
+                group.occurrences.find((o) => o.id === selectedId) ?? group.occurrences[0]!;
+
+              return (
+                <Reveal key={group.seriesId} delay={delay}>
+                  <ClassCard
+                    c={selected}
+                    slug={instructor.slug}
+                    onWaitlist={joinedWaitlist.has(selected.id)}
+                    onJoinWaitlist={() => setWaitlistOpenFor(selected.id)}
+                    dateChips={{
+                      occurrences: group.occurrences,
+                      selectedId: selected.id,
+                      onSelect: (id) =>
+                        setSelectedOccurrence((prev) => ({ ...prev, [group.seriesId]: id })),
+                    }}
+                  />
+                </Reveal>
               );
             })}
           </div>
@@ -401,9 +531,170 @@ export function PublicPageClient({
         />
 
         <p className="mt-12 text-center text-xs text-muted-foreground">
-          Booking powered by <span className="display text-foreground">Flowbuk</span>
+          Booking powered by <span className="display text-foreground">Flowboc</span>
         </p>
       </div>
     </div>
+  );
+}
+
+function DateChips({
+  occurrences,
+  selectedId,
+  onSelect,
+}: {
+  occurrences: PublicClass[];
+  selectedId: string;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div className="mt-2 flex flex-wrap gap-1.5">
+      {occurrences.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          onClick={() => onSelect(o.id)}
+          className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
+            o.id === selectedId
+              ? "border-[#6355ff] bg-[#6355ff] text-white"
+              : "border-border bg-card text-muted-foreground hover:border-[#6355ff]/50"
+          }`}
+        >
+          {formatClassDate(o)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ClassCard({
+  c,
+  slug,
+  onWaitlist,
+  onJoinWaitlist,
+  dateChips,
+}: {
+  c: PublicClass;
+  slug: string;
+  onWaitlist: boolean;
+  onJoinWaitlist: () => void;
+  dateChips?: { occurrences: PublicClass[]; selectedId: string; onSelect: (id: string) => void };
+}) {
+  const bookAction =
+    c.spots > 0 ? (
+      <Button
+        asChild
+        className="w-full sm:mt-3 sm:w-6/12 font-bold bg-[#6355ff] hover:bg-[#6355ff] text-white transition-shadow duration-300 hover:shadow-[0_0_28px_-4px_var(--clay)]"
+      >
+        <Link href={`/${slug}/book/${c.id}`} className="relative flex items-center gap-2 py-5">
+          <span className="font-extrabold absolute left-4">Book Class</span>{" "}
+          <ArrowRight className="size-4 absolute right-4" />
+        </Link>
+      </Button>
+    ) : onWaitlist ? (
+      <Button variant="quiet" className="w-full sm:mt-3 sm:w-auto" disabled>
+        <Check className="size-4" /> On waitlist
+      </Button>
+    ) : (
+      <Button variant="quiet" className="w-full sm:mt-3 sm:w-6/12" onClick={onJoinWaitlist}>
+        Join waitlist
+      </Button>
+    );
+
+  return (
+    <article className="surface overflow-hidden p-4 sm:flex sm:p-0">
+      {/* Mobile: compact card — square cover beside title, price row, full-width CTA. */}
+      <div className="sm:hidden">
+        <div className="flex gap-3">
+          {c.coverUrl ? (
+            <img
+              src={c.coverUrl}
+              alt={c.name}
+              loading="lazy"
+              width={200}
+              height={200}
+              className="size-20 shrink-0 rounded-sm object-cover"
+            />
+          ) : (
+            <div className="size-20 shrink-0 rounded-sm bg-sand" />
+          )}
+          <div className="min-w-0">
+            <h3 className="text-lg leading-tight">{c.name}</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {c.recurringLabel ? `${c.recurringLabel} · ` : ""}
+              {formatClassDate(c)} · {formatClassTime(c)} {timezoneLabel(c.timezone)}
+            </p>
+            {c.description && (
+              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{c.description}</p>
+            )}
+          </div>
+        </div>
+        {dateChips && (
+          <DateChips
+            occurrences={dateChips.occurrences}
+            selectedId={dateChips.selectedId}
+            onSelect={dateChips.onSelect}
+          />
+        )}
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <PriceTag price={c.price} originalPrice={c.originalPrice ?? undefined} />
+          <span className="shrink-0 text-xs">
+            {c.spots > 0 ? (
+              <span className="text-[#6355ff]">{c.spots} spots left</span>
+            ) : (
+              <span className="text-clay">Full</span>
+            )}
+          </span>
+        </div>
+        <div className="mt-3">{bookAction}</div>
+      </div>
+
+      {/* Desktop: original side-by-side layout. */}
+      <div className="hidden sm:contents">
+        {c.coverUrl ? (
+          <img
+            src={c.coverUrl}
+            alt={c.name}
+            loading="lazy"
+            width={1200}
+            height={800}
+            className="h-auto w-48 object-cover"
+          />
+        ) : (
+          <div className="h-auto w-48 bg-sand" />
+        )}
+        <div className="flex flex-1 flex-col justify-between gap-4 p-6">
+          <div>
+            <h3 className="text-xl">{c.name}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {c.recurringLabel ? `${c.recurringLabel} · ` : ""}
+              {formatClassDate(c)} · {formatClassTime(c)} {timezoneLabel(c.timezone)} ·{" "}
+              {c.durationMinutes} min · {c.mode === "ONLINE" ? "Online" : "In-person"}
+            </p>
+            {dateChips && (
+              <DateChips
+                occurrences={dateChips.occurrences}
+                selectedId={dateChips.selectedId}
+                onSelect={dateChips.onSelect}
+              />
+            )}
+            {c.description && (
+              <p className="mt-2 max-w-sm text-sm text-muted-foreground">{c.description}</p>
+            )}
+            <p className="mt-3 text-sm">
+              {c.spots > 0 ? (
+                <span className="text-success">{c.spots} spots available</span>
+              ) : (
+                <span className="text-clay">Class full</span>
+              )}
+            </p>
+          </div>
+          <div className="flex items-center justify-between pt-4">
+            <PriceTag price={c.price} originalPrice={c.originalPrice ?? undefined} />
+            {bookAction}
+          </div>
+        </div>
+      </div>
+    </article>
   );
 }

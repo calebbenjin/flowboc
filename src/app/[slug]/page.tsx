@@ -31,7 +31,10 @@ export default async function PublicPage({ params }: { params: Promise<{ slug: s
 
   const instructor = await prisma.instructor.findUnique({
     where: { slug },
-    include: { socials: true },
+    include: {
+      socials: true,
+      links: { where: { isActive: true }, orderBy: { order: "asc" } },
+    },
   });
   if (!instructor || !instructor.onboardingCompletedAt) notFound();
 
@@ -69,9 +72,12 @@ export default async function PublicPage({ params }: { params: Promise<{ slug: s
           platform: s.platform.toLowerCase(),
           handle: s.handle,
         })),
+        links: instructor.links.map((l) => ({ id: l.id, label: l.label, url: l.url })),
       }}
       classes={classes.map((c) => ({
         id: c.id,
+        seriesId: c.seriesId,
+        recurringLabel: c.recurringLabel,
         name: c.name,
         coverUrl: c.coverUrl,
         description: c.description,

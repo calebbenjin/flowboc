@@ -47,7 +47,7 @@ export function TestimonialVideos() {
   const active = openIndex !== null ? testimonials[openIndex] : null;
 
   return (
-    <Section className="bg-sand/30">
+    <Section>
       <SectionHeader
         eyebrow="Testimonials"
         title="Yoga teachers"

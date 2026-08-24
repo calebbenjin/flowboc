@@ -1,0 +1,2 @@
+export const RECURRING_HORIZON_OPTIONS = [14, 30, 60] as const;
+export const DEFAULT_RECURRING_HORIZON_DAYS = 30;

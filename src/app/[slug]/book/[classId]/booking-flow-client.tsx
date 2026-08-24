@@ -99,25 +99,27 @@ export function BookingFlowClient({
           ← {instructorName}
         </Link>
 
-        <div className="surface mt-4 flex items-center gap-4 p-5">
-          {cls.coverUrl ? (
-            <img
-              src={cls.coverUrl}
-              alt={cls.name}
-              loading="lazy"
-              width={1200}
-              height={800}
-              className="size-16 rounded-lg object-cover"
-            />
-          ) : (
-            <div className="size-16 shrink-0 rounded-lg bg-sand" />
-          )}
-          <div className="flex-1">
-            <h1 className="text-xl">{cls.name}</h1>
-            <p className="text-sm text-muted-foreground">
-              {formatClassDate(cls)} · {formatClassTime(cls)} {timezoneLabel(cls.timezone)} ·{" "}
-              {cls.durationMinutes} min · {cls.location ?? "Location TBC"}
-            </p>
+        <div className="surface mt-4 p-5">
+          <div className="flex items-center gap-4 mb-4">
+            {cls.coverUrl ? (
+              <img
+                src={cls.coverUrl}
+                alt={cls.name}
+                loading="lazy"
+                width={1200}
+                height={800}
+                className="size-16 rounded-md object-cover"
+              />
+            ) : (
+              <div className="size-16 shrink-0 rounded-md bg-sand" />
+            )}
+            <div className="flex-1 mt-2">
+              <h1 className="text-xl">{cls.name}</h1>
+              <p className="text-sm text-muted-foreground">
+                {formatClassDate(cls)} · {formatClassTime(cls)} {timezoneLabel(cls.timezone)} ·{" "}
+                {cls.durationMinutes} min · {cls.location ?? "Location TBC"}
+              </p>
+            </div>
           </div>
           <PriceTag
             price={cls.price}
@@ -189,7 +191,7 @@ export function BookingFlowClient({
             {cls.cancellationPolicy && (
               <p className="text-xs text-muted-foreground">{cls.cancellationPolicy}</p>
             )}
-            <Button type="submit" variant="clay" size="lg" className="w-full" disabled={pending}>
+            <Button type="submit" variant="default" size="lg" className="w-full" disabled={pending}>
               {pending ? "Reserving your spot…" : "Continue to payment"}
             </Button>
           </form>

@@ -140,6 +140,84 @@ export async function sendWaitlistSpotOpenEmail(
   });
 }
 
+// Reasonable-effort plain-text fallback for the rich-text campaign body —
+// not a full HTML parser, just enough to turn the composer's HTML into
+// readable text for clients that render text/plain.
+export function stripHtml(html: string): string {
+  return html
+    .replace(/<\/(p|div|h[1-6]|li)>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "• ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function buildNewsletterHtml(bodyHtml: string, instructorName: string, unsubscribeUrl: string) {
+  return `${bodyHtml}<p style="margin-top:32px;color:#8a8a8a;font-size:12px;">You're receiving this because you subscribed to updates from ${instructorName} on Flowbuk. <a href="${unsubscribeUrl}">Unsubscribe</a></p>`;
+}
+
+function buildNewsletterText(bodyHtml: string, instructorName: string, unsubscribeUrl: string) {
+  return `${stripHtml(bodyHtml)}\n\n—\nYou're receiving this because you subscribed to updates from ${instructorName} on Flowbuk.\nUnsubscribe: ${unsubscribeUrl}`;
+}
+
+export function buildNewsletterEmail(input: {
+  to: string;
+  subject: string;
+  bodyHtml: string;
+  instructorName: string;
+  unsubscribeUrl: string;
+}) {
+  return {
+    from: FROM,
+    to: input.to,
+    subject: input.subject,
+    html: buildNewsletterHtml(input.bodyHtml, input.instructorName, input.unsubscribeUrl),
+    text: buildNewsletterText(input.bodyHtml, input.instructorName, input.unsubscribeUrl),
+  };
+}
+
+const BATCH_CHUNK_SIZE = 100;
+
+// No queue/job runner in this stack — sending happens synchronously inside
+// the server action that calls this. Fine for lists up to a few hundred
+// subscribers; larger lists should move to a cron-batch pattern (like
+// /api/cron/release-expired-reservations processes N rows per tick).
+export async function sendNewsletterBatch(
+  emails: { from: string; to: string; subject: string; html: string; text: string }[],
+): Promise<{ sent: number; failed: number }> {
+  let sent = 0;
+  let failed = 0;
+
+  for (let i = 0; i < emails.length; i += BATCH_CHUNK_SIZE) {
+    const chunk = emails.slice(i, i + BATCH_CHUNK_SIZE);
+
+    if (process.env["NODE_ENV"] !== "production") {
+      console.log(`[email] newsletter batch of ${chunk.length}`);
+    }
+
+    const { data, error } = await resend.batch.send(chunk);
+    if (error) {
+      failed += chunk.length;
+    } else {
+      sent += data.data.length;
+      failed += chunk.length - data.data.length;
+    }
+
+    if (i + BATCH_CHUNK_SIZE < emails.length) {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+    }
+  }
+
+  return { sent, failed };
+}
+
 export async function sendClassReminderEmail(
   input: {
     to: string;

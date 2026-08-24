@@ -91,7 +91,7 @@ export default async function Dashboard() {
               title="No upcoming classes"
               body="Create a class to start taking bookings."
               action={
-                <Button asChild variant="clay" size="sm">
+                <Button asChild size="sm" className="bg-[#6355ff] hover:bg-[#6355ff]/90 text-white">
                   <Link href="/dashboard/classes/new">Create class</Link>
                 </Button>
               }

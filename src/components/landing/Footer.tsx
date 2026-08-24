@@ -6,18 +6,17 @@ const columns = [
   {
     title: "Product",
     links: [
-      { label: "Features", href: "#top" },
-      { label: "Pricing", href: "#top" },
-      { label: "How it works", href: "#top" },
+      { label: "Features", href: "/#product" },
+      { label: "Pricing", href: "/#pricing" },
+      { label: "How it works", href: "/#how-it-works" },
       { label: "Referral Program", href: "/referral-program" },
     ],
   },
   {
     title: "Resources",
     links: [
-      { label: "Help Center", href: "#top" },
-      { label: "Blog", href: "#top" },
-      { label: "Guides", href: "#top" },
+      { label: "FAQ", href: "/#faq" },
+      { label: "Help Center", href: "/contact" },
     ],
   },
   {

@@ -11,7 +11,7 @@ const links = [
   { label: "Product", href: "#product" },
   { label: "How it works", href: "#how-it-works" },
   { label: "Pricing", href: "#pricing" },
-  { label: "Resources", href: "#faq" },
+  { label: "FAQ", href: "#faq" },
 ];
 
 export function Navbar() {
@@ -32,12 +32,12 @@ export function Navbar() {
       className={cn(
         "sticky top-0 z-50 border-b transition-colors",
         scrolled
-          ? "border-border bg-background/85 backdrop-blur-md"
-          : "border-transparent bg-background",
+          ? "border-border bg-[#6355ff]/85 backdrop-blur-md"
+          : "border-transparent bg-[#6355ff]",
       )}
     >
       <nav className="mx-auto flex h-16 w-full max-w-[1200px] items-center justify-between px-5 sm:px-8">
-        <a href="#top" className="flex items-center font-extrabold text-foreground text-2xl ">
+        <a href="#top" className="flex items-center font-extrabold text-white text-2xl ">
           flowbuk
         </a>
 
@@ -46,7 +46,7 @@ export function Navbar() {
             <a
               key={l.label}
               href={l.href}
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+              className="text-sm text-white transition-colors hover:text-foreground"
             >
               {l.label}
             </a>
@@ -55,7 +55,7 @@ export function Navbar() {
 
         <div className="hidden items-center gap-2 md:flex">
           {authed ? (
-            <Button asChild variant="clay" size="sm">
+            <Button asChild size="sm" className="w-full bg-white hover:bg-[#30ffb4] text-black">
               <Link href="/dashboard">Dashboard</Link>
             </Button>
           ) : (
@@ -64,7 +64,7 @@ export function Navbar() {
                 <Link href="/auth">Log in</Link>
               </Button>
               <Button asChild variant="clay" size="sm">
-                <Link href="/auth">Start Free</Link>
+                <Link href="/auth">Start Trial</Link>
               </Button>
             </>
           )}
@@ -106,7 +106,7 @@ export function Navbar() {
                   <Link href="/auth">Log in</Link>
                 </Button>
                 <Button asChild variant="clay" size="lg">
-                  <Link href="/auth">Start Free</Link>
+                  <Link href="/auth">Start Trial</Link>
                 </Button>
               </>
             )}

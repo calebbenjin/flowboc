@@ -72,6 +72,11 @@ enum PayoutStatus {
   RESTRICTED
 }
 
+enum PlanStatus {
+  TRIALING
+  ACTIVE
+}
+
 model Instructor {
   id     String @id @default(cuid())
   userId String @unique
@@ -90,6 +95,17 @@ model Instructor {
   currency              CurrencyCode @default(NGN)
   onboardingCompletedAt DateTime?
 
+  // planStatus/trialEndsAt back a no-card 14-day trial: trialEndsAt is set
+  // once at signup rather than derived from createdAt, so a support-granted
+  // extension is a single-row edit and future trial-length changes don't
+  // retroactively shrink trials already in progress. "Expired" isn't its own
+  // status — it's TRIALING with a past trialEndsAt (see isTrialExpired in
+  // src/lib/trial.ts) — avoiding a cron sweep to keep a stored status in
+  // sync. Existing instructors are backfilled with trialEndsAt = null,
+  // which isTrialExpired treats as "never expires".
+  planStatus  PlanStatus @default(TRIALING)
+  trialEndsAt DateTime?
+
   payoutProvider  PayoutProvider @default(STRIPE)
   payoutStatus    PayoutStatus   @default(NOT_CONNECTED)
   payoutAccountId String?
@@ -99,11 +115,14 @@ model Instructor {
   commissionRate     Int    @default(20)
   referralClickCount Int    @default(0)
 
-  socials       InstructorSocial[]
-  classes       YogaClass[]
-  pageViews     PageView[]
-  referralsMade Referral[]         @relation("ReferralsMade")
-  referredBy    Referral?          @relation("ReferredBy")
+  socials               InstructorSocial[]
+  classes               YogaClass[]
+  pageViews             PageView[]
+  referralsMade         Referral[]             @relation("ReferralsMade")
+  referredBy            Referral?              @relation("ReferredBy")
+  links                 InstructorLink[]
+  newsletterSubscribers NewsletterSubscriber[]
+  newsletterCampaigns   NewsletterCampaign[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -307,4 +326,89 @@ model ContactMessage {
 
   @@index([email, createdAt])
   @@index([ip, createdAt])
+}
+
+// Link-in-bio entries rendered on the public /{slug} page. clickCount is a
+// raw counter (no per-event log table) — same "don't pre-aggregate what you
+// don't need yet" reasoning as PageView; add a log table later only if a
+// click time-series is actually requested.
+model InstructorLink {
+  id           String     @id @default(cuid())
+  instructorId String
+  instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+
+  label      String
+  url        String
+  order      Int     @default(0)
+  isActive   Boolean @default(true)
+  clickCount Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([instructorId, order])
+}
+
+enum NewsletterSubscriberStatus {
+  SUBSCRIBED
+  UNSUBSCRIBED
+}
+
+model NewsletterSubscriber {
+  id           String     @id @default(cuid())
+  instructorId String
+  instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+
+  email  String
+  name   String?
+  status NewsletterSubscriberStatus @default(SUBSCRIBED)
+
+  // Generated explicitly with randomBytes(24).toString("hex") in the
+  // subscribe action, not a Prisma-default id — keeps the unsubscribe
+  // secret out of band from the row's cuid.
+  unsubscribeToken String @unique
+
+  ip     String?
+  source String?
+
+  subscribedAt   DateTime  @default(now())
+  unsubscribedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([instructorId, email])
+  @@index([instructorId, status])
+  @@index([ip, createdAt])
+}
+
+enum NewsletterCampaignStatus {
+  DRAFT
+  SENDING
+  SENT
+  FAILED
+}
+
+// bodyHtml is real HTML from the rich-text composer; the plain-text email
+// alternative is derived at send time by stripping tags (see stripHtml in
+// src/lib/email.ts) rather than storing a second copy.
+model NewsletterCampaign {
+  id           String     @id @default(cuid())
+  instructorId String
+  instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+
+  subject  String
+  bodyHtml String
+
+  status         NewsletterCampaignStatus @default(DRAFT)
+  recipientCount Int                      @default(0)
+  sentCount      Int                      @default(0)
+  failedCount    Int                      @default(0)
+  sentAt         DateTime?
+  errorMessage   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([instructorId, status])
 }
