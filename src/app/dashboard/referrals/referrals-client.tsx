@@ -71,7 +71,7 @@ export function ReferralsClient({
         {[
           { label: "Instructors referred", value: stats.totalReferred },
           { label: "Active referrals", value: stats.activeReferrals },
-          { label: "Commission earned", value: money(stats.totalCommission) },
+          { label: "Commission earned", value: money(stats.totalCommission, instructor.currency) },
         ].map((s) => (
           <div key={s.label} className="surface p-5">
             <p className="text-xs uppercase tracking-wider text-muted-foreground">{s.label}</p>
@@ -95,7 +95,7 @@ export function ReferralsClient({
               </div>
               <StatusPill tone={statusTone(r.status)}>{r.status.toLowerCase()}</StatusPill>
               <div className="w-28 text-right">
-                <p className="font-medium">{money(r.commissionEarned)}</p>
+                <p className="font-medium">{money(r.commissionEarned, instructor.currency)}</p>
                 <p className="text-xs text-muted-foreground">earned</p>
               </div>
             </div>

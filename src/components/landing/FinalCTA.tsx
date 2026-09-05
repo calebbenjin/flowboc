@@ -10,7 +10,7 @@ export function FinalCTA() {
         <div className="relative overflow-hidden rounded-3xl border border-border bg-primary px-6 py-20 text-center text-primary-foreground sm:px-12">
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_60%_at_50%_0%,var(--clay),transparent_70%)] opacity-25"
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_60%_at_50%_0%,var(--mint),transparent_70%)] opacity-25"
           />
           <div className="relative mx-auto max-w-2xl">
             <h2 className="text-3xl leading-[1.1] tracking-tight sm:text-4xl lg:text-5xl">
@@ -21,7 +21,7 @@ export function FinalCTA() {
               rest.
             </p>
             <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Button asChild size="xl" variant="clay" className="w-full sm:w-auto">
+              <Button asChild size="xl" variant="mint" className="w-full sm:w-auto">
                 <Link href="/auth">Start Your 14-Day Trial — No Card Required</Link>
               </Button>
               <Button

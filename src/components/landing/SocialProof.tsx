@@ -18,28 +18,34 @@ const contexts = [
 
 export function SocialProof() {
   return (
-    <Section className="border-y border-border bg-sand/40 !py-12">
+    <Section className="border-y border-border bg-sand/40 py-12!">
       <Reveal className="flex flex-col items-center gap-8 text-center">
-        <div className="flex flex-col items-center gap-6">
-          <p className="max-w-xl text-sm text-muted-foreground">
+        <div className="flex flex-col items-center gap-5">
+          <p className="max-w-xl text-base font-medium">
             Built for instructors who&apos;d rather teach than manage spreadsheets.
           </p>
-          <ul className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+          <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
             {points.map((p) => (
-              <li key={p} className="flex items-center gap-2 text-sm font-medium">
-                <Check className="size-4 text-success" /> {p}
+              <li key={p} className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span className="grid size-5 place-items-center rounded-full bg-success/15 text-success">
+                  <Check className="size-3" />
+                </span>
+                {p}
               </li>
             ))}
           </ul>
         </div>
-        <div className="h-px w-16 bg-border" aria-hidden />
-        <div className="flex flex-wrap items-center justify-center gap-2">
+
+        <div className="flex flex-wrap items-center justify-center gap-3">
           {contexts.map((c) => (
             <span
               key={c.label}
-              className="flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-xs text-muted-foreground"
+              className="flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-clay/40 hover:bg-clay/5 hover:text-foreground"
             >
-              <c.icon className="size-3.5 text-clay" /> {c.label}
+              <span className="grid size-6 place-items-center rounded-full bg-clay/12 text-clay">
+                <c.icon className="size-3.5" />
+              </span>
+              {c.label}
             </span>
           ))}
         </div>

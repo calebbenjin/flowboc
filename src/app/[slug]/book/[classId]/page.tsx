@@ -41,6 +41,7 @@ export default async function BookingPage({
     <BookingFlowClient
       slug={slug}
       instructorName={instructor.name}
+      currency={instructor.currency}
       cls={{
         id: cls.id,
         name: cls.name,

@@ -19,6 +19,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { StatusPill } from "@/components/StatusPill";
 import { Button } from "@/components/ui/button";
 import { PriceTag } from "@/components/PriceTag";
+import { useInstructor } from "@/components/InstructorProvider";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -276,6 +277,7 @@ function ClassMenu({ cls, duplicatingId, onDuplicate, onCancel, onDelete }: Clas
 }
 
 function ClassCard({ cls: c, duplicatingId, onDuplicate, onCancel, onDelete }: ClassActionsProps) {
+  const instructor = useInstructor();
   return (
     <div className="surface overflow-hidden">
       {c.coverUrl ? (
@@ -315,6 +317,7 @@ function ClassCard({ cls: c, duplicatingId, onDuplicate, onCancel, onDelete }: C
           <PriceTag
             price={c.price}
             originalPrice={c.originalPrice ?? undefined}
+            currency={instructor.currency}
             priceClassName="font-medium"
           />
           <span className="text-muted-foreground">0 / {c.capacity} booked</span>
@@ -388,6 +391,7 @@ function SeriesCard({
   onCancel,
   onDelete,
 }: SeriesCardProps) {
+  const instructor = useInstructor();
   // `occurrences` is already sorted ascending by startAt (inherited from the
   // parent query), so the first entry is the soonest date in the series.
   // Non-null: a series group is only ever created with at least one occurrence.
@@ -428,6 +432,7 @@ function SeriesCard({
           <PriceTag
             price={next.price}
             originalPrice={next.originalPrice ?? undefined}
+            currency={instructor.currency}
             priceClassName="font-medium"
           />
           <span className="text-muted-foreground">0 / {next.capacity} booked</span>

@@ -45,6 +45,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useInstructor } from "@/components/InstructorProvider";
 import { money } from "@/lib/demo";
 import { deadlineMinutesToLabel } from "@/lib/class-deadline";
 import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
@@ -138,6 +139,7 @@ export function ClassDetailClient({
   waitlist: WaitlistEntry[];
 }) {
   const router = useRouter();
+  const instructor = useInstructor();
   const confirmedBookings = bookings.filter((b) => b.status === "CONFIRMED");
   const collected = confirmedBookings
     .filter((b) => b.paymentStatus === "PAID")
@@ -307,7 +309,7 @@ export function ClassDetailClient({
           <Wallet className="size-5 text-clay" />
           <div>
             <p className="text-xs text-muted-foreground">Collected</p>
-            <p className="display text-xl">{money(collected)}</p>
+            <p className="display text-xl">{money(collected, instructor.currency)}</p>
           </div>
         </div>
         <div className="surface flex items-center gap-3 p-5">
@@ -349,7 +351,9 @@ export function ClassDetailClient({
                   <StatusPill tone={paymentTone(b.paymentStatus.toLowerCase())}>
                     {b.paymentStatus.toLowerCase()}
                   </StatusPill>
-                  <span className="w-20 text-right text-sm font-medium">{money(b.amount)}</span>
+                  <span className="w-20 text-right text-sm font-medium">
+                    {money(b.amount, instructor.currency)}
+                  </span>
                   {b.status === "CONFIRMED" && (
                     <div className="flex gap-1">
                       <Button
