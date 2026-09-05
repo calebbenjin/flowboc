@@ -31,9 +31,7 @@ export function Navbar() {
     <header
       className={cn(
         "sticky top-0 z-50 border-b transition-colors",
-        scrolled
-          ? "border-border bg-primary/85 backdrop-blur-md"
-          : "border-transparent bg-primary",
+        scrolled ? "border-border bg-primary/85 backdrop-blur-md" : "border-transparent bg-primary",
       )}
     >
       <nav className="mx-auto flex h-16 w-full max-w-[1200px] items-center justify-between px-5 sm:px-8">
