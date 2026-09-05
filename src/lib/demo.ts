@@ -131,7 +131,7 @@ export const referralStats = {
   totalCommission: referrals.reduce((sum, r) => sum + r.commissionEarned, 0),
 };
 
-export function money(amount: number, code: CurrencyCode = instructor.currency) {
+export function money(amount: number, code: CurrencyCode) {
   const c = currencies.find((x) => x.code === code) ?? currencies[0];
   return `${c.symbol}${amount.toLocaleString("en-US")}`;
 }

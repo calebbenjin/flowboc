@@ -68,6 +68,7 @@ export default async function PublicPage({ params }: { params: Promise<{ slug: s
         phone: instructor.phone,
         consultationLink: instructor.consultationLink,
         specialties: instructor.specialties,
+        currency: instructor.currency,
         socials: instructor.socials.map((s) => ({
           platform: s.platform.toLowerCase(),
           handle: s.handle,

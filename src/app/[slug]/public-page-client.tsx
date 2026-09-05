@@ -36,7 +36,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { PriceTag } from "@/components/PriceTag";
 import { Reveal } from "@/components/landing/primitives";
 import { toast } from "sonner";
-import { timezoneLabel, type SocialPlatform } from "@/lib/demo";
+import { timezoneLabel, type CurrencyCode, type SocialPlatform } from "@/lib/demo";
 import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
 import { joinWaitlist, subscribeToNewsletter } from "./actions";
 
@@ -50,6 +50,7 @@ export type PublicInstructor = {
   phone: string | null;
   consultationLink: string | null;
   specialties: string[];
+  currency: CurrencyCode;
   socials: { platform: string; handle: string }[];
   links: { id: string; label: string; url: string }[];
 };
@@ -488,6 +489,7 @@ export function PublicPageClient({
                     <ClassCard
                       c={group.cls}
                       slug={instructor.slug}
+                      currency={instructor.currency}
                       onWaitlist={joinedWaitlist.has(group.cls.id)}
                       onJoinWaitlist={() => setWaitlistOpenFor(group.cls.id)}
                     />
@@ -504,6 +506,7 @@ export function PublicPageClient({
                   <ClassCard
                     c={selected}
                     slug={instructor.slug}
+                    currency={instructor.currency}
                     onWaitlist={joinedWaitlist.has(selected.id)}
                     onJoinWaitlist={() => setWaitlistOpenFor(selected.id)}
                     dateChips={{
@@ -570,12 +573,14 @@ function DateChips({
 function ClassCard({
   c,
   slug,
+  currency,
   onWaitlist,
   onJoinWaitlist,
   dateChips,
 }: {
   c: PublicClass;
   slug: string;
+  currency: CurrencyCode;
   onWaitlist: boolean;
   onJoinWaitlist: () => void;
   dateChips?: { occurrences: PublicClass[]; selectedId: string; onSelect: (id: string) => void };
@@ -637,7 +642,11 @@ function ClassCard({
           />
         )}
         <div className="mt-3 flex items-center justify-between gap-3">
-          <PriceTag price={c.price} originalPrice={c.originalPrice ?? undefined} />
+          <PriceTag
+            price={c.price}
+            originalPrice={c.originalPrice ?? undefined}
+            currency={currency}
+          />
           <span className="shrink-0 text-xs">
             {c.spots > 0 ? (
               <span className="text-[#6355ff]">{c.spots} spots left</span>
@@ -690,7 +699,11 @@ function ClassCard({
             </p>
           </div>
           <div className="flex items-center justify-between pt-4">
-            <PriceTag price={c.price} originalPrice={c.originalPrice ?? undefined} />
+            <PriceTag
+              price={c.price}
+              originalPrice={c.originalPrice ?? undefined}
+              currency={currency}
+            />
             {bookAction}
           </div>
         </div>

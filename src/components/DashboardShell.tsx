@@ -101,34 +101,35 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const instructor = useInstructor();
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto flex max-w-7xl gap-8 px-4 py-6 lg:px-8">
-        <aside className="hidden w-56 shrink-0 lg:block">
-          <Link href="/" className="inline-flex font-extrabold text-foreground text-2xl">
-            flowbuk
-          </Link>
-          <nav className="mt-8 space-y-1">
-            {nav.map((item) => {
-              const active = item.to === "/dashboard" ? path === item.to : path.startsWith(item.to);
-              return (
-                <Link
-                  key={item.to}
-                  href={item.to}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                    active
-                      ? "bg-accent text-accent-foreground font-medium"
-                      : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
-                  )}
-                >
-                  <item.icon className="size-4" />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
+    <div className="min-h-screen lg:flex">
+      <aside className="hidden bg-sidebar text-sidebar-foreground lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:w-64 lg:flex-col lg:gap-6 lg:overflow-y-auto lg:border-r lg:border-sidebar-border lg:p-6">
+        <Link href="/" className="inline-flex font-extrabold text-2xl text-sidebar-foreground">
+          flowbuk
+        </Link>
 
-          <div className="surface mt-8 p-4">
+        <nav className="flex-1 space-y-1">
+          {nav.map((item) => {
+            const active = item.to === "/dashboard" ? path === item.to : path.startsWith(item.to);
+            return (
+              <Link
+                key={item.to}
+                href={item.to}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+                  active
+                    ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium shadow-soft"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                )}
+              >
+                <item.icon className="size-4" />
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="space-y-4">
+          <div className="rounded-xl bg-card p-4 shadow-soft">
             <p className="text-xs text-muted-foreground">Your booking page</p>
             <p className="mt-1 truncate text-sm font-medium">
               {siteHost}/{instructor.slug}
@@ -141,12 +142,12 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             </Link>
           </div>
 
-          <div className="mt-4">
-            <UserMenu />
-          </div>
-        </aside>
+          <UserMenu />
+        </div>
+      </aside>
 
-        <div className="min-w-0 flex-1 pb-20 lg:pb-0">
+      <div className="dashboard-content min-h-screen flex-1 bg-white lg:pl-64">
+        <div className="mx-auto max-w-6xl px-4 py-6 pb-20 lg:px-8 lg:pb-6">
           <div className="mb-6 flex items-center justify-between lg:hidden">
             <Link href="/" className="inline-flex font-extrabold text-foreground text-2xl">
               flowbuk

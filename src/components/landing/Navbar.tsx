@@ -32,8 +32,8 @@ export function Navbar() {
       className={cn(
         "sticky top-0 z-50 border-b transition-colors",
         scrolled
-          ? "border-border bg-[#6355ff]/85 backdrop-blur-md"
-          : "border-transparent bg-[#6355ff]",
+          ? "border-border bg-primary/85 backdrop-blur-md"
+          : "border-transparent bg-primary",
       )}
     >
       <nav className="mx-auto flex h-16 w-full max-w-[1200px] items-center justify-between px-5 sm:px-8">
@@ -46,7 +46,7 @@ export function Navbar() {
             <a
               key={l.label}
               href={l.href}
-              className="text-sm text-white transition-colors hover:text-foreground"
+              className="text-base text-white transition-colors hover:text-foreground"
             >
               {l.label}
             </a>
@@ -55,16 +55,21 @@ export function Navbar() {
 
         <div className="hidden items-center gap-2 md:flex">
           {authed ? (
-            <Button asChild size="sm" className="w-full bg-white hover:bg-[#30ffb4] text-black">
+            <Button asChild size="sm" className="w-full bg-white text-black">
               <Link href="/dashboard">Dashboard</Link>
             </Button>
           ) : (
             <>
-              <Button asChild variant="ghost" size="sm">
+              <Button asChild variant="ghost" size="lg" className="text-white">
                 <Link href="/auth">Log in</Link>
               </Button>
-              <Button asChild variant="clay" size="sm">
-                <Link href="/auth">Start Trial</Link>
+              <Button
+                asChild
+                variant="secondary"
+                size="sm"
+                className="w-full bg-mint text-mint-foreground"
+              >
+                <Link href="/auth">Start Your 14-Day Trial</Link>
               </Button>
             </>
           )}
@@ -75,21 +80,21 @@ export function Navbar() {
           aria-label={open ? "Close menu" : "Open menu"}
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
-          className="grid size-11 place-items-center rounded-md text-foreground md:hidden"
+          className="grid size-11 place-items-center rounded-md text-secondary md:hidden"
         >
           {open ? <Menu className="size-5 rotate-90" /> : <Menu className="size-5" />}
         </button>
       </nav>
 
       {open ? (
-        <div className="border-t border-border bg-background px-5 pb-5 pt-2 md:hidden">
+        <div className="border-t border-border bg-primary px-5 pb-5 pt-2 md:hidden">
           <div className="flex flex-col">
             {links.map((l) => (
               <a
                 key={l.label}
                 href={l.href}
                 onClick={() => setOpen(false)}
-                className="flex min-h-11 items-center text-sm text-muted-foreground"
+                className="flex min-h-11 items-center text-sm text-white transition-colors hover:text-foreground"
               >
                 {l.label}
               </a>
@@ -97,16 +102,21 @@ export function Navbar() {
           </div>
           <div className="mt-3 flex flex-col gap-2">
             {authed ? (
-              <Button asChild variant="clay" size="lg">
+              <Button asChild variant="mint" size="lg">
                 <Link href="/dashboard">Dashboard</Link>
               </Button>
             ) : (
               <>
-                <Button asChild variant="quiet" size="lg">
+                <Button
+                  asChild
+                  variant="quiet"
+                  size="lg"
+                  className="w-full text-black sm:text-white"
+                >
                   <Link href="/auth">Log in</Link>
                 </Button>
-                <Button asChild variant="clay" size="lg">
-                  <Link href="/auth">Start Trial</Link>
+                <Button asChild variant="secondary" size="lg">
+                  <Link href="/auth">Start Your 14-Day Trial</Link>
                 </Button>
               </>
             )}
@@ -114,7 +124,7 @@ export function Navbar() {
         </div>
       ) : null}
       <span className="hidden">
-        <X className="size-0" />
+        <X className="size-0 " />
       </span>
     </header>
   );

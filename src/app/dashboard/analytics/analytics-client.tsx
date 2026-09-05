@@ -10,7 +10,8 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { money } from "@/lib/demo";
+import { useInstructor } from "@/components/InstructorProvider";
+import { money, type CurrencyCode } from "@/lib/demo";
 import { cn } from "@/lib/utils";
 import type { TopClass, WeeklyMetric } from "./queries";
 
@@ -28,8 +29,10 @@ function sum(rows: WeeklyMetric[], key: "revenue" | "views" | "bookings") {
   return rows.reduce((s, r) => s + r[key], 0);
 }
 
-function compactMoney(amount: number) {
-  return amount >= 1000 ? money(Math.round(amount / 1000)).concat("k") : money(amount);
+function compactMoney(amount: number, currency: CurrencyCode) {
+  return amount >= 1000
+    ? money(Math.round(amount / 1000), currency).concat("k")
+    : money(amount, currency);
 }
 
 function StatCard({
@@ -86,6 +89,7 @@ export function AnalyticsClient({
   fillRate: number;
   topClasses: TopClass[];
 }) {
+  const instructor = useInstructor();
   const [range, setRange] = useState(8);
 
   const data = useMemo(() => weeklyMetrics.slice(-range), [weeklyMetrics, range]);
@@ -135,7 +139,7 @@ export function AnalyticsClient({
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Revenue"
-          value={money(totalRevenue)}
+          value={money(totalRevenue, instructor.currency)}
           delta={pctDelta(totalRevenue, sum(prevData, "revenue"))}
           icon={Wallet}
         />
@@ -178,9 +182,13 @@ export function AnalyticsClient({
                 axisLine={false}
                 tickMargin={8}
                 width={48}
-                tickFormatter={(v: number) => compactMoney(v)}
+                tickFormatter={(v: number) => compactMoney(v, instructor.currency)}
               />
-              <ChartTooltip content={<ChartTooltipContent formatter={(v) => money(Number(v))} />} />
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent formatter={(v) => money(Number(v), instructor.currency)} />
+                }
+              />
               <Area
                 type="monotone"
                 dataKey="revenue"
@@ -255,7 +263,7 @@ export function AnalyticsClient({
                   <p className="truncate font-medium">{c.name}</p>
                   <p className="text-xs text-muted-foreground">{c.booked} booked</p>
                 </div>
-                <span className="shrink-0 font-medium">{money(c.earned)}</span>
+                <span className="shrink-0 font-medium">{money(c.earned, instructor.currency)}</span>
               </div>
             ))}
           </div>

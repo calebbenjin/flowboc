@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PriceTag } from "@/components/PriceTag";
-import { money, timezoneLabel } from "@/lib/demo";
+import { money, timezoneLabel, type CurrencyCode } from "@/lib/demo";
 import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
 import { googleCalendarUrl } from "@/lib/calendar";
 import { createBookingIntent } from "./actions";
@@ -33,10 +33,12 @@ export type BookableClass = {
 export function BookingFlowClient({
   slug,
   instructorName,
+  currency,
   cls,
 }: {
   slug: string;
   instructorName: string;
+  currency: CurrencyCode;
   cls: BookableClass;
 }) {
   const [step, setStep] = useState<Step>("details");
@@ -124,6 +126,7 @@ export function BookingFlowClient({
           <PriceTag
             price={cls.price}
             originalPrice={cls.originalPrice ?? undefined}
+            currency={currency}
             priceClassName="display text-xl"
           />
         </div>
@@ -210,7 +213,7 @@ export function BookingFlowClient({
           >
             <div className="flex items-center justify-between rounded-lg bg-sand/70 px-4 py-3 text-sm">
               <span>{cls.name}</span>
-              <span className="font-medium">{money(cls.price)}</span>
+              <span className="font-medium">{money(cls.price, currency)}</span>
             </div>
             <div className="space-y-2">
               <Label htmlFor="card">Card number</Label>
@@ -233,7 +236,7 @@ export function BookingFlowClient({
               <Lock className="size-3" /> Payments are processed securely.
             </p>
             <Button type="submit" variant="clay" size="lg" className="w-full">
-              Pay {money(cls.price)}
+              Pay {money(cls.price, currency)}
             </Button>
           </form>
         )}
@@ -252,7 +255,8 @@ export function BookingFlowClient({
               {cls.location ?? "Location TBC"}
             </p>
             <p className="mt-4 text-sm">
-              Payment of {money(cls.price)} was successful. A confirmation email is on its way.
+              Payment of {money(cls.price, currency)} was successful. A confirmation email is on its
+              way.
             </p>
 
             <div className="mt-6 flex flex-wrap justify-center gap-3">

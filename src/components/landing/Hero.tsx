@@ -12,14 +12,14 @@ export function Hero() {
   return (
     <section
       id="top"
-      className="relative overflow-hidden px-5 pb-16 pt-14 sm:px-8 lg:pb-28 lg:pt-20 bg-[#6355ff]"
+      className="relative overflow-hidden px-5 pb-16 pt-14 sm:px-8 lg:pb-28 lg:pt-20 bg-primary"
     >
       <div className="mx-auto w-full max-w-[1200px]">
         <div className="mx-auto max-w-3xl text-center">
           <Eyebrow className="text-white">Built for independent yoga teachers</Eyebrow>
           <h1 className="text-white mt-5 text-[2.5rem] leading-[1.05] tracking-tight sm:text-5xl lg:text-[3.75rem]">
             Create your class. Share your link.{" "}
-            <span className="display italic text-[#30ffb4]">Get booked.</span>
+            <span className="display italic text-mint">Get booked.</span>
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-white sm:text-lg">
             Stop managing bookings across WhatsApp, Instagram, spreadsheets and payment links.
@@ -30,9 +30,9 @@ export function Hero() {
             <Button
               asChild
               size="xl"
-              className="w-full sm:w-auto bg-[#30ffb4] hover:bg-[#30ffb4] text-black font-bold"
+              className="w-full sm:w-auto bg-mint hover:bg-mint text-mint-foreground font-bold"
             >
-              <Link href="/auth">Start Your 14-Day Trial — No Card Required</Link>
+              <Link href="/auth">Start Your 14-Day Trial</Link>
             </Button>
             <Button asChild size="xl" variant="quiet" className="w-full sm:w-auto">
               <a href="#how-it-works">
@@ -41,7 +41,7 @@ export function Hero() {
             </Button>
           </div>
           <p className="mt-4 text-sm text-white">
-            <Check className="mr-1 inline size-3.5 text-[#30ffb4]" />
+            <Check className="mr-1 inline size-3.5 text-mint" />
             Set up your first class in minutes.
           </p>
         </div>

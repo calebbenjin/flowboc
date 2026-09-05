@@ -6,11 +6,13 @@ import { Users } from "lucide-react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { EmptyState } from "@/components/EmptyState";
 import { Input } from "@/components/ui/input";
+import { useInstructor } from "@/components/InstructorProvider";
 import { money } from "@/lib/demo";
 import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
 import type { StudentRow } from "./queries";
 
 export function StudentsClient({ students }: { students: StudentRow[] }) {
+  const instructor = useInstructor();
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -70,7 +72,7 @@ export function StudentsClient({ students }: { students: StudentRow[] }) {
                 {s.classesBooked} booked · {s.classesAttended} attended
               </div>
               <div className="w-28 text-right">
-                <p className="font-medium">{money(s.totalSpent)}</p>
+                <p className="font-medium">{money(s.totalSpent, instructor.currency)}</p>
                 <p className="text-xs text-muted-foreground">
                   {s.lastBookingAt
                     ? formatDistanceToNow(s.lastBookingAt, { addSuffix: true })

@@ -69,12 +69,15 @@ export default async function Dashboard() {
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { label: "Revenue this month", value: money(stats.revenueThisMonth) },
+          {
+            label: "Revenue this month",
+            value: money(stats.revenueThisMonth, instructor.currency),
+          },
           { label: "Upcoming classes", value: stats.upcomingClasses },
           { label: "Bookings", value: stats.totalBookings },
           { label: "Students", value: stats.totalStudents },
         ].map((s) => (
-          <div key={s.label} className="surface p-5">
+          <div key={s.label} className="surface bg-white p-5">
             <p className="text-xs uppercase tracking-wider text-muted-foreground">{s.label}</p>
             <p className="display mt-2 text-3xl">{s.value}</p>
           </div>
@@ -99,7 +102,7 @@ export default async function Dashboard() {
           ) : (
             <div className="mt-3 space-y-3">
               {upcoming.map((c) => (
-                <div key={c.id} className="surface flex items-center gap-4 p-4">
+                <div key={c.id} className="surface bg-white flex items-center gap-4 p-4">
                   {c.coverUrl ? (
                     <img
                       src={c.coverUrl}
@@ -139,7 +142,7 @@ export default async function Dashboard() {
               body="Bookings will show up here once students start booking your classes."
             />
           ) : (
-            <div className="surface mt-3 divide-y divide-border">
+            <div className="surface bg-white mt-3 divide-y divide-border">
               {recent.map((b) => (
                 <div key={b.id} className="flex items-center justify-between gap-4 p-4">
                   <div className="min-w-0">
@@ -152,7 +155,9 @@ export default async function Dashboard() {
                     <StatusPill tone={paymentTone(b.paymentStatus.toLowerCase())}>
                       {b.paymentStatus.toLowerCase()}
                     </StatusPill>
-                    <span className="text-sm font-medium">{money(b.amount)}</span>
+                    <span className="text-sm font-medium">
+                      {money(b.amount, instructor.currency)}
+                    </span>
                   </div>
                 </div>
               ))}
@@ -174,7 +179,7 @@ export default async function Dashboard() {
           ) : (
             <div className="mt-3 space-y-3">
               {attention.map((a) => (
-                <div key={a.id} className="surface flex gap-3 p-4">
+                <div key={a.id} className="surface bg-white flex gap-3 p-4">
                   <AlertCircle className="mt-0.5 size-4 shrink-0 text-clay" />
                   <div>
                     <p className="text-sm font-medium">{a.kind}</p>
@@ -185,7 +190,7 @@ export default async function Dashboard() {
             </div>
           )}
 
-          <div className="surface mt-6 p-5">
+          <div className="surface bg-white mt-6 p-5">
             <p className="text-xs uppercase tracking-wider text-muted-foreground">Booking link</p>
             <p className="mt-2 text-sm font-medium">
               {siteHost}/{instructor.slug}
