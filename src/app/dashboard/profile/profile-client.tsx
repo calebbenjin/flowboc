@@ -6,13 +6,14 @@ import { useRef, useState, type FormEvent } from "react";
 import { signOut } from "next-auth/react";
 import { upload } from "@vercel/blob/client";
 import { toast } from "sonner";
-import { ArrowUpRight, Gift, Landmark, Loader2 } from "lucide-react";
+import { ArrowUpRight, Gift, ImagePlus, Landmark, Loader2, X } from "lucide-react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { useInstructor } from "@/components/InstructorProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -23,8 +24,111 @@ import {
 } from "@/components/ui/alert-dialog";
 import { currencies, socialPlatforms } from "@/lib/demo";
 import { siteHost } from "@/lib/site";
+import { cn } from "@/lib/utils";
 import type { CurrencyCode, SocialPlatform } from "@/generated/prisma/enums";
-import { deleteAccount, updatePhoto, updateProfile, updateSocials } from "./actions";
+import {
+  deleteAccount,
+  updatePhoto,
+  updateProfile,
+  updateSocials,
+  updateVideoCallOffer,
+} from "./actions";
+
+function VideoCallImageUpload({
+  value,
+  onChange,
+}: {
+  value: string | null;
+  onChange: (url: string | null) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+
+  async function handleFile(file: File) {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose an image file.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const blob = await upload(file.name, file, {
+        access: "public",
+        handleUploadUrl: "/api/upload",
+      });
+      onChange(blob.url);
+    } catch {
+      toast.error("Couldn't upload image. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => fileInputRef.current?.click()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click();
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragActive(true);
+      }}
+      onDragLeave={() => setDragActive(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragActive(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file) void handleFile(file);
+      }}
+      className={cn(
+        "relative flex h-28 cursor-pointer items-center gap-4 overflow-hidden rounded-lg border border-dashed border-border text-sm text-muted-foreground transition-colors hover:bg-primary/10",
+        dragActive && "border-clay bg-clay/5",
+        value ? "justify-start p-3" : "justify-center",
+      )}
+    >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) void handleFile(file);
+        }}
+      />
+      {uploading ? (
+        <Loader2 className="size-5 animate-spin" />
+      ) : value ? (
+        <>
+          <img src={value} alt="" className="h-20 w-20 shrink-0 rounded-lg object-cover" />
+          <span>Drop an image or click to replace</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label="Remove image"
+            className="absolute right-2 top-2"
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange(null);
+            }}
+          >
+            <X className="size-4" />
+          </Button>
+        </>
+      ) : (
+        <span className="flex items-center gap-2">
+          <ImagePlus className="size-4" />
+          Drop an image or click to upload
+        </span>
+      )}
+    </div>
+  );
+}
 
 export function ProfileClient() {
   const router = useRouter();
@@ -55,6 +159,12 @@ export function ProfileClient() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
 
+  const [videoCallEnabled, setVideoCallEnabled] = useState(instructor.videoCallEnabled);
+  const [videoCallImageUrl, setVideoCallImageUrl] = useState<string | null>(
+    instructor.videoCallImageUrl,
+  );
+  const [videoCallPending, setVideoCallPending] = useState(false);
+
   async function handleProfileSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -69,7 +179,6 @@ export function ProfileClient() {
         phone: String(formData.get("phone") ?? ""),
         currency: String(formData.get("currency") ?? "NGN") as CurrencyCode,
         slug: String(formData.get("slug") ?? ""),
-        consultationLink: String(formData.get("consultationLink") ?? ""),
       });
       if (result.ok) {
         toast.success("Profile updated");
@@ -128,6 +237,32 @@ export function ProfileClient() {
       toast.error("Couldn't upload photo. Please try again.");
     } finally {
       setPhotoPending(false);
+    }
+  }
+
+  async function handleVideoCallSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const price = String(formData.get("videoCallPrice") ?? "").trim();
+
+    setVideoCallPending(true);
+    try {
+      const result = await updateVideoCallOffer({
+        enabled: videoCallEnabled,
+        title: String(formData.get("videoCallTitle") ?? ""),
+        description: String(formData.get("videoCallDescription") ?? ""),
+        imageUrl: videoCallImageUrl,
+        price: price ? Number(price) : null,
+        meetingLink: String(formData.get("videoCallLink") ?? ""),
+      });
+      if (result.ok) {
+        toast.success("Video call offer updated");
+        router.refresh();
+      } else {
+        toast.error(result.error);
+      }
+    } finally {
+      setVideoCallPending(false);
     }
   }
 
@@ -267,22 +402,87 @@ export function ProfileClient() {
               <Input id="s" name="slug" defaultValue={instructor.slug} />
             </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="consult">Consultation booking link</Label>
-            <Input
-              id="consult"
-              name="consultationLink"
-              defaultValue={instructor.consultationLink ?? ""}
-              placeholder="https://calendly.com/you/consultation"
-            />
-            <p className="text-xs text-muted-foreground">
-              Shown as a &quot;Book a consultation&quot; button on your public page. Paste a
-              Calendly, Cal.com or other scheduling link.
-            </p>
-          </div>
           <div className="flex justify-end">
             <Button type="submit" variant="clay" disabled={profilePending}>
               {profilePending ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" /> Saving…
+                </>
+              ) : (
+                "Save changes"
+              )}
+            </Button>
+          </div>
+        </form>
+
+        <form
+          className="surface mt-6 space-y-4 p-6"
+          onSubmit={(e) => void handleVideoCallSubmit(e)}
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-sm font-medium">Video call</h2>
+              <p className="text-xs text-muted-foreground">
+                Shown as a bookable card on your public page, for 1:1 video calls instead of a
+                scheduled class.
+              </p>
+            </div>
+            <Switch checked={videoCallEnabled} onCheckedChange={setVideoCallEnabled} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="vctitle">Title</Label>
+            <Input
+              id="vctitle"
+              name="videoCallTitle"
+              defaultValue={instructor.videoCallTitle ?? ""}
+              placeholder="Book a Video Call with Me"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="vcdesc">Description</Label>
+            <Textarea
+              id="vcdesc"
+              name="videoCallDescription"
+              rows={2}
+              defaultValue={instructor.videoCallDescription ?? ""}
+              placeholder="I'm available on Mondays and Thursdays."
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Image</Label>
+            <VideoCallImageUpload value={videoCallImageUrl} onChange={setVideoCallImageUrl} />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="vcprice">Price (optional)</Label>
+              <Input
+                id="vcprice"
+                name="videoCallPrice"
+                type="number"
+                defaultValue={instructor.videoCallPrice ?? ""}
+                placeholder="Leave blank for free"
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave blank for free. Paid calls show as &quot;Coming soon&quot; until checkout is
+                available.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="vclink">Meeting link</Label>
+              <Input
+                id="vclink"
+                name="videoCallLink"
+                defaultValue={instructor.consultationLink ?? ""}
+                placeholder="https://zoom.us/j/… or Google Meet link"
+              />
+              <p className="text-xs text-muted-foreground">
+                Sent to students by email once they book — and shown to them right away.
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button type="submit" variant="clay" disabled={videoCallPending}>
+              {videoCallPending ? (
                 <>
                   <Loader2 className="size-4 animate-spin" /> Saving…
                 </>

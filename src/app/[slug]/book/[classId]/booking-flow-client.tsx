@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { CalendarPlus, Check, CreditCard, Download, Lock } from "lucide-react";
+import { CalendarPlus, Check, Download, Loader2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,9 +13,18 @@ import { PriceTag } from "@/components/PriceTag";
 import { money, timezoneLabel, type CurrencyCode } from "@/lib/demo";
 import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
 import { googleCalendarUrl } from "@/lib/calendar";
-import { createBookingIntent } from "./actions";
+import {
+  checkResumableBooking,
+  createBookingIntent,
+  initiatePayment,
+  verifyPayment,
+} from "./actions";
 
-type Step = "details" | "payment" | "done";
+function resumeKey(classId: string) {
+  return `flowbuk-booking-${classId}`;
+}
+
+type Step = "details" | "payment" | "confirming" | "done";
 
 export type BookableClass = {
   id: string;
@@ -41,12 +51,99 @@ export function BookingFlowClient({
   currency: CurrencyCode;
   cls: BookableClass;
 }) {
-  const [step, setStep] = useState<Step>("details");
+  const searchParams = useSearchParams();
+  const returningReference = searchParams.get("reference");
+
+  const [step, setStep] = useState<Step>(returningReference ? "confirming" : "details");
   const [name, setName] = useState("");
   const [pending, setPending] = useState(false);
+  const [payPending, setPayPending] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
+  // "checking" until we know whether this visitor is sitting on their own
+  // unexpired reservation — gates the "class is full" screen below so a
+  // closed/declined checkout doesn't look like a dead end.
+  const [resumeStatus, setResumeStatus] = useState<"checking" | "resumable" | "none">(
+    returningReference ? "none" : "checking",
+  );
 
-  if (cls.spots <= 0) {
+  // Paystack appends ?reference= to the callback URL on return — verify it
+  // once on mount rather than trusting the redirect alone (the webhook is
+  // the real source of truth, but this gives the student instant feedback
+  // without waiting on it).
+  useEffect(() => {
+    if (!returningReference) return;
+    void verifyPayment(returningReference).then((result) => {
+      if (result.ok) {
+        setBookingId(result.bookingId);
+        setStep("done");
+      } else {
+        if (result.bookingId) setBookingId(result.bookingId);
+        toast.error(result.error);
+        setStep("payment");
+      }
+    });
+    // Only ever run once, for whatever reference was in the URL on first
+    // render — not meant to re-run as other state changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Paystack only redirects back with a reference on a completed checkout —
+  // closing the widget or a declined attempt leaves no signal at all. Check
+  // whether a reservation from earlier in this browser is still alive so we
+  // can resume it instead of falling through to "this class just filled up".
+  useEffect(() => {
+    if (returningReference) return;
+    const key = resumeKey(cls.id);
+    const stored = localStorage.getItem(key);
+    if (!stored) {
+      setResumeStatus("none");
+      return;
+    }
+    void checkResumableBooking(stored).then((result) => {
+      if (result.ok) {
+        setBookingId(stored);
+        setStep(result.step);
+        setResumeStatus("resumable");
+      } else {
+        localStorage.removeItem(key);
+        setResumeStatus("none");
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (step === "done") localStorage.removeItem(resumeKey(cls.id));
+  }, [step, cls.id]);
+
+  async function handlePay() {
+    if (!bookingId) return;
+    setPayPending(true);
+    try {
+      const result = await initiatePayment(bookingId);
+      if (result.ok) {
+        window.location.href = result.authorizationUrl;
+      } else {
+        toast.error(result.error);
+        setPayPending(false);
+      }
+    } catch {
+      toast.error("Couldn't start payment. Please try again.");
+      setPayPending(false);
+    }
+  }
+
+  if (cls.spots <= 0 && resumeStatus === "checking") {
+    return (
+      <div className="min-h-screen bg-sand/50 px-4 py-12">
+        <div className="mx-auto max-w-2xl text-center">
+          <Loader2 className="mx-auto size-6 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    );
+  }
+
+  if (cls.spots <= 0 && resumeStatus !== "resumable") {
     return (
       <div className="min-h-screen bg-sand/50 px-4 py-12">
         <div className="mx-auto max-w-2xl text-center">
@@ -84,8 +181,9 @@ export function BookingFlowClient({
         notes: String(formData.get("nt") ?? ""),
       });
       if (result.ok) {
+        if (!result.isFree) localStorage.setItem(resumeKey(cls.id), result.bookingId);
         setBookingId(result.bookingId);
-        setStep("payment");
+        setStep(result.isFree ? "done" : "payment");
       } else {
         toast.error(result.error);
       }
@@ -132,21 +230,24 @@ export function BookingFlowClient({
         </div>
 
         <div className="mt-6 flex items-center gap-2 text-xs text-muted-foreground">
-          {(["details", "payment", "done"] as Step[]).map((s, i) => (
-            <div key={s} className="flex items-center gap-2">
-              <span
-                className={
-                  step === s
-                    ? "rounded-full bg-clay px-2.5 py-1 font-medium text-clay-foreground"
-                    : "rounded-full bg-secondary px-2.5 py-1"
-                }
-              >
-                {i + 1}.{" "}
-                {s === "details" ? "Your details" : s === "payment" ? "Payment" : "Confirmed"}
-              </span>
-              {i < 2 && <span className="h-px w-6 bg-border" />}
-            </div>
-          ))}
+          {(["details", "payment", "done"] as const).map((s, i) => {
+            const active = step === s || (s === "payment" && step === "confirming");
+            return (
+              <div key={s} className="flex items-center gap-2">
+                <span
+                  className={
+                    active
+                      ? "rounded-full bg-clay px-2.5 py-1 font-medium text-clay-foreground"
+                      : "rounded-full bg-secondary px-2.5 py-1"
+                  }
+                >
+                  {i + 1}.{" "}
+                  {s === "details" ? "Your details" : s === "payment" ? "Payment" : "Confirmed"}
+                </span>
+                {i < 2 && <span className="h-px w-6 bg-border" />}
+              </div>
+            );
+          })}
         </div>
 
         {step === "details" && (
@@ -201,44 +302,33 @@ export function BookingFlowClient({
         )}
 
         {step === "payment" && (
-          // Real Stripe/Paystack checkout replaces this mocked step in the
-          // next batch — the booking above is already persisted as
-          // paymentStatus: PENDING with a 15-minute reservation hold.
-          <form
-            className="surface mt-4 space-y-4 p-6"
-            onSubmit={(e) => {
-              e.preventDefault();
-              setStep("done");
-            }}
-          >
+          <div className="surface mt-4 space-y-4 p-6">
             <div className="flex items-center justify-between rounded-lg bg-sand/70 px-4 py-3 text-sm">
               <span>{cls.name}</span>
               <span className="font-medium">{money(cls.price, currency)}</span>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="card">Card number</Label>
-              <div className="relative">
-                <CreditCard className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
-                <Input id="card" className="pl-9" placeholder="4242 4242 4242 4242" required />
-              </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="exp">Expiry</Label>
-                <Input id="exp" placeholder="09 / 28" required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cvc">CVC</Label>
-                <Input id="cvc" placeholder="123" required />
-              </div>
-            </div>
             <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Lock className="size-3" /> Payments are processed securely.
+              <Lock className="size-3" /> You&apos;ll be redirected to Paystack&apos;s secure
+              checkout to pay — Flowbuk never sees your card details.
             </p>
-            <Button type="submit" variant="clay" size="lg" className="w-full">
-              Pay {money(cls.price, currency)}
+            <Button
+              type="button"
+              variant="clay"
+              size="lg"
+              className="w-full"
+              disabled={payPending}
+              onClick={() => void handlePay()}
+            >
+              {payPending ? "Redirecting to checkout…" : `Pay ${money(cls.price, currency)}`}
             </Button>
-          </form>
+          </div>
+        )}
+
+        {step === "confirming" && (
+          <div className="surface mt-4 p-8 text-center">
+            <Loader2 className="mx-auto size-6 animate-spin text-muted-foreground" />
+            <p className="mt-4 text-muted-foreground">Confirming your payment…</p>
+          </div>
         )}
 
         {step === "done" && (

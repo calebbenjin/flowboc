@@ -17,6 +17,7 @@ import {
   ChevronsUpDown,
   Link2,
   Mail,
+  Palette,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -35,6 +36,7 @@ const nav = [
   { to: "/dashboard/analytics", label: "Analytics", icon: LineChart, mobile: true },
   { to: "/dashboard/students", label: "Students", icon: Users, mobile: true },
   // { to: "/dashboard/links", label: "Links", icon: Link2, mobile: false },
+  { to: "/dashboard/design", label: "Design", icon: Palette, mobile: false },
   { to: "/dashboard/newsletter", label: "Newsletter", icon: Mail, mobile: false },
   { to: "/dashboard/referrals", label: "Referrals", icon: Gift, mobile: false },
   { to: "/dashboard/payouts", label: "Payouts", icon: Landmark, mobile: false },

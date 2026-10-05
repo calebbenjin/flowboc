@@ -10,6 +10,7 @@ import {
   Home,
   Link2,
   MapPin,
+  Send,
   Users,
   Wallet,
 } from "lucide-react";
@@ -338,10 +339,34 @@ export function ConfirmationCard() {
 
 /* ---------- feature mocks ---------- */
 
+const badgeTone = {
+  clay: "bg-clay/12 text-clay",
+  mint: "bg-mint/20 text-mint-foreground",
+  success: "bg-success/15 text-success",
+  warning: "bg-warning/20 text-warning-foreground",
+} as const;
+
+function IconBadge({
+  icon: Icon,
+  tone,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  tone: keyof typeof badgeTone;
+}) {
+  return (
+    <span className={cn("grid size-6 shrink-0 place-items-center rounded-full", badgeTone[tone])}>
+      <Icon className="size-3" />
+    </span>
+  );
+}
+
 export function ClassCreateMock() {
   return (
     <div className="space-y-2.5 rounded-xl border border-border bg-card p-4">
-      <p className="text-[0.75rem] font-medium">New class</p>
+      <div className="flex items-center gap-2">
+        <IconBadge icon={CalendarDays} tone="clay" />
+        <p className="text-[0.75rem] font-medium">New class</p>
+      </div>
       <div className="rounded-md border border-border px-2.5 py-2 text-[0.7rem]">Morning Flow</div>
       <div className="grid grid-cols-2 gap-2 text-[0.68rem] text-muted-foreground">
         <div className="rounded-md border border-border px-2.5 py-2">Tue · 7:00 AM</div>
@@ -360,7 +385,10 @@ export function RevenueMock() {
   return (
     <div className="space-y-3 rounded-xl border border-border bg-card p-4">
       <div className="flex items-center justify-between">
-        <p className="text-[0.7rem] uppercase tracking-wider text-muted-foreground">This month</p>
+        <div className="flex items-center gap-2">
+          <IconBadge icon={Wallet} tone="clay" />
+          <p className="text-[0.7rem] uppercase tracking-wider text-muted-foreground">This month</p>
+        </div>
         <Pill tone="success">
           <Check className="size-3" /> Payment received
         </Pill>
@@ -378,7 +406,10 @@ export function RevenueMock() {
 export function StudentListMock() {
   return (
     <div className="rounded-xl border border-border bg-card p-4">
-      <p className="mb-2 text-[0.7rem] uppercase tracking-wider text-muted-foreground">Students</p>
+      <div className="mb-2 flex items-center gap-2">
+        <IconBadge icon={Users} tone="success" />
+        <p className="text-[0.7rem] uppercase tracking-wider text-muted-foreground">Students</p>
+      </div>
       <div className="space-y-2">
         {[
           ["Emma Wilson", "12 classes"],
@@ -407,7 +438,7 @@ export function ReminderMock() {
   return (
     <div className="space-y-2 rounded-xl border border-border bg-card p-4">
       <div className="flex items-center gap-2 text-[0.7rem] text-muted-foreground">
-        <BellRing className="size-3.5 text-clay" /> Automated email
+        <IconBadge icon={BellRing} tone="warning" /> Automated email
       </div>
       <p className="text-[0.78rem] font-medium">Morning Flow is tomorrow</p>
       <p className="text-[0.68rem] leading-relaxed text-muted-foreground">
@@ -424,7 +455,10 @@ export function ReminderMock() {
 export function ShareMock() {
   return (
     <div className="space-y-2.5 rounded-xl border border-border bg-card p-4">
-      <p className="text-[0.75rem] font-medium">Share your page</p>
+      <div className="flex items-center gap-2">
+        <IconBadge icon={Send} tone="mint" />
+        <p className="text-[0.75rem] font-medium">Share your page</p>
+      </div>
       <div className="flex items-center gap-2 rounded-md border border-border px-2.5 py-2 text-[0.68rem] text-muted-foreground">
         <Link2 className="size-3.5" /> {siteHost}/sarah-yoga
       </div>

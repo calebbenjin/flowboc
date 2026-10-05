@@ -21,18 +21,18 @@ export function PriceTag({
   return (
     <span
       className={cn(
-        "inline-flex flex-wrap gap-2",
-        stacked ? "flex-col items-end" : "items-baseline",
+        "inline-flex flex-wrap gap-1",
+        stacked ? "flex-col items-end relative" : "items-baseline",
         className,
       )}
     >
       <span className={priceClassName}>{money(price, currency)}</span>
       {pct !== null && (
         <span className={cn("inline-flex items-baseline gap-2", stacked && "flex-row-reverse")}>
-          <span className="text-sm text-muted-foreground line-through">
+          <span className="text-xs text-muted-foreground line-through">
             {money(originalPrice!, currency)}
           </span>
-          <span className="rounded-xs bg-clay/20 px-2 py-0.5 text-xs font-medium text-clay">
+          <span className="rounded-xs bg-clay/20 px-1 py-0.5 text-[0.6rem] whitespace-nowrap font-medium text-clay ">
             {pct}% OFF
           </span>
         </span>

@@ -218,6 +218,35 @@ export async function sendNewsletterBatch(
   return { sent, failed };
 }
 
+export async function sendVideoCallBookingEmail(input: {
+  to: string;
+  studentName: string;
+  instructorName: string;
+  offerTitle: string;
+  meetingLink: string;
+}) {
+  await sendEmail({
+    to: input.to,
+    subject: `You're booked: ${input.offerTitle}`,
+    text: `Hi ${input.studentName},\n\nYou're booked for "${input.offerTitle}" with ${input.instructorName}.\n\nJoin here: ${input.meetingLink}`,
+    html: `<p>Hi ${input.studentName},</p><p>You're booked for <strong>${input.offerTitle}</strong> with ${input.instructorName}.</p><p><a href="${input.meetingLink}">Join the call</a></p>`,
+  });
+}
+
+export async function sendInstructorNewVideoCallBookingEmail(input: {
+  to: string;
+  studentName: string;
+  studentEmail: string;
+  offerTitle: string;
+}) {
+  await sendEmail({
+    to: input.to,
+    subject: `New video call booking: ${input.studentName}`,
+    text: `${input.studentName} (${input.studentEmail}) just booked "${input.offerTitle}".`,
+    html: `<p><strong>${input.studentName}</strong> (${input.studentEmail}) just booked <strong>${input.offerTitle}</strong>.</p>`,
+  });
+}
+
 export async function sendClassReminderEmail(
   input: {
     to: string;

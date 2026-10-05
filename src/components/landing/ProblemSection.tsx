@@ -30,7 +30,6 @@ export function ProblemSection() {
         }
         body="Your business shouldn't depend on a collection of WhatsApp messages, spreadsheets, payment screenshots and calendar reminders. Create one simple booking experience for your students — and one simple dashboard for you."
       />
-
       <div className="mt-14 grid gap-4 md:grid-cols-3">
         {cards.map((c, i) => (
           <Reveal key={c.step} delay={i * 0.08}>

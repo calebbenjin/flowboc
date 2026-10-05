@@ -29,9 +29,30 @@ const DEMO_SLUG = "sarah-yoga-demo";
 const DEMO_PASSWORD = process.env["DEMO_PASSWORD"] ?? randomBytes(9).toString("base64url");
 
 const REFERRED_SEED = [
-  { email: "demo-ref-1@flowbuk.dev", name: "Amaka Studio", status: "ACTIVE" as const, plan: "Growth", commissionEarned: 5800, daysAgo: 62 },
-  { email: "demo-ref-2@flowbuk.dev", name: "Tunde Fit", status: "ACTIVE" as const, plan: "Starter", commissionEarned: 2400, daysAgo: 43 },
-  { email: "demo-ref-3@flowbuk.dev", name: "Zen with Zainab", status: "PENDING" as const, plan: "Growth", commissionEarned: 0, daysAgo: 12 },
+  {
+    email: "demo-ref-1@flowbuk.dev",
+    name: "Amaka Studio",
+    status: "ACTIVE" as const,
+    plan: "Growth",
+    commissionEarned: 5800,
+    daysAgo: 62,
+  },
+  {
+    email: "demo-ref-2@flowbuk.dev",
+    name: "Tunde Fit",
+    status: "ACTIVE" as const,
+    plan: "Starter",
+    commissionEarned: 2400,
+    daysAgo: 43,
+  },
+  {
+    email: "demo-ref-3@flowbuk.dev",
+    name: "Zen with Zainab",
+    status: "PENDING" as const,
+    plan: "Growth",
+    commissionEarned: 0,
+    daysAgo: 12,
+  },
 ];
 
 const STUDENTS = [
@@ -72,7 +93,10 @@ async function main() {
     await prisma.user.delete({ where: { id: existingUser.id } });
   }
   for (const r of REFERRED_SEED) {
-    const u = await prisma.user.findUnique({ where: { email: r.email }, include: { instructor: true } });
+    const u = await prisma.user.findUnique({
+      where: { email: r.email },
+      include: { instructor: true },
+    });
     if (u?.instructor) await prisma.instructor.delete({ where: { id: u.instructor.id } });
     if (u) await prisma.user.delete({ where: { id: u.id } });
   }
@@ -121,9 +145,24 @@ async function main() {
       },
       links: {
         create: [
-          { label: "Book a 1:1 consultation", url: "https://calendly.com/sarah-yoga/consultation", order: 0, clickCount: 62 },
-          { label: "Free breathwork guide (PDF)", url: "https://flowboc.com/r/breathwork-guide", order: 1, clickCount: 41 },
-          { label: "Studio location & parking", url: "https://maps.google.com/?q=Bloom+Studio+Williamsburg+Brooklyn", order: 2, clickCount: 19 },
+          {
+            label: "Book a 1:1 consultation",
+            url: "https://calendly.com/sarah-yoga/consultation",
+            order: 0,
+            clickCount: 62,
+          },
+          {
+            label: "Free breathwork guide (PDF)",
+            url: "https://flowboc.com/r/breathwork-guide",
+            order: 1,
+            clickCount: 41,
+          },
+          {
+            label: "Studio location & parking",
+            url: "https://maps.google.com/?q=Bloom+Studio+Williamsburg+Brooklyn",
+            order: 2,
+            clickCount: 19,
+          },
         ],
       },
     },
@@ -131,13 +170,111 @@ async function main() {
 
   // --- Classes: a mix of past (completed), live (published/full), and draft/cancelled ---
   const classDefs = [
-    { name: "Morning Flow", type: "Vinyasa", mode: "IN_PERSON" as const, location: "Bloom Studio, Williamsburg", coverUrl: "/demo/morning-mats.jpg", duration: 60, price: 28, originalPrice: 34, capacity: 12, hoursFromNow: 18, status: "PUBLISHED" as const, recurringLabel: "Every Tuesday & Thursday", recurringDays: ["TUE", "THU"] },
-    { name: "Evening Yin & Breath", type: "Yin", mode: "IN_PERSON" as const, location: "Bloom Studio, Williamsburg", coverUrl: "/demo/evening-candlelight.jpg", duration: 75, price: 32, originalPrice: null, capacity: 14, hoursFromNow: 44, status: "FULL" as const, recurringLabel: "Every Wednesday", recurringDays: ["WED"] },
-    { name: "Foundations Online", type: "Beginners", mode: "ONLINE" as const, location: "Zoom link sent after booking", coverUrl: "/demo/home-studio-stretch.jpg", duration: 45, price: 18, originalPrice: 22, capacity: 40, hoursFromNow: 92, status: "PUBLISHED" as const, recurringLabel: null, recurringDays: [] },
-    { name: "Sunday Restore", type: "Restorative", mode: "IN_PERSON" as const, location: "Bloom Studio, Williamsburg", coverUrl: "/demo/evening-candlelight.jpg", duration: 60, price: 26, originalPrice: null, capacity: 12, hoursFromNow: 140, status: "DRAFT" as const, recurringLabel: null, recurringDays: [] },
-    { name: "Power Vinyasa", type: "Vinyasa", mode: "IN_PERSON" as const, location: "Bloom Studio, Williamsburg", coverUrl: "/demo/studio-standing-pose.jpg", duration: 60, price: 30, originalPrice: null, capacity: 16, hoursFromNow: 260, status: "PUBLISHED" as const, recurringLabel: "Every Friday", recurringDays: ["FRI"] },
-    { name: "Prospect Park Sunrise Session", type: "Vinyasa", mode: "IN_PERSON" as const, location: "Prospect Park, Brooklyn", coverUrl: "/demo/studio-standing-pose.jpg", duration: 60, price: 35, originalPrice: null, capacity: 20, hoursFromNow: -6, status: "COMPLETED" as const, recurringLabel: null, recurringDays: [] },
-    { name: "Rainy Day Restorative", type: "Restorative", mode: "ONLINE" as const, location: "Zoom link sent after booking", coverUrl: "/demo/home-studio-stretch.jpg", duration: 50, price: 18, originalPrice: null, capacity: 30, hoursFromNow: -36, status: "CANCELLED" as const, recurringLabel: null, recurringDays: [] },
+    {
+      name: "Morning Flow",
+      type: "Vinyasa",
+      mode: "IN_PERSON" as const,
+      location: "Bloom Studio, Williamsburg",
+      coverUrl: "/demo/morning-mats.jpg",
+      duration: 60,
+      price: 28,
+      originalPrice: 34,
+      capacity: 12,
+      hoursFromNow: 18,
+      status: "PUBLISHED" as const,
+      recurringLabel: "Every Tuesday & Thursday",
+      recurringDays: ["TUE", "THU"],
+    },
+    {
+      name: "Evening Yin & Breath",
+      type: "Yin",
+      mode: "IN_PERSON" as const,
+      location: "Bloom Studio, Williamsburg",
+      coverUrl: "/demo/evening-candlelight.jpg",
+      duration: 75,
+      price: 32,
+      originalPrice: null,
+      capacity: 14,
+      hoursFromNow: 44,
+      status: "FULL" as const,
+      recurringLabel: "Every Wednesday",
+      recurringDays: ["WED"],
+    },
+    {
+      name: "Foundations Online",
+      type: "Beginners",
+      mode: "ONLINE" as const,
+      location: "Zoom link sent after booking",
+      coverUrl: "/demo/home-studio-stretch.jpg",
+      duration: 45,
+      price: 18,
+      originalPrice: 22,
+      capacity: 40,
+      hoursFromNow: 92,
+      status: "PUBLISHED" as const,
+      recurringLabel: null,
+      recurringDays: [],
+    },
+    {
+      name: "Sunday Restore",
+      type: "Restorative",
+      mode: "IN_PERSON" as const,
+      location: "Bloom Studio, Williamsburg",
+      coverUrl: "/demo/evening-candlelight.jpg",
+      duration: 60,
+      price: 26,
+      originalPrice: null,
+      capacity: 12,
+      hoursFromNow: 140,
+      status: "DRAFT" as const,
+      recurringLabel: null,
+      recurringDays: [],
+    },
+    {
+      name: "Power Vinyasa",
+      type: "Vinyasa",
+      mode: "IN_PERSON" as const,
+      location: "Bloom Studio, Williamsburg",
+      coverUrl: "/demo/studio-standing-pose.jpg",
+      duration: 60,
+      price: 30,
+      originalPrice: null,
+      capacity: 16,
+      hoursFromNow: 260,
+      status: "PUBLISHED" as const,
+      recurringLabel: "Every Friday",
+      recurringDays: ["FRI"],
+    },
+    {
+      name: "Prospect Park Sunrise Session",
+      type: "Vinyasa",
+      mode: "IN_PERSON" as const,
+      location: "Prospect Park, Brooklyn",
+      coverUrl: "/demo/studio-standing-pose.jpg",
+      duration: 60,
+      price: 35,
+      originalPrice: null,
+      capacity: 20,
+      hoursFromNow: -6,
+      status: "COMPLETED" as const,
+      recurringLabel: null,
+      recurringDays: [],
+    },
+    {
+      name: "Rainy Day Restorative",
+      type: "Restorative",
+      mode: "ONLINE" as const,
+      location: "Zoom link sent after booking",
+      coverUrl: "/demo/home-studio-stretch.jpg",
+      duration: 50,
+      price: 18,
+      originalPrice: null,
+      capacity: 30,
+      hoursFromNow: -36,
+      status: "CANCELLED" as const,
+      recurringLabel: null,
+      recurringDays: [],
+    },
   ];
 
   const classes = [];
@@ -248,7 +385,13 @@ async function main() {
   }
 
   // Recent, varied-status bookings across a few classes for "Recent bookings" + "Needs attention"
-  const recentSpecs: { classIdx: number; hoursAgo: number; payment: "PAID" | "PENDING" | "FAILED"; source: "ONLINE" | "MANUAL"; attended: boolean }[] = [
+  const recentSpecs: {
+    classIdx: number;
+    hoursAgo: number;
+    payment: "PAID" | "PENDING" | "FAILED";
+    source: "ONLINE" | "MANUAL";
+    attended: boolean;
+  }[] = [
     { classIdx: 0, hoursAgo: 2, payment: "PAID", source: "ONLINE", attended: false },
     { classIdx: 0, hoursAgo: 5, payment: "PAID", source: "ONLINE", attended: false },
     { classIdx: 0, hoursAgo: 20, payment: "PENDING", source: "MANUAL", attended: false },
@@ -329,8 +472,18 @@ async function main() {
   // --- Waitlist for the full class ---
   await prisma.waitlistEntry.createMany({
     data: [
-      { classId: eveningYin.id, name: "Ngozi Chukwu", email: "ngozi@mail.com", joinedAt: hoursAgo(2) },
-      { classId: eveningYin.id, name: "Bola Adeyemi", email: "bola@mail.com", joinedAt: daysAgo(1) },
+      {
+        classId: eveningYin.id,
+        name: "Ngozi Chukwu",
+        email: "ngozi@mail.com",
+        joinedAt: hoursAgo(2),
+      },
+      {
+        classId: eveningYin.id,
+        name: "Bola Adeyemi",
+        email: "bola@mail.com",
+        joinedAt: daysAgo(1),
+      },
     ],
   });
 
@@ -367,7 +520,8 @@ async function main() {
       {
         instructorId: instructor.id,
         subject: "New class added: Power Vinyasa 🔥",
-        bodyHtml: "<p>Hi there! I've just added a new Friday evening Power Vinyasa class — book your spot before it fills up.</p>",
+        bodyHtml:
+          "<p>Hi there! I've just added a new Friday evening Power Vinyasa class — book your spot before it fills up.</p>",
         status: "SENT",
         recipientCount: 11,
         sentCount: 11,
@@ -377,7 +531,8 @@ async function main() {
       {
         instructorId: instructor.id,
         subject: "Studio closed this Sunday",
-        bodyHtml: "<p>Quick note that the studio will be closed this Sunday for a private event. See you Monday!</p>",
+        bodyHtml:
+          "<p>Quick note that the studio will be closed this Sunday for a private event. See you Monday!</p>",
         status: "SENT",
         recipientCount: 11,
         sentCount: 10,

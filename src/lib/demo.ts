@@ -13,6 +13,8 @@ export const currencies = [
   { code: "EUR", symbol: "€", label: "Euro", payoutProvider: "stripe" },
   { code: "ZAR", symbol: "R", label: "South African Rand", payoutProvider: "paystack" },
   { code: "KES", symbol: "KSh", label: "Kenyan Shilling", payoutProvider: "paystack" },
+  { code: "GHS", symbol: "₵", label: "Ghanaian Cedi", payoutProvider: "paystack" },
+  { code: "XOF", symbol: "CFA", label: "West African CFA Franc", payoutProvider: "paystack" },
 ] as const;
 
 export type CurrencyCode = (typeof currencies)[number]["code"];

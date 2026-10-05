@@ -1,10 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowUpRight, AlertCircle, CalendarDays, CheckCircle2, Users } from "lucide-react";
+import {
+  ArrowUpRight,
+  AlertCircle,
+  CalendarDays,
+  CheckCircle2,
+  Pencil,
+  UserRound,
+  Users,
+  Wallet,
+} from "lucide-react";
 import { BookingLinkAction } from "@/components/BookingLinkAction";
 import { DashboardShell } from "@/components/DashboardShell";
 import { EmptyState } from "@/components/EmptyState";
+import { PublicPagePreview, type PreviewClass } from "@/components/PublicPagePreview";
 import { StatusPill, paymentTone } from "@/components/StatusPill";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/db";
@@ -13,7 +23,37 @@ import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
 import { getAttentionItems, getDashboardStats, getRecentBookings } from "./queries";
 import { money, timezoneLabel } from "@/lib/demo";
 import { siteHost } from "@/lib/site";
+import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
+
+const statCardToneClasses = {
+  clay: "border-clay/20 bg-linear-to-br from-clay/15 via-clay/5 to-transparent",
+  mint: "border-mint/30 bg-linear-to-br from-mint/20 via-mint/8 to-transparent",
+  success: "border-success/25 bg-linear-to-br from-success/18 via-success/6 to-transparent",
+  warning: "border-warning/25 bg-linear-to-br from-warning/20 via-warning/8 to-transparent",
+} as const;
+
+const statToneClasses = {
+  clay: "bg-white/70 text-clay",
+  mint: "bg-white/70 text-mint-foreground",
+  success: "bg-white/70 text-success",
+  warning: "bg-white/70 text-warning-foreground",
+} as const;
+
+const attentionToneClasses = {
+  warning: "bg-warning/20 text-warning-foreground",
+  destructive: "bg-destructive/12 text-destructive",
+  muted: "bg-secondary text-secondary-foreground",
+} as const;
+
+const attentionMeta: Record<
+  string,
+  { icon: typeof AlertCircle; tone: keyof typeof attentionToneClasses }
+> = {
+  "Almost full": { icon: CalendarDays, tone: "warning" },
+  "Failed payment": { icon: AlertCircle, tone: "destructive" },
+  "Draft class": { icon: Pencil, tone: "muted" },
+};
 
 export const metadata: Metadata = {
   title: "Dashboard — Flowbuk",
@@ -52,6 +92,17 @@ export default async function Dashboard() {
     day: "numeric",
   }).format(new Date());
 
+  const previewClasses: PreviewClass[] = upcoming.map((c) => ({
+    id: c.id,
+    name: c.name,
+    coverUrl: c.coverUrl,
+    dateLabel: `${formatClassDate(c)} · ${formatClassTime(c)}`,
+    price: c.price,
+    originalPrice: c.originalPrice,
+    currency: instructor.currency,
+    spots: null,
+  }));
+
   return (
     <DashboardShell>
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -72,13 +123,36 @@ export default async function Dashboard() {
           {
             label: "Revenue this month",
             value: money(stats.revenueThisMonth, instructor.currency),
+            icon: Wallet,
+            tone: "clay",
           },
-          { label: "Upcoming classes", value: stats.upcomingClasses },
-          { label: "Bookings", value: stats.totalBookings },
-          { label: "Students", value: stats.totalStudents },
+          {
+            label: "Upcoming classes",
+            value: stats.upcomingClasses,
+            icon: CalendarDays,
+            tone: "mint",
+          },
+          { label: "Bookings", value: stats.totalBookings, icon: Users, tone: "success" },
+          { label: "Students", value: stats.totalStudents, icon: UserRound, tone: "warning" },
         ].map((s) => (
-          <div key={s.label} className="surface bg-white p-5">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">{s.label}</p>
+          <div
+            key={s.label}
+            className={cn(
+              "rounded-xl border p-5 shadow-(--shadow-soft)",
+              statCardToneClasses[s.tone as keyof typeof statCardToneClasses],
+            )}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">{s.label}</p>
+              <span
+                className={cn(
+                  "grid size-9 shrink-0 place-items-center rounded-full",
+                  statToneClasses[s.tone as keyof typeof statToneClasses],
+                )}
+              >
+                <s.icon className="size-4" />
+              </span>
+            </div>
             <p className="display mt-2 text-3xl">{s.value}</p>
           </div>
         ))}
@@ -116,7 +190,12 @@ export default async function Dashboard() {
                     <div className="size-16 shrink-0 rounded-lg bg-sand" />
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium">{c.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{c.name}</p>
+                      <StatusPill tone={c.status === "FULL" ? "warn" : "good"}>
+                        {c.status === "FULL" ? "Full" : "Open"}
+                      </StatusPill>
+                    </div>
                     <p className="text-sm text-muted-foreground">
                       {formatClassDate(c)} · {formatClassTime(c)} {timezoneLabel(c.timezone)} ·{" "}
                       {c.durationMinutes} min
@@ -166,7 +245,38 @@ export default async function Dashboard() {
         </div>
 
         <div>
-          <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          <div className=" pt-4">
+            <PublicPagePreview
+              size="md"
+              instructor={{
+                name: instructor.name,
+                photoUrl: instructor.photoUrl,
+                themeColor: instructor.themeColor,
+                backgroundImageUrl: instructor.backgroundImageUrl,
+                pageLayout: instructor.pageLayout,
+                bio: instructor.bio,
+                videoCallEnabled: instructor.videoCallEnabled,
+                videoCallTitle: instructor.videoCallTitle,
+                videoCallDescription: instructor.videoCallDescription,
+                videoCallImageUrl: instructor.videoCallImageUrl,
+                videoCallPrice: instructor.videoCallPrice,
+                currency: instructor.currency,
+                socials: instructor.socials.map((s) => ({
+                  platform: s.platform.toLowerCase(),
+                  handle: s.handle,
+                })),
+              }}
+              classes={previewClasses}
+            />
+            <Link
+              href={`/${instructor.slug}`}
+              className="mt-4 flex items-center justify-center gap-1 text-sm text-clay hover:underline"
+            >
+              View live page <ArrowUpRight className="size-3.5" />
+            </Link>
+          </div>
+
+          <h2 className="mt-8 text-xs uppercase tracking-[0.18em] text-muted-foreground">
             Needs attention
           </h2>
           {attention.length === 0 ? (
@@ -177,31 +287,37 @@ export default async function Dashboard() {
               body="Nothing needs your attention right now."
             />
           ) : (
-            <div className="mt-3 space-y-3">
-              {attention.map((a) => (
-                <div key={a.id} className="surface bg-white flex gap-3 p-4">
-                  <AlertCircle className="mt-0.5 size-4 shrink-0 text-clay" />
-                  <div>
-                    <p className="text-sm font-medium">{a.kind}</p>
-                    <p className="text-sm text-muted-foreground">{a.detail}</p>
-                  </div>
-                </div>
-              ))}
+            <div className="mt-3 rounded-3xl bg-linear-to-br from-warning/20 via-clay/10 to-clay/5 p-4">
+              <div className="space-y-3">
+                {attention.map((a) => {
+                  const meta = attentionMeta[a.kind] ?? {
+                    icon: AlertCircle,
+                    tone: "muted" as const,
+                  };
+                  const Icon = meta.icon;
+                  return (
+                    <div
+                      key={a.id}
+                      className="flex gap-3 rounded-2xl bg-white/70 p-4 shadow-(--shadow-soft)"
+                    >
+                      <span
+                        className={cn(
+                          "grid size-8 shrink-0 place-items-center rounded-full",
+                          attentionToneClasses[meta.tone],
+                        )}
+                      >
+                        <Icon className="size-4" />
+                      </span>
+                      <div>
+                        <p className="text-sm font-medium">{a.kind}</p>
+                        <p className="text-sm text-muted-foreground">{a.detail}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
-
-          <div className="surface bg-white mt-6 p-5">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">Booking link</p>
-            <p className="mt-2 text-sm font-medium">
-              {siteHost}/{instructor.slug}
-            </p>
-            <Link
-              href={`/${instructor.slug}`}
-              className="mt-3 inline-flex items-center gap-1 text-sm text-clay hover:underline"
-            >
-              Open page <ArrowUpRight className="size-3.5" />
-            </Link>
-          </div>
         </div>
       </div>
     </DashboardShell>

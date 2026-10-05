@@ -17,7 +17,6 @@ export async function updateProfile(input: {
   phone?: string;
   currency: CurrencyCode;
   slug: string;
-  consultationLink?: string;
 }): Promise<ActionResult> {
   const instructor = await requireInstructor();
   const name = input.name.trim();
@@ -46,7 +45,6 @@ export async function updateProfile(input: {
       phone: input.phone?.trim() || null,
       currency: input.currency,
       payoutProvider: payoutProviderForCurrency(input.currency),
-      consultationLink: input.consultationLink?.trim() || null,
     },
   });
 
@@ -82,6 +80,39 @@ export async function updateSocials(
 export async function updatePhoto(photoUrl: string): Promise<ActionResult> {
   const instructor = await requireInstructor();
   await prisma.instructor.update({ where: { id: instructor.id }, data: { photoUrl } });
+  return { ok: true };
+}
+
+export async function updateVideoCallOffer(input: {
+  enabled: boolean;
+  title?: string;
+  description?: string;
+  imageUrl?: string | null;
+  price?: number | null;
+  meetingLink?: string;
+}): Promise<ActionResult> {
+  const instructor = await requireInstructor();
+  const meetingLink = input.meetingLink?.trim() || null;
+
+  if (input.enabled && !meetingLink) {
+    return { ok: false, error: "Add a meeting link before enabling the video call card." };
+  }
+  if (meetingLink && !/^https?:\/\//.test(meetingLink)) {
+    return { ok: false, error: "Meeting link must start with http:// or https://." };
+  }
+
+  await prisma.instructor.update({
+    where: { id: instructor.id },
+    data: {
+      videoCallEnabled: input.enabled,
+      videoCallTitle: input.title?.trim() || null,
+      videoCallDescription: input.description?.trim() || null,
+      videoCallImageUrl: input.imageUrl || null,
+      videoCallPrice: input.price ?? null,
+      consultationLink: meetingLink,
+    },
+  });
+
   return { ok: true };
 }
 

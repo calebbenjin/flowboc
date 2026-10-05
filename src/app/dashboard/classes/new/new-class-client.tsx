@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { DashboardShell } from "@/components/DashboardShell";
-import { ClassForm } from "@/components/ClassForm";
+import { ClassForm, type ClassFormDraft } from "@/components/ClassForm";
+import { PublicPagePreview } from "@/components/PublicPagePreview";
+import { useInstructor } from "@/components/InstructorProvider";
+import { draftToPreviewClass } from "@/lib/class-form-preview";
 import { createClass, type ClassInput } from "../actions";
 
 function readClassFormData(formData: FormData): Omit<ClassInput, "status"> {
@@ -47,7 +50,9 @@ function readClassFormData(formData: FormData): Omit<ClassInput, "status"> {
 
 export function NewClassClient() {
   const router = useRouter();
+  const instructor = useInstructor();
   const [pending, setPending] = useState(false);
+  const [draft, setDraft] = useState<ClassFormDraft | null>(null);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -73,19 +78,48 @@ export function NewClassClient() {
 
   return (
     <DashboardShell>
-      <div className="mx-auto max-w-3xl">
-        <Link href="/dashboard/classes" className="text-sm text-muted-foreground hover:text-clay">
-          ← Back to classes
-        </Link>
-        <h1 className="mt-3 text-3xl">Create a class</h1>
+      <div className="mx-auto max-w-5xl lg:grid lg:grid-cols-[1fr_280px] lg:items-start lg:gap-10">
+        <div className="max-w-3xl">
+          <Link href="/dashboard/classes" className="text-sm text-muted-foreground hover:text-clay">
+            ← Back to classes
+          </Link>
+          <h1 className="mt-3 text-3xl">Create a class</h1>
 
-        <ClassForm
-          primaryLabel="Publish class"
-          secondaryLabel="Save as draft"
-          secondarySubmits
-          pending={pending}
-          onSubmit={handleSubmit}
-        />
+          <ClassForm
+            primaryLabel="Publish class"
+            secondaryLabel="Save as draft"
+            secondarySubmits
+            pending={pending}
+            onSubmit={handleSubmit}
+            onLiveChange={setDraft}
+          />
+        </div>
+
+        <div className="mt-8 hidden lg:sticky lg:top-8 lg:mt-24 lg:block">
+          <p className="mb-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">Preview</p>
+          <PublicPagePreview
+            size="md"
+            instructor={{
+              name: instructor.name,
+              photoUrl: instructor.photoUrl,
+              themeColor: instructor.themeColor,
+              backgroundImageUrl: instructor.backgroundImageUrl,
+              pageLayout: instructor.pageLayout,
+              bio: instructor.bio,
+              videoCallEnabled: instructor.videoCallEnabled,
+              videoCallTitle: instructor.videoCallTitle,
+              videoCallDescription: instructor.videoCallDescription,
+              videoCallImageUrl: instructor.videoCallImageUrl,
+              videoCallPrice: instructor.videoCallPrice,
+              currency: instructor.currency,
+              socials: instructor.socials.map((s) => ({
+                platform: s.platform.toLowerCase(),
+                handle: s.handle,
+              })),
+            }}
+            classes={draft ? [draftToPreviewClass(draft, instructor.currency)] : []}
+          />
+        </div>
       </div>
     </DashboardShell>
   );
