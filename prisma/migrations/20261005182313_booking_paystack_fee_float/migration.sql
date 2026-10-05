@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Booking" ALTER COLUMN "paystackFee" SET DATA TYPE DOUBLE PRECISION;

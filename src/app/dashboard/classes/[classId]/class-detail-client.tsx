@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useInstructor } from "@/components/InstructorProvider";
 import { money } from "@/lib/demo";
+import { estimatePaystackFee } from "@/lib/payout";
 import { deadlineMinutesToLabel } from "@/lib/class-deadline";
 import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
 import { timezoneLabel } from "@/lib/demo";
@@ -127,6 +128,20 @@ function AddStudentDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+// Prefers the fee actually captured from Paystack at payment confirmation
+// (`paystackFee`) — falls back to an estimate only for bookings paid before
+// that field existed. Cash/offline bookings never went through Paystack, so
+// there's no fee to show at all.
+function bookingFeeInfo(b: Booking, currency: Parameters<typeof money>[1]) {
+  if (b.paymentStatus !== "PAID" || !b.paystackReference) return null;
+
+  const isEstimate = b.paystackFee === null;
+  const fee = b.paystackFee ?? estimatePaystackFee(b.amount, currency);
+  if (fee === null) return null;
+
+  return { fee, net: Math.max(0, b.amount - fee), isEstimate };
 }
 
 export function ClassDetailClient({
@@ -339,39 +354,48 @@ export function ClassDetailClient({
             />
           ) : (
             <div className="surface divide-y divide-border">
-              {bookings.map((b) => (
-                <div key={b.id} className="flex flex-wrap items-center gap-3 p-4">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium">{b.studentName}</p>
-                    <p className="truncate text-sm text-muted-foreground">
-                      {b.studentEmail} · {b.source.toLowerCase()} booking
-                    </p>
-                  </div>
-                  <StatusPill>{b.status.toLowerCase()}</StatusPill>
-                  <StatusPill tone={paymentTone(b.paymentStatus.toLowerCase())}>
-                    {b.paymentStatus.toLowerCase()}
-                  </StatusPill>
-                  <span className="w-20 text-right text-sm font-medium">
-                    {money(b.amount, instructor.currency)}
-                  </span>
-                  {b.status === "CONFIRMED" && (
-                    <div className="flex gap-1">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={cancelingBookingId === b.id}
-                        onClick={() => void handleCancelBooking(b.id)}
-                      >
-                        {cancelingBookingId === b.id ? (
-                          <Loader2 className="size-4 animate-spin" />
-                        ) : (
-                          "Cancel"
-                        )}
-                      </Button>
+              {bookings.map((b) => {
+                const feeInfo = bookingFeeInfo(b, instructor.currency);
+                return (
+                  <div key={b.id} className="flex flex-wrap items-center gap-3 p-4">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium">{b.studentName}</p>
+                      <p className="truncate text-sm text-muted-foreground">
+                        {b.studentEmail} · {b.source.toLowerCase()} booking
+                      </p>
                     </div>
-                  )}
-                </div>
-              ))}
+                    <StatusPill>{b.status.toLowerCase()}</StatusPill>
+                    <StatusPill tone={paymentTone(b.paymentStatus.toLowerCase())}>
+                      {b.paymentStatus.toLowerCase()}
+                    </StatusPill>
+                    <div className="w-28 text-right">
+                      <p className="text-sm font-medium">{money(b.amount, instructor.currency)}</p>
+                      {feeInfo && (
+                        <p className="text-xs text-muted-foreground">
+                          {feeInfo.isEstimate ? "~" : ""}-{money(feeInfo.fee, instructor.currency)}{" "}
+                          fee · net {money(feeInfo.net, instructor.currency)}
+                        </p>
+                      )}
+                    </div>
+                    {b.status === "CONFIRMED" && (
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={cancelingBookingId === b.id}
+                          onClick={() => void handleCancelBooking(b.id)}
+                        >
+                          {cancelingBookingId === b.id ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            "Cancel"
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </TabsContent>

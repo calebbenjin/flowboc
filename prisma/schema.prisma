@@ -48,6 +48,8 @@ enum CurrencyCode {
   EUR
   ZAR
   KES
+  GHS
+  XOF
 }
 
 enum SocialPlatform {
@@ -77,6 +79,12 @@ enum PlanStatus {
   ACTIVE
 }
 
+enum PageLayout {
+  CLASSIC
+  COMPACT
+  COVER_GRID
+}
+
 model Instructor {
   id     String @id @default(cuid())
   userId String @unique
@@ -94,6 +102,20 @@ model Instructor {
 
   currency              CurrencyCode @default(NGN)
   onboardingCompletedAt DateTime?
+
+  // Public booking-page customization.
+  themeColor          String     @default("#6355ff")
+  backgroundImageUrl  String?
+  pageLayout          PageLayout @default(CLASSIC)
+
+  // "Book a video call" offer card — free only for now (no real payment
+  // processing exists yet; see VideoCallBooking). consultationLink doubles
+  // as the meeting link (Zoom/Google Meet/etc.) for this.
+  videoCallEnabled     Boolean @default(false)
+  videoCallTitle       String?
+  videoCallDescription String?
+  videoCallImageUrl    String?
+  videoCallPrice       Int?
 
   // planStatus/trialEndsAt back a no-card 14-day trial: trialEndsAt is set
   // once at signup rather than derived from createdAt, so a support-granted
@@ -123,6 +145,7 @@ model Instructor {
   links                 InstructorLink[]
   newsletterSubscribers NewsletterSubscriber[]
   newsletterCampaigns   NewsletterCampaign[]
+  videoCallBookings     VideoCallBooking[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -236,6 +259,17 @@ model Booking {
   paymentStatus PaymentStatus @default(PENDING)
   amount        Int
   currency      CurrencyCode
+
+  // Set once a Paystack transaction is initialized for this booking — null
+  // for free bookings (nothing to charge) and manual/offline ones.
+  paystackReference String? @unique
+
+  // Paystack's actual fee for this charge, captured from the transaction
+  // verify response once payment succeeds — same display unit as `amount`
+  // (not minor units), kept as a Float since fees are often fractional
+  // (e.g. 0.43) even though `amount` itself is always a whole number. Null
+  // until paid, and for free/manual bookings.
+  paystackFee Float?
 
   attended Boolean @default(false)
 
@@ -411,4 +445,21 @@ model NewsletterCampaign {
   updatedAt DateTime @updatedAt
 
   @@index([instructorId, status])
+}
+
+// A booking against the instructor's "video call" offer card — deliberately
+// separate from Booking (whose classId is required and whose cron jobs are
+// class-time-slot-centric). Free only for now: no paymentStatus/amount,
+// since there's no real payment processing yet (see Instructor.videoCallPrice).
+model VideoCallBooking {
+  id           String     @id @default(cuid())
+  instructorId String
+  instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+
+  studentName  String
+  studentEmail String
+
+  createdAt DateTime @default(now())
+
+  @@index([instructorId])
 }

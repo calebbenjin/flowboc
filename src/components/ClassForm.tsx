@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { upload } from "@vercel/blob/client";
 import { toast } from "sonner";
 import { ImagePlus, Loader2, X } from "lucide-react";
@@ -10,8 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import { currencies, timezones } from "@/lib/demo";
+import { currencies, money, timezones } from "@/lib/demo";
 import { DEADLINE_OPTIONS, deadlineMinutesToLabel } from "@/lib/class-deadline";
+import { estimatePaystackFee, payoutProviderForCurrency } from "@/lib/payout";
 import { useInstructor } from "@/components/InstructorProvider";
 import { RECURRING_HORIZON_OPTIONS } from "@/lib/class-recurrence";
 
@@ -52,6 +53,20 @@ export type ClassFormProps = {
   // draft" action.
   secondarySubmits?: boolean;
   pending?: boolean;
+  // Fires on every change to the fields that matter for a live preview
+  // (name, cover, date/time, price). Not included in the effect's deps —
+  // identity changes on the callback itself shouldn't retrigger it.
+  onLiveChange?: (draft: ClassFormDraft) => void;
+};
+
+export type ClassFormDraft = {
+  name: string;
+  coverUrl: string | null;
+  date: string;
+  time: string;
+  timezone: string;
+  price: number;
+  originalPrice: number | null;
 };
 
 function CoverPhotoUpload({
@@ -105,7 +120,7 @@ function CoverPhotoUpload({
         if (file) void handleFile(file);
       }}
       className={cn(
-        "relative flex h-28 cursor-pointer items-center gap-4 overflow-hidden rounded-lg border border-dashed border-border text-sm text-muted-foreground transition-colors hover:bg-accent/40",
+        "relative flex h-28 cursor-pointer items-center gap-4 overflow-hidden rounded-lg border border-dashed border-border text-sm text-muted-foreground transition-colors hover:bg-primary/10",
         dragActive && "border-clay bg-clay/5",
         value ? "justify-start p-3" : "justify-center",
       )}
@@ -159,6 +174,7 @@ export function ClassForm({
   onSecondary,
   secondarySubmits = false,
   pending = false,
+  onLiveChange,
 }: ClassFormProps) {
   const instructor = useInstructor();
   const [recurring, setRecurring] = useState(initial?.recurring ?? false);
@@ -166,6 +182,23 @@ export function ClassForm({
   const [pickedDays, setPickedDays] = useState<string[]>(initial?.recurringDays ?? ["Tue", "Thu"]);
   const [horizonDays, setHorizonDays] = useState(initial?.horizonDays ?? DEFAULT_HORIZON_DAYS);
   const [coverUrl, setCoverUrl] = useState<string | null>(initial?.coverUrl ?? null);
+  const [name, setName] = useState(initial?.name ?? "");
+  const [date, setDate] = useState(initial?.date ?? "");
+  const [time, setTime] = useState(initial?.time ?? "07:00");
+  const [timezone, setTimezone] = useState(initial?.timezone ?? "Africa/Lagos");
+  const [price, setPrice] = useState(initial?.price ?? 0);
+  const [originalPrice, setOriginalPrice] = useState<number | null>(initial?.originalPrice ?? null);
+
+  const paystackFee =
+    price > 0 && payoutProviderForCurrency(instructor.currency) === "PAYSTACK"
+      ? estimatePaystackFee(price, instructor.currency)
+      : null;
+
+  useEffect(() => {
+    onLiveChange?.({ name, coverUrl, date, time, timezone, price, originalPrice });
+    // onLiveChange's identity shouldn't retrigger this — only the field values should.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [name, coverUrl, date, time, timezone, price, originalPrice]);
 
   const initialDeadlineLabel = initial
     ? deadlineMinutesToLabel(initial.deadlineMinutesBeforeStart)
@@ -192,7 +225,8 @@ export function ClassForm({
               id="cname"
               name="name"
               placeholder="Morning Flow"
-              defaultValue={initial?.name}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               required
             />
           </div>
@@ -221,7 +255,7 @@ export function ClassForm({
         <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
           When &amp; where
         </h2>
-        <div className="flex items-center justify-between rounded-lg bg-sand/60 px-4 py-3">
+        <div className="flex items-center justify-between rounded-lg bg-primary/10 px-4 py-3">
           <div>
             <p className="text-sm font-medium">Recurring class</p>
             <p className="text-xs text-muted-foreground">Repeats weekly until you end the series</p>
@@ -280,7 +314,14 @@ export function ClassForm({
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-2">
             <Label htmlFor="cdate">{recurring ? "Starts on" : "Date"}</Label>
-            <Input id="cdate" name="date" type="date" defaultValue={initial?.date} required />
+            <Input
+              id="cdate"
+              name="date"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              required
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="ctime">Start time</Label>
@@ -288,7 +329,8 @@ export function ClassForm({
               id="ctime"
               name="time"
               type="time"
-              defaultValue={initial?.time ?? "07:00"}
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
               required
             />
           </div>
@@ -297,7 +339,8 @@ export function ClassForm({
             <select
               id="ctz"
               name="timezone"
-              defaultValue={initial?.timezone ?? "Africa/Lagos"}
+              value={timezone}
+              onChange={(e) => setTimezone(e.target.value)}
               className="h-9 w-full rounded-md border border-input bg-card px-3 text-sm"
             >
               {timezones.map((t) => (
@@ -318,7 +361,7 @@ export function ClassForm({
           </div>
         </div>
 
-        <div className="flex items-center justify-between rounded-lg bg-sand/60 px-4 py-3">
+        <div className="flex items-center justify-between rounded-lg bg-primary/10 px-4 py-3">
           <div>
             <p className="text-sm font-medium">Online class</p>
             <p className="text-xs text-muted-foreground">
@@ -373,8 +416,16 @@ export function ClassForm({
               name="price"
               type="number"
               placeholder="8000"
-              defaultValue={initial?.price}
+              value={price || ""}
+              onChange={(e) => setPrice(e.target.value ? Number(e.target.value) : 0)}
             />
+            {paystackFee !== null && (
+              <p className="text-xs text-muted-foreground">
+                Paystack&apos;s fee is ~{money(paystackFee, instructor.currency)} on this price —
+                students pay {money(price, instructor.currency)}, you&apos;ll net about{" "}
+                {money(Math.max(0, price - paystackFee), instructor.currency)}.
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="coprice">Original price (optional)</Label>
@@ -383,7 +434,8 @@ export function ClassForm({
               name="originalPrice"
               type="number"
               placeholder="e.g. 9500 to show a discount"
-              defaultValue={initial?.originalPrice ?? undefined}
+              value={originalPrice ?? ""}
+              onChange={(e) => setOriginalPrice(e.target.value ? Number(e.target.value) : null)}
             />
           </div>
         </div>

@@ -1,26 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { useState } from "react";
-import {
-  Instagram,
-  Music2,
-  Youtube,
-  Facebook,
-  Twitter,
-  MessageCircle,
-  Linkedin,
-  MapPin,
-  Phone,
-  Mail,
-  Share2,
-  Check,
-  CalendarClock,
-  CalendarX2,
-  Loader2,
-  Send,
-  ArrowRight,
-} from "lucide-react";
+import { useState, type CSSProperties } from "react";
+import { Instagram, Share2, Check, CalendarX2, Loader2, Send, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -33,80 +14,25 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/EmptyState";
-import { PriceTag } from "@/components/PriceTag";
 import { Reveal } from "@/components/landing/primitives";
+import { cn } from "@/lib/utils";
+import { money } from "@/lib/demo";
 import { toast } from "sonner";
-import { timezoneLabel, type CurrencyCode, type SocialPlatform } from "@/lib/demo";
-import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
-import { joinWaitlist, subscribeToNewsletter } from "./actions";
+import {
+  socialIcons,
+  socialHref,
+  groupPublicClasses,
+  classCardByLayout,
+  layoutListClassName,
+  type PublicInstructor,
+  type PublicClass,
+} from "@/lib/public-page-layout";
+import { bookVideoCall, joinWaitlist, subscribeToNewsletter } from "./actions";
 
-export type PublicInstructor = {
-  name: string;
-  slug: string;
-  photoUrl: string | null;
-  bio: string | null;
-  location: string | null;
-  email: string;
-  phone: string | null;
-  consultationLink: string | null;
-  specialties: string[];
-  currency: CurrencyCode;
-  socials: { platform: string; handle: string }[];
-  links: { id: string; label: string; url: string }[];
-};
+export type { PublicInstructor, PublicClass };
 
 function trackLinkClick(linkId: string) {
   navigator.sendBeacon?.("/api/links/click", JSON.stringify({ linkId }));
-}
-
-export type PublicClass = {
-  id: string;
-  seriesId: string | null;
-  recurringLabel: string | null;
-  name: string;
-  coverUrl: string | null;
-  description: string | null;
-  startAt: Date;
-  timezone: string;
-  durationMinutes: number;
-  mode: "IN_PERSON" | "ONLINE";
-  location: string | null;
-  price: number;
-  originalPrice: number | null;
-  capacity: number;
-  spots: number;
-};
-
-const socialIcons: Record<string, typeof Instagram> = {
-  instagram: Instagram,
-  tiktok: Music2,
-  youtube: Youtube,
-  facebook: Facebook,
-  twitter: Twitter,
-  whatsapp: MessageCircle,
-  linkedin: Linkedin,
-};
-
-function socialHref(platform: string, handle: string) {
-  if (/^https?:\/\//.test(handle)) return handle;
-  switch (platform as SocialPlatform) {
-    case "instagram":
-      return `https://instagram.com/${handle.replace(/^@/, "")}`;
-    case "tiktok":
-      return `https://tiktok.com/@${handle.replace(/^@/, "")}`;
-    case "youtube":
-      return `https://youtube.com/${handle.replace(/^@/, "@")}`;
-    case "facebook":
-      return `https://${handle.replace(/^https?:\/\//, "")}`;
-    case "twitter":
-      return `https://x.com/${handle.replace(/^@/, "")}`;
-    case "whatsapp":
-      return `https://wa.me/${handle.replace(/[^\d]/g, "")}`;
-    case "linkedin":
-      return `https://${handle.replace(/^https?:\/\//, "")}`;
-    default:
-      return handle;
-  }
 }
 
 function ShareButton({ instructorName }: { instructorName: string }) {
@@ -303,38 +229,177 @@ function WaitlistDialog({
   );
 }
 
-type PublicClassGroup =
-  | { type: "single"; cls: PublicClass }
-  | { type: "series"; seriesId: string; occurrences: PublicClass[] };
+function BookCallDialog({
+  open,
+  onOpenChange,
+  slug,
+  offerTitle,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  slug: string;
+  offerTitle: string;
+}) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [website, setWebsite] = useState(""); // honeypot, kept off-screen
+  const [pending, setPending] = useState(false);
+  const [meetingLink, setMeetingLink] = useState<string | null>(null);
 
-function groupPublicClasses(classes: PublicClass[]): PublicClassGroup[] {
-  const seriesOccurrences = new Map<string, PublicClass[]>();
-  const order: Array<{ type: "single"; cls: PublicClass } | { type: "series"; seriesId: string }> =
-    [];
-
-  for (const c of classes) {
-    if (!c.seriesId) {
-      order.push({ type: "single", cls: c });
-      continue;
-    }
-    const existing = seriesOccurrences.get(c.seriesId);
-    if (existing) {
-      existing.push(c);
-    } else {
-      seriesOccurrences.set(c.seriesId, [c]);
-      order.push({ type: "series", seriesId: c.seriesId });
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setPending(true);
+    try {
+      const result = await bookVideoCall({ slug, name, email, website });
+      if (result.ok) {
+        if ("meetingLink" in result) setMeetingLink(result.meetingLink);
+        toast.success("You're booked!");
+      } else {
+        toast.error(result.error);
+      }
+    } finally {
+      setPending(false);
     }
   }
 
-  return order.map((entry) =>
-    entry.type === "single"
-      ? entry
-      : {
-          type: "series" as const,
-          seriesId: entry.seriesId,
-          // Set right before pushing to `order`, so this is always present.
-          occurrences: seriesOccurrences.get(entry.seriesId)!,
-        },
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        onOpenChange(next);
+        if (!next) {
+          setName("");
+          setEmail("");
+          setMeetingLink(null);
+        }
+      }}
+    >
+      <DialogContent className="sm:max-w-md">
+        {meetingLink ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>You&apos;re booked</DialogTitle>
+              <DialogDescription>
+                We&apos;ve also sent this to your email — {offerTitle}.
+              </DialogDescription>
+            </DialogHeader>
+            <Button asChild variant="clay" className="w-full">
+              <a href={meetingLink} target="_blank" rel="noopener noreferrer">
+                Join the call
+              </a>
+            </Button>
+          </>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle>Find a time</DialogTitle>
+              <DialogDescription>
+                We&apos;ll email you the meeting link for &quot;{offerTitle}&quot; right away.
+              </DialogDescription>
+            </DialogHeader>
+            <form className="space-y-4" onSubmit={(e) => void handleSubmit(e)}>
+              <div className="space-y-2">
+                <Label htmlFor="vcname">Full name</Label>
+                <Input
+                  id="vcname"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Sarah Johnson"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="vcemail">Email</Label>
+                <Input
+                  id="vcemail"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="sarah@mail.com"
+                />
+              </div>
+              <div className="sr-only" aria-hidden="true">
+                <Label htmlFor="vcwebsite">Website</Label>
+                <Input
+                  id="vcwebsite"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                />
+              </div>
+              <Button type="submit" variant="clay" className="w-full" disabled={pending}>
+                {pending ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" /> Booking…
+                  </>
+                ) : (
+                  "Confirm"
+                )}
+              </Button>
+            </form>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function VideoCallCard({ instructor }: { instructor: PublicInstructor }) {
+  const [open, setOpen] = useState(false);
+
+  if (!instructor.videoCallEnabled || !instructor.consultationLink) return null;
+
+  const title = instructor.videoCallTitle || "Book a Video Call with Me";
+  const isPaid = (instructor.videoCallPrice ?? 0) > 0;
+
+  return (
+    <Reveal>
+      <article className="surface mb-6 flex items-center gap-4 p-4 sm:p-5">
+        {instructor.videoCallImageUrl ? (
+          <img
+            src={instructor.videoCallImageUrl}
+            alt=""
+            className="size-16 shrink-0 rounded-xl object-cover sm:size-20"
+          />
+        ) : (
+          <div className="grid size-16 shrink-0 place-items-center rounded-xl bg-(--theme)/12 text-(--theme) sm:size-20">
+            <Video className="size-6" />
+          </div>
+        )}
+        <div className="min-w-0 flex-1 space-y-2">
+          <h2 className="text-base font-medium sm:text-lg">{title}</h2>
+          {instructor.videoCallDescription && (
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {instructor.videoCallDescription}
+            </p>
+          )}
+          <p className="mt-1 text-sm font-semibold" style={{ color: "var(--theme)" }}>
+            {isPaid ? money(instructor.videoCallPrice!, instructor.currency) : "FREE"}
+          </p>
+          {isPaid ? (
+            <Button variant="quiet" size="sm" disabled className="shrink-0">
+              Coming soon
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              className="rounded-sm shrink-0 bg-(--theme) text-white hover:bg-(--theme) w-full sm:w-auto sm:px-6"
+              onClick={() => setOpen(true)}
+            >
+              FIND A TIME
+            </Button>
+          )}
+        </div>
+      </article>
+      <BookCallDialog
+        open={open}
+        onOpenChange={setOpen}
+        slug={instructor.slug}
+        offerTitle={title}
+      />
+    </Reveal>
   );
 }
 
@@ -350,107 +415,147 @@ export function PublicPageClient({
   const [selectedOccurrence, setSelectedOccurrence] = useState<Record<string, string>>({});
 
   const groups = groupPublicClasses(classes);
+  const ClassCard = classCardByLayout[instructor.pageLayout];
+  // A photo background can be any brightness, so the header (sitting
+  // directly over it, outside the cards' own bg-card surfaces) switches to
+  // white text + a shadow for guaranteed contrast, same treatment as
+  // captions over a photo anywhere else.
+  const hasBg = Boolean(instructor.backgroundImageUrl);
 
   return (
-    <div className="min-h-screen bg-sand/10">
-      <div className="mx-auto max-w-3xl px-4 py-12 lg:px-0">
-        <Reveal>
-          <header className="flex flex-col gap-6 p-8 sm:flex-row items-center">
-            {instructor.photoUrl ? (
-              <img
-                src={instructor.photoUrl}
-                alt={instructor.name}
-                width={600}
-                height={600}
-                className="size-48 rounded-full object-cover shadow-2xl"
-              />
-            ) : (
-              <div className="grid size-40 shrink-0 place-items-center rounded-full bg-clay/12 text-2xl font-medium text-clay">
-                {instructor.name
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")}
-              </div>
-            )}
-            <div className="flex-1">
-              <div className="flex flex-wrap items-center text-center sm:justify-start justify-center gap-3">
-                <h1 className="text-3xl">{instructor.name}</h1>
-              </div>
-              {instructor.socials.length > 0 && (
-                <div className="mt-4 flex flex-wrap items-center sm:justify-start justify-center gap-2">
-                  {instructor.socials.map((s) => {
-                    const Icon = socialIcons[s.platform] ?? Instagram;
-                    return (
-                      <a
-                        key={s.platform}
-                        href={socialHref(s.platform, s.handle)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label={s.platform}
-                        className="grid size-9 place-items-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:text-clay"
+    <div
+      className="min-h-screen bg-sand/10 bg-cover bg-center bg-fixed"
+      style={
+        {
+          "--theme": instructor.themeColor,
+          ...(instructor.backgroundImageUrl
+            ? { backgroundImage: `url(${instructor.backgroundImageUrl})` }
+            : {}),
+        } as CSSProperties
+      }
+    >
+      <div
+        className={
+          instructor.backgroundImageUrl
+            ? "min-h-screen bg-background/40 backdrop-blur-[1px]"
+            : undefined
+        }
+      >
+        <div className="mx-auto max-w-3xl px-4 py-12 lg:px-0">
+          <Reveal>
+            <header className="flex flex-col gap-6 p-8 sm:flex-row items-center">
+              {instructor.photoUrl ? (
+                <img
+                  src={instructor.photoUrl}
+                  alt={instructor.name}
+                  width={600}
+                  height={600}
+                  className={cn(
+                    "size-48 rounded-full object-cover shadow-2xl",
+                    hasBg && "ring-4 ring-white/80",
+                  )}
+                />
+              ) : (
+                <div
+                  className={cn(
+                    "grid size-40 shrink-0 place-items-center rounded-full bg-clay/12 text-2xl font-medium text-clay",
+                    hasBg && "ring-4 ring-white/80",
+                  )}
+                >
+                  {instructor.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")}
+                </div>
+              )}
+              <div className="flex-1">
+                <div className="flex flex-wrap items-center text-center sm:justify-start justify-center gap-3">
+                  <h1 className={cn("text-3xl", hasBg && "text-white drop-shadow-sm")}>
+                    {instructor.name}
+                  </h1>
+                </div>
+                {instructor.socials.length > 0 && (
+                  <div className="mt-4 flex flex-wrap items-center sm:justify-start justify-center gap-2">
+                    {instructor.socials.map((s) => {
+                      const Icon = socialIcons[s.platform] ?? Instagram;
+                      return (
+                        <a
+                          key={s.platform}
+                          href={socialHref(s.platform, s.handle)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={s.platform}
+                          className={cn(
+                            "grid size-9 place-items-center rounded-full bg-white text-muted-foreground transition-colors hover:text-clay",
+                            hasBg ? "shadow-sm" : "border border-border",
+                          )}
+                        >
+                          <Icon className="size-4" />
+                        </a>
+                      );
+                    })}
+                  </div>
+                )}
+                {instructor.bio && (
+                  <p
+                    className={cn(
+                      "mt-2 max-w-md sm:text-left text-center",
+                      hasBg ? "text-white/85 drop-shadow-sm" : "text-muted-foreground",
+                    )}
+                  >
+                    {instructor.bio}
+                  </p>
+                )}
+                {instructor.specialties.length > 0 && (
+                  <div className="mt-4 flex flex-wrap items-center sm:justify-start justify-center gap-2">
+                    {instructor.specialties.map((s) => (
+                      <span
+                        key={s}
+                        className={cn(
+                          "rounded-full px-3 py-1 text-xs",
+                          hasBg
+                            ? "bg-white/90 text-foreground shadow-sm"
+                            : "bg-accent text-accent-foreground",
+                        )}
                       >
-                        <Icon className="size-4" />
-                      </a>
-                    );
-                  })}
-                </div>
-              )}
-              {instructor.bio && (
-                <p className="mt-2 max-w-md text-muted-foreground sm:text-left text-center">
-                  {instructor.bio}
-                </p>
-              )}
-              {instructor.specialties.length > 0 && (
-                <div className="mt-4 flex flex-wrap items-center sm:justify-start justify-center gap-2">
-                  {instructor.specialties.map((s) => (
-                    <span
-                      key={s}
-                      className="rounded-full bg-accent px-3 py-1 text-xs text-accent-foreground"
-                    >
-                      {s}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <div className="mt-4 flex flex-wrap sm:justify-start justify-center gap-2 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <NewsletterSignupDialog slug={instructor.slug} />
-                  <ShareButton instructorName={instructor.name} />
-                </div>
-                {/* {instructor.location && (
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div
+                  className={cn(
+                    "mt-4 flex flex-wrap sm:justify-start justify-center gap-2 text-sm",
+                    hasBg ? "text-white/85 drop-shadow-sm" : "text-muted-foreground",
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <NewsletterSignupDialog slug={instructor.slug} />
+                    <ShareButton instructorName={instructor.name} />
+                  </div>
+                  {/* {instructor.location && (
                 <span className="inline-flex items-center gap-1.5">
                   <MapPin className="size-4" /> {instructor.location}
                 </span>
               )} */}
-                {/* <span className="inline-flex items-center gap-1.5">
+                  {/* <span className="inline-flex items-center gap-1.5">
                 <Mail className="size-4" /> {instructor.email}
               </span> */}
-                {/* {instructor.phone && (
+                  {/* {instructor.phone && (
                 <span className="inline-flex items-center gap-1.5">
                   <Phone className="size-4" /> {instructor.phone}
                 </span>
               )} */}
+                </div>
               </div>
-            </div>
-          </header>
-        </Reveal>
+            </header>
+          </Reveal>
 
-        {/* {instructor.consultationLink && (
-          <div className="mt-4">
-            <Button
-              asChild
-              variant="outline"
-              size="lg"
-              className="surface py-6 font-bold w-full sm:w-auto"
-            >
-              <a href={instructor.consultationLink} target="_blank" rel="noopener noreferrer">
-                <CalendarClock className="size-8" /> Book a consultation
-              </a>
-            </Button>
+          <div className="mt-6">
+            <VideoCallCard instructor={instructor} />
           </div>
-        )} */}
 
-        {/* {instructor.links.length > 0 && (
+          {/* {instructor.links.length > 0 && (
           <div className="mt-6 flex flex-col gap-3">
             {instructor.links.map((l) => (
               <a
@@ -467,247 +572,77 @@ export function PublicPageClient({
           </div>
         )} */}
 
-        {/* <h2 className="mt-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          {/* <h2 className="mt-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
           Upcoming classes
         </h2> */}
 
-        {classes.length === 0 ? (
-          <EmptyState
-            className="mt-4"
-            icon={CalendarX2}
-            title="No upcoming classes right now"
-            body="Check back soon, or follow along on social for the next drop."
-          />
-        ) : (
-          <div className="sm:mt-12 mt-2 space-y-4">
-            {groups.map((group, i) => {
-              const delay = Math.min(i, 6) * 0.08;
+          {classes.length === 0 ? (
+            <EmptyState
+              className="mt-4"
+              icon={CalendarX2}
+              title="No upcoming classes right now"
+              body="Check back soon, or follow along on social for the next drop."
+            />
+          ) : (
+            <div className={`sm:mt-12 mt-2 ${layoutListClassName[instructor.pageLayout]}`}>
+              {groups.map((group, i) => {
+                const delay = Math.min(i, 6) * 0.08;
 
-              if (group.type === "single") {
+                if (group.type === "single") {
+                  return (
+                    <Reveal key={group.cls.id} delay={delay}>
+                      <ClassCard
+                        c={group.cls}
+                        slug={instructor.slug}
+                        currency={instructor.currency}
+                        onWaitlist={joinedWaitlist.has(group.cls.id)}
+                        onJoinWaitlist={() => setWaitlistOpenFor(group.cls.id)}
+                      />
+                    </Reveal>
+                  );
+                }
+
+                const selectedId = selectedOccurrence[group.seriesId] ?? group.occurrences[0]!.id;
+                const selected =
+                  group.occurrences.find((o) => o.id === selectedId) ?? group.occurrences[0]!;
+
                 return (
-                  <Reveal key={group.cls.id} delay={delay}>
+                  <Reveal key={group.seriesId} delay={delay}>
                     <ClassCard
-                      c={group.cls}
+                      c={selected}
                       slug={instructor.slug}
                       currency={instructor.currency}
-                      onWaitlist={joinedWaitlist.has(group.cls.id)}
-                      onJoinWaitlist={() => setWaitlistOpenFor(group.cls.id)}
+                      onWaitlist={joinedWaitlist.has(selected.id)}
+                      onJoinWaitlist={() => setWaitlistOpenFor(selected.id)}
+                      dateChips={{
+                        occurrences: group.occurrences,
+                        selectedId: selected.id,
+                        onSelect: (id) =>
+                          setSelectedOccurrence((prev) => ({ ...prev, [group.seriesId]: id })),
+                      }}
                     />
                   </Reveal>
                 );
-              }
-
-              const selectedId = selectedOccurrence[group.seriesId] ?? group.occurrences[0]!.id;
-              const selected =
-                group.occurrences.find((o) => o.id === selectedId) ?? group.occurrences[0]!;
-
-              return (
-                <Reveal key={group.seriesId} delay={delay}>
-                  <ClassCard
-                    c={selected}
-                    slug={instructor.slug}
-                    currency={instructor.currency}
-                    onWaitlist={joinedWaitlist.has(selected.id)}
-                    onJoinWaitlist={() => setWaitlistOpenFor(selected.id)}
-                    dateChips={{
-                      occurrences: group.occurrences,
-                      selectedId: selected.id,
-                      onSelect: (id) =>
-                        setSelectedOccurrence((prev) => ({ ...prev, [group.seriesId]: id })),
-                    }}
-                  />
-                </Reveal>
-              );
-            })}
-          </div>
-        )}
-
-        <WaitlistDialog
-          slug={instructor.slug}
-          classId={waitlistOpenFor}
-          classLabel={classes.find((c) => c.id === waitlistOpenFor)?.name}
-          onOpenChange={(open) => !open && setWaitlistOpenFor(null)}
-          onJoined={(id) => {
-            setJoinedWaitlist((prev) => new Set(prev).add(id));
-            setWaitlistOpenFor(null);
-          }}
-        />
-
-        <p className="mt-12 text-center text-xs text-muted-foreground">
-          Booking powered by <span className="display text-foreground">Flowboc</span>
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function DateChips({
-  occurrences,
-  selectedId,
-  onSelect,
-}: {
-  occurrences: PublicClass[];
-  selectedId: string;
-  onSelect: (id: string) => void;
-}) {
-  return (
-    <div className="mt-2 flex flex-wrap gap-1.5">
-      {occurrences.map((o) => (
-        <button
-          key={o.id}
-          type="button"
-          onClick={() => onSelect(o.id)}
-          className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
-            o.id === selectedId
-              ? "border-[#6355ff] bg-[#6355ff] text-white"
-              : "border-border bg-card text-muted-foreground hover:border-[#6355ff]/50"
-          }`}
-        >
-          {formatClassDate(o)}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function ClassCard({
-  c,
-  slug,
-  currency,
-  onWaitlist,
-  onJoinWaitlist,
-  dateChips,
-}: {
-  c: PublicClass;
-  slug: string;
-  currency: CurrencyCode;
-  onWaitlist: boolean;
-  onJoinWaitlist: () => void;
-  dateChips?: { occurrences: PublicClass[]; selectedId: string; onSelect: (id: string) => void };
-}) {
-  const bookAction =
-    c.spots > 0 ? (
-      <Button
-        asChild
-        className="w-full sm:mt-3 sm:w-6/12 font-bold bg-[#6355ff] hover:bg-[#6355ff] text-white transition-shadow duration-300 hover:shadow-[0_0_28px_-4px_var(--clay)]"
-      >
-        <Link href={`/${slug}/book/${c.id}`} className="relative flex items-center gap-2 py-5">
-          <span className="font-extrabold absolute left-4">Book Class</span>{" "}
-          <ArrowRight className="size-4 absolute right-4" />
-        </Link>
-      </Button>
-    ) : onWaitlist ? (
-      <Button variant="quiet" className="w-full sm:mt-3 sm:w-auto" disabled>
-        <Check className="size-4" /> On waitlist
-      </Button>
-    ) : (
-      <Button variant="quiet" className="w-full sm:mt-3 sm:w-6/12" onClick={onJoinWaitlist}>
-        Join waitlist
-      </Button>
-    );
-
-  return (
-    <article className="surface overflow-hidden p-4 sm:flex sm:p-0">
-      {/* Mobile: compact card — square cover beside title, price row, full-width CTA. */}
-      <div className="sm:hidden">
-        <div className="flex gap-3">
-          {c.coverUrl ? (
-            <img
-              src={c.coverUrl}
-              alt={c.name}
-              loading="lazy"
-              width={200}
-              height={200}
-              className="size-20 shrink-0 rounded-sm object-cover"
-            />
-          ) : (
-            <div className="size-20 shrink-0 rounded-sm bg-sand" />
+              })}
+            </div>
           )}
-          <div className="min-w-0">
-            <h3 className="text-lg leading-tight">{c.name}</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {c.recurringLabel ? `${c.recurringLabel} · ` : ""}
-              {formatClassDate(c)} · {formatClassTime(c)} {timezoneLabel(c.timezone)}
-            </p>
-            {c.description && (
-              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{c.description}</p>
-            )}
-          </div>
-        </div>
-        {dateChips && (
-          <DateChips
-            occurrences={dateChips.occurrences}
-            selectedId={dateChips.selectedId}
-            onSelect={dateChips.onSelect}
-          />
-        )}
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <PriceTag
-            price={c.price}
-            originalPrice={c.originalPrice ?? undefined}
-            currency={currency}
-          />
-          <span className="shrink-0 text-xs">
-            {c.spots > 0 ? (
-              <span className="text-[#6355ff]">{c.spots} spots left</span>
-            ) : (
-              <span className="text-clay">Full</span>
-            )}
-          </span>
-        </div>
-        <div className="mt-3">{bookAction}</div>
-      </div>
 
-      {/* Desktop: original side-by-side layout. */}
-      <div className="hidden sm:contents">
-        {c.coverUrl ? (
-          <img
-            src={c.coverUrl}
-            alt={c.name}
-            loading="lazy"
-            width={1200}
-            height={800}
-            className="h-auto w-48 object-cover"
+          <WaitlistDialog
+            slug={instructor.slug}
+            classId={waitlistOpenFor}
+            classLabel={classes.find((c) => c.id === waitlistOpenFor)?.name}
+            onOpenChange={(open) => !open && setWaitlistOpenFor(null)}
+            onJoined={(id) => {
+              setJoinedWaitlist((prev) => new Set(prev).add(id));
+              setWaitlistOpenFor(null);
+            }}
           />
-        ) : (
-          <div className="h-auto w-48 bg-sand" />
-        )}
-        <div className="flex flex-1 flex-col justify-between gap-4 p-6">
-          <div>
-            <h3 className="text-xl">{c.name}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {c.recurringLabel ? `${c.recurringLabel} · ` : ""}
-              {formatClassDate(c)} · {formatClassTime(c)} {timezoneLabel(c.timezone)} ·{" "}
-              {c.durationMinutes} min · {c.mode === "ONLINE" ? "Online" : "In-person"}
-            </p>
-            {dateChips && (
-              <DateChips
-                occurrences={dateChips.occurrences}
-                selectedId={dateChips.selectedId}
-                onSelect={dateChips.onSelect}
-              />
-            )}
-            {c.description && (
-              <p className="mt-2 max-w-sm text-sm text-muted-foreground">{c.description}</p>
-            )}
-            <p className="mt-3 text-sm">
-              {c.spots > 0 ? (
-                <span className="text-success">{c.spots} spots available</span>
-              ) : (
-                <span className="text-clay">Class full</span>
-              )}
-            </p>
-          </div>
-          <div className="flex items-center justify-between pt-4">
-            <PriceTag
-              price={c.price}
-              originalPrice={c.originalPrice ?? undefined}
-              currency={currency}
-            />
-            {bookAction}
-          </div>
+
+          <p className="mt-12 text-center text-xs text-muted-foreground">
+            Booking powered by <span className="display text-foreground">Flowboc</span>
+          </p>
         </div>
       </div>
-    </article>
+    </div>
   );
 }

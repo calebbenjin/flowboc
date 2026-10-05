@@ -3,6 +3,8 @@ import { Navbar } from "@/components/landing/Navbar";
 import { Hero } from "@/components/landing/Hero";
 import { SocialProof } from "@/components/landing/SocialProof";
 import { ProblemSection } from "@/components/landing/ProblemSection";
+import { CreatorShowcase } from "@/components/landing/CreatorShowcase";
+import { WhyFlowbuk } from "@/components/landing/WhyFlowbuk";
 import { FeatureGrid } from "@/components/landing/FeatureGrid";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { InstructorExperience } from "@/components/landing/InstructorExperience";
@@ -42,7 +44,9 @@ export default function Landing() {
       <main>
         <Hero />
         <SocialProof />
-        <ProblemSection />
+        {/* <ProblemSection /> */}
+        <CreatorShowcase />
+        <WhyFlowbuk />
         <FeatureGrid />
         <HowItWorks />
         <InstructorExperience />
