@@ -19,3 +19,27 @@ export function isTrialExpired(instructor: {
     instructor.trialEndsAt.getTime() < Date.now()
   );
 }
+
+// PAST_DUE (a failed renewal, still within its grace period) keeps access —
+// only an expired trial, a canceled subscription, or lapsed comp access
+// blocks publishing/bookings.
+export function accessBlockedReason(instructor: {
+  planStatus: PlanStatus;
+  trialEndsAt: Date | null;
+  compedUntil: Date | null;
+}): string | null {
+  if (instructor.planStatus === "CANCELED") {
+    return "This instructor's subscription has ended, so new bookings are paused.";
+  }
+  if (
+    instructor.planStatus === "COMPED" &&
+    instructor.compedUntil !== null &&
+    instructor.compedUntil.getTime() < Date.now()
+  ) {
+    return "This instructor's complimentary access has ended, so new bookings are paused.";
+  }
+  if (isTrialExpired(instructor)) {
+    return "This instructor's trial has ended, so new bookings are paused. Please check back soon.";
+  }
+  return null;
+}

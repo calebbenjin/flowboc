@@ -5,12 +5,15 @@ import Link from "next/link";
 import { Check, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Reveal, Section, SectionHeader } from "./primitives";
+import { money } from "@/lib/demo";
 import {
   countryName,
   isAfricanCountry,
   REGIONAL_DISCOUNT_MONTHLY_PRICE,
   STANDARD_MONTHLY_PRICE,
 } from "@/lib/geo-pricing";
+
+type LocalPricing = { currency: "NGN" | "GHS" | "ZAR" | "KES" | "XOF"; price: number };
 
 const features = [
   "Unlimited classes",
@@ -25,11 +28,15 @@ const features = [
 
 export function Pricing() {
   const [country, setCountry] = useState<string | null>(null);
+  const [local, setLocal] = useState<LocalPricing | null>(null);
 
   useEffect(() => {
     fetch("/api/geo")
       .then((r) => r.json())
-      .then((data: { country: string | null }) => setCountry(data.country))
+      .then((data: { country: string | null; local: LocalPricing | null }) => {
+        setCountry(data.country);
+        setLocal(data.local);
+      })
       .catch(() => {
         // Non-critical — falls back to standard pricing.
       });
@@ -57,7 +64,14 @@ export function Pricing() {
               </span>
             </div>
 
-            {discounted && country && (
+            {local && country && (
+              <p className="mt-4 flex items-start gap-1.5 rounded-lg bg-success/10 px-3 py-2 text-xs text-success">
+                <MapPin className="mt-0.5 size-3.5 shrink-0" />
+                We noticed you're joining from {countryName(country)} — here&apos;s pricing in{" "}
+                {local.currency}.
+              </p>
+            )}
+            {!local && discounted && country && (
               <p className="mt-4 flex items-start gap-1.5 rounded-lg bg-success/10 px-3 py-2 text-xs text-success">
                 <MapPin className="mt-0.5 size-3.5 shrink-0" />
                 We noticed you're joining from {countryName(country)}, which falls under our
@@ -66,12 +80,18 @@ export function Pricing() {
             )}
 
             <p className="mt-5 flex items-end gap-2">
-              {discounted && (
-                <span className="pb-1 text-lg text-muted-foreground line-through">
-                  ${STANDARD_MONTHLY_PRICE}
-                </span>
+              {local ? (
+                <span className="display text-4xl">{money(local.price, local.currency)}</span>
+              ) : (
+                <>
+                  {discounted && (
+                    <span className="pb-1 text-lg text-muted-foreground line-through">
+                      ${STANDARD_MONTHLY_PRICE}
+                    </span>
+                  )}
+                  <span className="display text-4xl">${price}</span>
+                </>
               )}
-              <span className="display text-4xl">${price}</span>
               <span className="pb-1 text-sm text-muted-foreground">/ month after trial</span>
             </p>
             <p className="mt-2 text-sm text-muted-foreground">

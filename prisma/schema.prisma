@@ -12,10 +12,16 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
 model User {
   id    String  @id @default(cuid())
   email String  @unique
   name  String?
+  role  Role    @default(USER)
 
   hashedPassword String
 
@@ -77,12 +83,43 @@ enum PayoutStatus {
 enum PlanStatus {
   TRIALING
   ACTIVE
+  PAST_DUE
+  CANCELED
+  COMPED
+}
+
+enum BillingInterval {
+  MONTHLY
+  ANNUAL
 }
 
 enum PageLayout {
   CLASSIC
   COMPACT
   COVER_GRID
+}
+
+// Insert-only history — never updated or deleted in place. Startbutton plans
+// are immutable, so "changing a price" creates a new row (and a new
+// Startbutton plan) and deactivates the old one, rather than mutating it.
+// Old rows stay queryable so the webhook can still resolve a legacy
+// subscriber's plan code to an interval after the active price moves on.
+model SubscriptionPlan {
+  id               String          @id @default(cuid())
+  currency         CurrencyCode
+  interval         BillingInterval
+  price            Int
+  providerPlanCode String
+  // Startbutton's hosted checkout link for this plan code (e.g.
+  // https://pay.startbutton.tech/#/subscription/{code}) — returned once at
+  // plan-creation time and reused for every instructor who subscribes to
+  // this plan, rather than minting a per-transaction URL like Paystack did.
+  checkoutLink     String
+  active           Boolean         @default(true)
+  createdAt        DateTime        @default(now())
+
+  @@index([currency, interval, active])
+  @@index([providerPlanCode])
 }
 
 model Instructor {
@@ -127,6 +164,21 @@ model Instructor {
   // which isTrialExpired treats as "never expires".
   planStatus  PlanStatus @default(TRIALING)
   trialEndsAt DateTime?
+
+  // Admin-granted free access (see src/app/admin/billing) — a distinct
+  // status from ACTIVE since there's no real Paystack subscription behind
+  // it. compedUntil null means indefinite, same "never expires" convention
+  // as trialEndsAt null (see isTrialExpired).
+  compedUntil DateTime?
+  compNote    String?
+
+  // Populated once an instructor subscribes (see src/app/dashboard/billing).
+  // subscriptionProviderId is Startbutton's subscriber id, required to call
+  // the cancel-subscriber endpoint.
+  billingInterval         BillingInterval?
+  subscriptionProviderId  String?
+  subscriptionPlanCode    String?
+  subscriptionRenewsAt    DateTime?
 
   payoutProvider  PayoutProvider @default(STRIPE)
   payoutStatus    PayoutStatus   @default(NOT_CONNECTED)

@@ -7,13 +7,10 @@ import { deadlineLabelToMinutes } from "@/lib/class-deadline";
 import { zonedDateTimeToUtc } from "@/lib/timezone";
 import { sendCancellationEmail } from "@/lib/email";
 import { RECURRING_HORIZON_OPTIONS, DEFAULT_RECURRING_HORIZON_DAYS } from "@/lib/class-recurrence";
-import { isTrialExpired } from "@/lib/trial";
+import { accessBlockedReason } from "@/lib/trial";
 import type { ClassStatus } from "@/generated/prisma/enums";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
-
-const TRIAL_EXPIRED_PUBLISH_ERROR =
-  "Your trial has ended. Add a payment method to publish classes.";
 
 const WEEKDAY_ABBREVS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const WEEKDAY_FULL: Record<string, string> = {
@@ -93,9 +90,8 @@ export async function createClass(input: ClassInput): Promise<ActionResult> {
 
   const error = validate(input);
   if (error) return { ok: false, error };
-  if (input.status === "PUBLISHED" && isTrialExpired(instructor)) {
-    return { ok: false, error: TRIAL_EXPIRED_PUBLISH_ERROR };
-  }
+  const blockedReason = input.status === "PUBLISHED" ? accessBlockedReason(instructor) : null;
+  if (blockedReason) return { ok: false, error: blockedReason };
 
   const baseData = {
     instructorId: instructor.id,
@@ -167,9 +163,11 @@ export async function updateClass(classId: string, input: ClassInput): Promise<A
   if (error) return { ok: false, error };
   // Only blocks newly publishing a class — editing one that's already live
   // (e.g. fixing a typo) isn't a new "publish" event.
-  if (input.status === "PUBLISHED" && cls.status !== "PUBLISHED" && isTrialExpired(instructor)) {
-    return { ok: false, error: TRIAL_EXPIRED_PUBLISH_ERROR };
-  }
+  const blockedReason =
+    input.status === "PUBLISHED" && cls.status !== "PUBLISHED"
+      ? accessBlockedReason(instructor)
+      : null;
+  if (blockedReason) return { ok: false, error: blockedReason };
 
   await prisma.yogaClass.update({
     where: { id: classId },
