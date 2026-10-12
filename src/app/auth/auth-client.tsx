@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, type FormEvent } from "react";
-import { signIn } from "next-auth/react";
+import { useState, type ComponentProps, type FormEvent } from "react";
+import { getSession, signIn } from "next-auth/react";
 import { toast } from "sonner";
-import { Check, Loader2, MailCheck } from "lucide-react";
+import { Check, Eye, EyeOff, Loader2, MailCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,25 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { forgotPassword, resendOtp, resetPassword, signUp, verifyOtp } from "./actions";
 
 type Mode = "signup" | "login" | "verify" | "forgot" | "forgot-sent" | "reset";
+
+function PasswordInput(props: ComponentProps<typeof Input>) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <div className="relative">
+      <Input {...props} type={visible ? "text" : "password"} className="pr-10" />
+      <button
+        type="button"
+        onClick={() => setVisible((v) => !v)}
+        tabIndex={-1}
+        className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+        aria-label={visible ? "Hide password" : "Show password"}
+      >
+        {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+      </button>
+    </div>
+  );
+}
 
 export function AuthClient() {
   const router = useRouter();
@@ -62,7 +81,8 @@ export function AuthClient() {
           toast.error("Invalid email or password");
         } else {
           toast.success("Welcome back");
-          router.push("/dashboard");
+          const session = await getSession();
+          router.push(session?.user?.role === "ADMIN" ? "/admin" : "/dashboard");
         }
       }
     } finally {
@@ -245,10 +265,9 @@ export function AuthClient() {
             <form className="mt-6 space-y-4" onSubmit={handleResetSubmit}>
               <div className="space-y-2">
                 <Label htmlFor="newPassword">New password</Label>
-                <Input
+                <PasswordInput
                   id="newPassword"
                   name="newPassword"
-                  type="password"
                   placeholder="••••••••"
                   required
                 />
@@ -313,13 +332,7 @@ export function AuthClient() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  placeholder="••••••••"
-                  required
-                />
+                <PasswordInput id="password" name="password" placeholder="••••••••" required />
               </div>
               {mode === "signup" && (
                 <div className="space-y-2">

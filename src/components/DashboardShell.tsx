@@ -13,6 +13,7 @@ import {
   LineChart,
   Gift,
   Landmark,
+  CreditCard,
   LogOut,
   ChevronsUpDown,
   Link2,
@@ -40,6 +41,7 @@ const nav = [
   { to: "/dashboard/newsletter", label: "Newsletter", icon: Mail, mobile: false },
   { to: "/dashboard/referrals", label: "Referrals", icon: Gift, mobile: false },
   { to: "/dashboard/payouts", label: "Payouts", icon: Landmark, mobile: false },
+  { to: "/dashboard/billing", label: "Billing", icon: CreditCard, mobile: false },
   { to: "/dashboard/profile", label: "Profile", icon: UserRound, mobile: true },
 ];
 

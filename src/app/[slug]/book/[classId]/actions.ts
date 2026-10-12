@@ -6,7 +6,7 @@ import {
   sendCapacityReachedEmail,
   sendInstructorNewBookingEmail,
 } from "@/lib/email";
-import { isTrialExpired } from "@/lib/trial";
+import { accessBlockedReason } from "@/lib/trial";
 import { payoutProviderForCurrency } from "@/lib/payout";
 import { initializeTransaction, verifyTransaction, PaystackError } from "@/lib/paystack";
 import { siteUrl } from "@/lib/site";
@@ -52,6 +52,7 @@ export async function createBookingIntent(input: {
               email: true,
               planStatus: true,
               trialEndsAt: true,
+              compedUntil: true,
             },
           },
         },
@@ -63,10 +64,9 @@ export async function createBookingIntent(input: {
       if (cls.status !== "PUBLISHED" && cls.status !== "FULL") {
         throw new BookingError("This class is no longer open for booking.");
       }
-      if (isTrialExpired(cls.instructor)) {
-        throw new BookingError(
-          "This instructor's trial has ended, so new bookings are paused. Please check back soon.",
-        );
+      const blockedReason = accessBlockedReason(cls.instructor);
+      if (blockedReason) {
+        throw new BookingError(blockedReason);
       }
 
       const deadline = new Date(cls.startAt.getTime() - cls.deadlineMinutesBeforeStart * 60_000);

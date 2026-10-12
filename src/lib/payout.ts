@@ -1,12 +1,13 @@
 import type { CurrencyCode, PayoutProvider } from "@/generated/prisma/enums";
 
-// NGN/ZAR/KES/GHS/XOF settle through Paystack (the countries Paystack
+// NGN/GHS/ZAR/KES/XOF settle through Paystack (the countries Paystack
 // supports); the rest go through Stripe. Mirrors the mapping in
 // src/lib/demo.ts's `currencies`.
-const PAYSTACK_CURRENCIES = new Set<CurrencyCode>(["NGN", "ZAR", "KES", "GHS", "XOF"]);
+export const PAYSTACK_CURRENCIES: CurrencyCode[] = ["NGN", "GHS", "ZAR", "KES", "XOF"];
+const PAYSTACK_CURRENCIES_SET = new Set<CurrencyCode>(PAYSTACK_CURRENCIES);
 
 export function payoutProviderForCurrency(currency: CurrencyCode): PayoutProvider {
-  return PAYSTACK_CURRENCIES.has(currency) ? "PAYSTACK" : "STRIPE";
+  return PAYSTACK_CURRENCIES_SET.has(currency) ? "PAYSTACK" : "STRIPE";
 }
 
 // Countries where Paystack can pay out to a mobile money wallet instead of

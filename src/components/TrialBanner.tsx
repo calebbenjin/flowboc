@@ -1,16 +1,32 @@
 "use client";
 
+import Link from "next/link";
 import { AlertTriangle, Clock } from "lucide-react";
 import { useInstructor } from "@/components/InstructorProvider";
-import { supportEmail } from "@/lib/site";
 import { isTrialExpired } from "@/lib/trial";
 import { cn } from "@/lib/utils";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const UPGRADE_HREF = `mailto:${supportEmail}?subject=${encodeURIComponent("Upgrade my Flowbuk plan")}`;
 
 export function TrialBanner() {
   const instructor = useInstructor();
+
+  if (instructor.planStatus === "PAST_DUE") {
+    return (
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <span className="flex items-center gap-2">
+          <AlertTriangle className="size-4 shrink-0" />
+          Your last subscription renewal failed. Update your billing to avoid losing access.
+        </span>
+        <Link
+          href="/dashboard/billing"
+          className="shrink-0 font-medium underline underline-offset-2"
+        >
+          Fix billing
+        </Link>
+      </div>
+    );
+  }
 
   // No banner for paying instructors, or for pre-trial accounts grandfathered
   // in with trialEndsAt = null (isTrialExpired treats that as never expiring).
@@ -37,9 +53,9 @@ export function TrialBanner() {
           ? "Your 14-day trial has ended. Publishing new classes and new bookings are paused until you upgrade."
           : `${daysLeft} day${daysLeft === 1 ? "" : "s"} left in your trial. Upgrade to keep your booking page live.`}
       </span>
-      <a href={UPGRADE_HREF} className="shrink-0 font-medium underline underline-offset-2">
+      <Link href="/dashboard/billing" className="shrink-0 font-medium underline underline-offset-2">
         Upgrade
-      </a>
+      </Link>
     </div>
   );
 }
