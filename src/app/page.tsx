@@ -4,7 +4,7 @@ import { Hero } from "@/components/landing/Hero";
 import { SocialProof } from "@/components/landing/SocialProof";
 import { ProblemSection } from "@/components/landing/ProblemSection";
 import { CreatorShowcase } from "@/components/landing/CreatorShowcase";
-import { WhyFlowbuk } from "@/components/landing/WhyFlowbuk";
+import { WhyFlowboc } from "@/components/landing/WhyFlowboc";
 import { FeatureGrid } from "@/components/landing/FeatureGrid";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { InstructorExperience } from "@/components/landing/InstructorExperience";
@@ -14,9 +14,9 @@ import { FAQ } from "@/components/landing/FAQ";
 import { FinalCTA } from "@/components/landing/FinalCTA";
 import { Footer } from "@/components/landing/Footer";
 
-const title = "Flowbuk — Booking software for independent yoga instructors";
+const title = "Flowboc — Booking software for independent yoga instructors";
 const description =
-  "Create your class, share your link, get booked. Flowbuk handles classes, payments, students and reminders for independent yoga instructors.";
+  "Create your class, share your link, get booked. Flowboc handles classes, payments, students and reminders for independent yoga instructors.";
 
 export const metadata: Metadata = {
   title,
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     description,
     type: "website",
     url: "/",
-    siteName: "Flowbuk",
+    siteName: "Flowboc",
     locale: "en_US",
   },
   twitter: {
@@ -46,7 +46,7 @@ export default function Landing() {
         <SocialProof />
         {/* <ProblemSection /> */}
         <CreatorShowcase />
-        <WhyFlowbuk />
+        <WhyFlowboc />
         <FeatureGrid />
         <HowItWorks />
         <InstructorExperience />

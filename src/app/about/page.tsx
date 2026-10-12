@@ -6,9 +6,9 @@ import { Footer } from "@/components/landing/Footer";
 import { Reveal, Section, SectionHeader, Eyebrow } from "@/components/landing/primitives";
 import { Button } from "@/components/ui/button";
 
-const title = "About Flowbuk — Our story";
+const title = "About Flowboc — Our story";
 const description =
-  "Flowbuk was built by a yoga instructor who was tired of running her business out of spreadsheets and DMs. Here's why we started, and where we're going.";
+  "Flowboc was built by a yoga instructor who was tired of running her business out of spreadsheets and DMs. Here's why we started, and where we're going.";
 
 export const metadata: Metadata = {
   title,
@@ -31,7 +31,7 @@ const values = [
   {
     icon: Target,
     title: "Built for the solo business",
-    body: "Flowbuk isn't studio software with the extra seats stripped out — it's designed from scratch for a team of one.",
+    body: "Flowboc isn't studio software with the extra seats stripped out — it's designed from scratch for a team of one.",
   },
 ];
 
@@ -49,7 +49,7 @@ export default function AboutPage() {
                 <span className="display italic text-clay">Not a studio chain.</span>
               </h1>
               <p className="mt-5 text-base leading-relaxed text-muted-foreground sm:text-lg">
-                Flowbuk started because our founder couldn&apos;t find booking software that
+                Flowboc started because our founder couldn&apos;t find booking software that
                 understood what it&apos;s actually like to run a one-person yoga business.
               </p>
             </div>
@@ -65,13 +65,13 @@ export default function AboutPage() {
                 </div>
                 <div className="text-center sm:text-left">
                   <p className="text-lg font-medium">Maya Okafor</p>
-                  <p className="text-sm text-muted-foreground">Founder &amp; CEO, Flowbuk</p>
+                  <p className="text-sm text-muted-foreground">Founder &amp; CEO, Flowboc</p>
                 </div>
               </div>
 
               <div className="mt-10 space-y-5 text-base leading-relaxed text-muted-foreground">
                 <p>
-                  Before Flowbuk, Maya spent six years teaching yoga — mornings at a studio she
+                  Before Flowboc, Maya spent six years teaching yoga — mornings at a studio she
                   didn&apos;t own, evenings with private clients, weekends filling in wherever
                   someone needed her. She loved the teaching. She did not love the rest of it.
                 </p>
@@ -92,14 +92,14 @@ export default function AboutPage() {
                   learned enough code on weeknights to build it herself.
                 </p>
                 <p>
-                  The first version of Flowbuk had exactly one user: Maya. The second version had
+                  The first version of Flowboc had exactly one user: Maya. The second version had
                   five — instructor friends she&apos;d talked into trying it in exchange for
                   brutally honest feedback. What she heard back was consistent: this is the first
                   tool that feels like it was made by someone who&apos;s actually taught a class,
                   not sold software to one.
                 </p>
                 <p>
-                  That&apos;s still the standard Flowbuk is held to today. We&apos;re a small team
+                  That&apos;s still the standard Flowboc is held to today. We&apos;re a small team
                   building for people doing what Maya used to do every day — and for a lot of that
                   time, still does. She keeps a weekly class on the schedule. It&apos;s the fastest
                   way we know to stay honest about what we&apos;re building.
@@ -138,7 +138,7 @@ export default function AboutPage() {
         <Section className="text-center">
           <Reveal>
             <h2 className="text-3xl leading-[1.1] tracking-tight sm:text-4xl">
-              Come teach on Flowbuk.
+              Come teach on Flowboc.
             </h2>
             <p className="mx-auto mt-3 max-w-md text-base text-muted-foreground">
               Set up your booking page free, in a few minutes.

@@ -86,7 +86,7 @@ function CreatorCard({ creator }: { creator: Creator }) {
 
       <Image
         src="/phone-img.png"
-        alt={`${creator.name}'s Flowbuk booking page showing her classes, pricing and a book class button`}
+        alt={`${creator.name}'s Flowboc booking page showing her classes, pricing and a book class button`}
         width={693}
         height={1451}
         className="relative z-20 -ml-16 w-36 shrink-0 sm:-ml-20 sm:w-45"

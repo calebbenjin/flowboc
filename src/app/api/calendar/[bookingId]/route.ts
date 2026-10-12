@@ -35,7 +35,7 @@ export async function GET(
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Flowbuk//Booking//EN",
+    "PRODID:-//Flowboc//Booking//EN",
     "CALSCALE:GREGORIAN",
     "BEGIN:VEVENT",
     `UID:${booking.id}@${siteHost}`,
@@ -44,7 +44,7 @@ export async function GET(
     `DTEND:${formatIcsDate(endAt)}`,
     `SUMMARY:${escapeIcsText(cls.name)}`,
     cls.location ? `LOCATION:${escapeIcsText(cls.location)}` : null,
-    `DESCRIPTION:${escapeIcsText(`Booked with ${cls.instructor.name} via Flowbuk`)}`,
+    `DESCRIPTION:${escapeIcsText(`Booked with ${cls.instructor.name} via Flowboc`)}`,
     "END:VEVENT",
     "END:VCALENDAR",
   ].filter((line): line is string => line !== null);

@@ -5,10 +5,10 @@ import { getFillRateAndTopClasses, getWeeklyMetrics } from "./queries";
 import { AnalyticsClient } from "./analytics-client";
 
 export const metadata: Metadata = {
-  title: "Analytics — Flowbuk",
+  title: "Analytics — Flowboc",
   description: "Revenue, booking page views and engagement for your yoga classes.",
   openGraph: {
-    title: "Analytics — Flowbuk",
+    title: "Analytics — Flowboc",
     description: "How your booking page is performing.",
     type: "website",
   },

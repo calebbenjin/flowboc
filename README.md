@@ -1,6 +1,6 @@
 # Flow Yoga Bookings
 
-Flowbuk – MVP Scope 
+Flowboc – MVP Scope 
 
 Yoga Booking SaaS
 

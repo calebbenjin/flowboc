@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import { ProfileClient } from "./profile-client";
 
 export const metadata: Metadata = {
-  title: "Instructor profile — Flowbuk",
+  title: "Instructor profile — Flowboc",
   description: "Edit the bio, photo, location and booking link students see.",
   openGraph: {
-    title: "Instructor profile — Flowbuk",
+    title: "Instructor profile — Flowboc",
     description: "Your public instructor profile settings.",
     type: "website",
   },

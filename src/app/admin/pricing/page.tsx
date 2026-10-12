@@ -4,7 +4,7 @@ import { getAllActivePlans } from "@/lib/subscription-plans";
 import { PricingClient } from "./pricing-client";
 
 export const metadata: Metadata = {
-  title: "Pricing admin — Flowbuk",
+  title: "Pricing admin — Flowboc",
 };
 
 export default async function AdminPricingPage() {

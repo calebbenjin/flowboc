@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { AdminBillingClient } from "./admin-billing-client";
 
 export const metadata: Metadata = {
-  title: "Billing admin — Flowbuk",
+  title: "Billing admin — Flowboc",
 };
 
 export default async function AdminBillingPage() {

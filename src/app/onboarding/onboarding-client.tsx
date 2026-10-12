@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { PayoutConnectForm } from "@/components/PayoutConnectForm";
 import { currencies, payoutProviderInfo } from "@/lib/demo";
 import { payoutProviderForCurrency } from "@/lib/payout";
 import { siteHost } from "@/lib/site";
@@ -52,7 +53,6 @@ export function OnboardingClient({ defaults }: { defaults: Defaults }) {
   const [currency, setCurrency] = useState<CurrencyCode>(defaults.currency);
   const [picked, setPicked] = useState<string[]>(defaults.specialties);
   const [profilePending, setProfilePending] = useState(false);
-  const [payoutPending, setPayoutPending] = useState(false);
   const [skipPending, setSkipPending] = useState(false);
 
   const provider = payoutProviderForCurrency(currency);
@@ -123,23 +123,11 @@ export function OnboardingClient({ defaults }: { defaults: Defaults }) {
     }
   }
 
-  async function handleConnectPayout() {
-    setPayoutPending(true);
-    try {
-      // Real Stripe Connect / Paystack subaccount onboarding lands in a
-      // later batch — for now this just marks onboarding complete.
-      await finishOnboarding();
-      toast.success(`Connected to ${providerInfo.name}`);
-    } finally {
-      setPayoutPending(false);
-    }
-  }
-
   return (
     <div className="min-h-screen bg-sand/60 px-4 py-12">
       <div className="mx-auto max-w-2xl">
         <Link href="/" className="flex justify-center font-extrabold text-foreground text-2xl">
-          flowbuk
+          flowboc
         </Link>
 
         {step === "done" ? (
@@ -186,34 +174,30 @@ export function OnboardingClient({ defaults }: { defaults: Defaults }) {
                   {providerInfo.name}.
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Flowbuk never sees or stores your bank details. Class payments settle directly to
-                  your account.
+                  Flowboc sends your details directly to {providerInfo.name} to set up payouts — we
+                  only keep the last 4 digits for your reference, never the full number.
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-2">
+            {provider === "PAYSTACK" ? (
+              <PayoutConnectForm
+                currency={currency}
+                connectLabel={`Connect with ${providerInfo.name}`}
+                onConnected={() => void finishOnboarding()}
+              />
+            ) : (
+              <p className="rounded-lg bg-sand/60 p-4 text-sm text-muted-foreground">
+                Direct payouts for {currency} aren&apos;t available yet — you can connect one later
+                from your dashboard once support lands.
+              </p>
+            )}
+
+            <div className="flex items-center justify-between border-t border-border pt-4">
               <Badge variant="secondary">Step 2 of 2</Badge>
-              <div className="flex gap-2">
-                <Button type="button" variant="ghost" onClick={() => void finishOnboarding()}>
-                  I&apos;ll do this later
-                </Button>
-                <Button
-                  type="button"
-                  variant="clay"
-                  size="lg"
-                  disabled={payoutPending}
-                  onClick={() => void handleConnectPayout()}
-                >
-                  {payoutPending ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" /> Connecting…
-                    </>
-                  ) : (
-                    `Connect with ${providerInfo.name}`
-                  )}
-                </Button>
-              </div>
+              <Button type="button" variant="ghost" onClick={() => void finishOnboarding()}>
+                I&apos;ll do this later
+              </Button>
             </div>
           </div>
         ) : (

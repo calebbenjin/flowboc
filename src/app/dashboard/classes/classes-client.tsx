@@ -40,6 +40,8 @@ import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
 import type { YogaClass } from "@/generated/prisma/client";
 import { cancelClass, deleteClass, duplicateClass } from "./actions";
 
+type ClassWithBookingCount = YogaClass & { _count: { bookings: number } };
+
 function tone(status: YogaClass["status"]) {
   if (status === "PUBLISHED") return "good" as const;
   if (status === "FULL") return "warn" as const;
@@ -50,13 +52,14 @@ function tone(status: YogaClass["status"]) {
 type ConfirmTarget = { id: string; action: "cancel" | "delete" };
 
 type ClassGroup =
-  | { type: "single"; cls: YogaClass }
-  | { type: "series"; seriesId: string; occurrences: YogaClass[] };
+  | { type: "single"; cls: ClassWithBookingCount }
+  | { type: "series"; seriesId: string; occurrences: ClassWithBookingCount[] };
 
-function groupClasses(classes: YogaClass[]): ClassGroup[] {
-  const seriesOccurrences = new Map<string, YogaClass[]>();
-  const order: Array<{ type: "single"; cls: YogaClass } | { type: "series"; seriesId: string }> =
-    [];
+function groupClasses(classes: ClassWithBookingCount[]): ClassGroup[] {
+  const seriesOccurrences = new Map<string, ClassWithBookingCount[]>();
+  const order: Array<
+    { type: "single"; cls: ClassWithBookingCount } | { type: "series"; seriesId: string }
+  > = [];
 
   for (const c of classes) {
     if (!c.seriesId) {
@@ -84,7 +87,7 @@ function groupClasses(classes: YogaClass[]): ClassGroup[] {
   );
 }
 
-export function ClassesClient({ classes }: { classes: YogaClass[] }) {
+export function ClassesClient({ classes }: { classes: ClassWithBookingCount[] }) {
   const router = useRouter();
   const [confirmTarget, setConfirmTarget] = useState<ConfirmTarget | null>(null);
   const [confirmPending, setConfirmPending] = useState(false);
@@ -230,9 +233,9 @@ export function ClassesClient({ classes }: { classes: YogaClass[] }) {
 }
 
 type ClassActionsProps = {
-  cls: YogaClass;
+  cls: ClassWithBookingCount;
   duplicatingId: string | null;
-  onDuplicate: (cls: YogaClass) => void;
+  onDuplicate: (cls: ClassWithBookingCount) => void;
   onCancel: (id: string) => void;
   onDelete: (id: string) => void;
 };
@@ -320,10 +323,15 @@ function ClassCard({ cls: c, duplicatingId, onDuplicate, onCancel, onDelete }: C
             currency={instructor.currency}
             priceClassName="font-medium"
           />
-          <span className="text-muted-foreground">0 / {c.capacity} booked</span>
+          <span className="text-muted-foreground">
+            {c._count.bookings} / {c.capacity} booked
+          </span>
         </div>
         <div className="mt-2 h-1.5 rounded-full bg-secondary">
-          <div className="h-1.5 rounded-full bg-clay" style={{ width: "0%" }} />
+          <div
+            className="h-1.5 rounded-full bg-clay"
+            style={{ width: `${Math.min(100, (c._count.bookings / c.capacity) * 100)}%` }}
+          />
         </div>
 
         <div className="mt-5 flex gap-2">
@@ -373,11 +381,11 @@ function OccurrenceRow({
 }
 
 type SeriesCardProps = {
-  occurrences: YogaClass[];
+  occurrences: ClassWithBookingCount[];
   expanded: boolean;
   onToggle: () => void;
   duplicatingId: string | null;
-  onDuplicate: (cls: YogaClass) => void;
+  onDuplicate: (cls: ClassWithBookingCount) => void;
   onCancel: (id: string) => void;
   onDelete: (id: string) => void;
 };
@@ -435,10 +443,15 @@ function SeriesCard({
             currency={instructor.currency}
             priceClassName="font-medium"
           />
-          <span className="text-muted-foreground">0 / {next.capacity} booked</span>
+          <span className="text-muted-foreground">
+            {next._count.bookings} / {next.capacity} booked
+          </span>
         </div>
         <div className="mt-2 h-1.5 rounded-full bg-secondary">
-          <div className="h-1.5 rounded-full bg-clay" style={{ width: "0%" }} />
+          <div
+            className="h-1.5 rounded-full bg-clay"
+            style={{ width: `${Math.min(100, (next._count.bookings / next.capacity) * 100)}%` }}
+          />
         </div>
 
         <div className="mt-5 flex flex-wrap items-center gap-2">

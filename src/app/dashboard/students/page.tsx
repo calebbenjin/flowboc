@@ -5,10 +5,10 @@ import { getStudents } from "./queries";
 import { StudentsClient } from "./students-client";
 
 export const metadata: Metadata = {
-  title: "Students — Flowbuk",
+  title: "Students — Flowboc",
   description: "A student list that builds itself from every booking you receive.",
   openGraph: {
-    title: "Students — Flowbuk",
+    title: "Students — Flowboc",
     description: "Classes booked, attended and total spent.",
     type: "website",
   },

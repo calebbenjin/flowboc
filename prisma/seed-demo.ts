@@ -24,13 +24,13 @@ const pool = new pg.Pool({
 });
 const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
 
-const DEMO_EMAIL = "demo@flowbuk.dev";
+const DEMO_EMAIL = "demo@flowboc.dev";
 const DEMO_SLUG = "sarah-yoga-demo";
 const DEMO_PASSWORD = process.env["DEMO_PASSWORD"] ?? randomBytes(9).toString("base64url");
 
 const REFERRED_SEED = [
   {
-    email: "demo-ref-1@flowbuk.dev",
+    email: "demo-ref-1@flowboc.dev",
     name: "Amaka Studio",
     status: "ACTIVE" as const,
     plan: "Growth",
@@ -38,7 +38,7 @@ const REFERRED_SEED = [
     daysAgo: 62,
   },
   {
-    email: "demo-ref-2@flowbuk.dev",
+    email: "demo-ref-2@flowboc.dev",
     name: "Tunde Fit",
     status: "ACTIVE" as const,
     plan: "Starter",
@@ -46,7 +46,7 @@ const REFERRED_SEED = [
     daysAgo: 43,
   },
   {
-    email: "demo-ref-3@flowbuk.dev",
+    email: "demo-ref-3@flowboc.dev",
     name: "Zen with Zainab",
     status: "PENDING" as const,
     plan: "Growth",

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { LegalLayout } from "@/components/landing/LegalLayout";
 
-const title = "Privacy Policy — Flowbuk";
-const description = "How Flowbuk collects, uses, and protects your information.";
+const title = "Privacy Policy — Flowboc";
+const description = "How Flowboc collects, uses, and protects your information.";
 
 export const metadata: Metadata = {
   title,
@@ -17,18 +17,18 @@ const sections = [
     body: (
       <>
         <p>
-          When you create a Flowbuk account, we collect the information you give us directly — your
+          When you create a Flowboc account, we collect the information you give us directly — your
           name, email address, phone number, and any profile details you add to your public booking
           page (bio, location, photo, social links).
         </p>
         <p>
-          When students book a class through your Flowbuk page, we collect the booking details they
+          When students book a class through your Flowboc page, we collect the booking details they
           provide — name, email, and payment information, which is processed by our third-party
           payment provider and never stored on our own servers.
         </p>
         <p>
           We also collect basic usage data automatically — pages visited, device and browser type,
-          and general location — to help us understand how Flowbuk is used and to fix problems.
+          and general location — to help us understand how Flowboc is used and to fix problems.
         </p>
       </>
     ),
@@ -41,7 +41,7 @@ const sections = [
         <li>To process bookings and payments between you and your students</li>
         <li>To send account, booking, and billing notifications</li>
         <li>To provide customer support when you contact us</li>
-        <li>To improve Flowbuk and understand how it&apos;s used</li>
+        <li>To improve Flowboc and understand how it&apos;s used</li>
         <li>To detect and prevent fraud or abuse of the platform</li>
       </ul>
     ),
@@ -51,7 +51,7 @@ const sections = [
     body: (
       <p>
         We don&apos;t sell your personal information. We share it only with the service providers
-        that help us run Flowbuk — such as payment processors, email delivery, and hosting
+        that help us run Flowboc — such as payment processors, email delivery, and hosting
         infrastructure — and only to the extent needed for them to provide that service. We may also
         share information if required by law.
       </p>
@@ -62,8 +62,8 @@ const sections = [
     body: (
       <p>
         We use cookies and similar technologies to keep you signed in, remember your preferences,
-        and understand how Flowbuk is used. You can control cookies through your browser settings,
-        though some parts of Flowbuk may not work properly without them.
+        and understand how Flowboc is used. You can control cookies through your browser settings,
+        though some parts of Flowboc may not work properly without them.
       </p>
     ),
   },
@@ -101,7 +101,7 @@ const sections = [
     heading: "8. Children's privacy",
     body: (
       <p>
-        Flowbuk is not directed at children under 16, and we do not knowingly collect personal
+        Flowboc is not directed at children under 16, and we do not knowingly collect personal
         information from them.
       </p>
     ),
@@ -111,7 +111,7 @@ const sections = [
     body: (
       <p>
         We may update this policy from time to time. If we make material changes, we&apos;ll let you
-        know by email or through a notice on Flowbuk before the change takes effect.
+        know by email or through a notice on Flowboc before the change takes effect.
       </p>
     ),
   },
@@ -134,7 +134,7 @@ export default function PrivacyPage() {
     <LegalLayout
       title="Privacy Policy"
       updated="August 12, 2026"
-      intro="This policy explains what information Flowbuk collects, how we use it, and the choices you have. It applies to instructors using Flowbuk to manage their business and to students booking classes through a Flowbuk page."
+      intro="This policy explains what information Flowboc collects, how we use it, and the choices you have. It applies to instructors using Flowboc to manage their business and to students booking classes through a Flowboc page."
       sections={sections}
     />
   );

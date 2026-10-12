@@ -115,7 +115,7 @@ export async function createSubaccount(input: {
         business_name: input.businessName,
         settlement_bank: input.settlementBank,
         account_number: input.accountNumber,
-        // percentage_charge is what Flowbuk keeps per transaction — 0 since
+        // percentage_charge is what Flowboc keeps per transaction — 0 since
         // this is a subscription-only platform, not a transaction-fee one.
         percentage_charge: 0,
       }),
@@ -151,7 +151,7 @@ export async function initializeTransaction(input: {
         // bears transaction fees" setting in the Paystack dashboard — this
         // just makes sure that when the account is set to merchant-bears,
         // the fee comes out of the instructor's subaccount rather than
-        // Flowbuk's main account (which has a 0% split and nothing to
+        // Flowboc's main account (which has a 0% split and nothing to
         // deduct from).
         bearer: "subaccount",
         callback_url: input.callbackUrl,

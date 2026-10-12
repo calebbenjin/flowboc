@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Instagram, Youtube, Music2 } from "lucide-react";
-import logo from "@/assets/flowbuk-logo.png";
+import logo from "@/assets/flowboc-logo.png";
 
 const columns = [
   {
@@ -35,7 +35,7 @@ export function Footer() {
     <footer className="border-t border-border bg-sand/40 px-5 py-16 sm:px-8">
       <div className="mx-auto grid w-full max-w-[1200px] gap-10 lg:grid-cols-[1.4fr_repeat(3,1fr)]">
         <div>
-          <img src={logo.src} alt="Flowbuk" className="h-6 w-auto" />
+          <img src={logo.src} alt="Flowboc" className="h-6 w-auto" />
           <p className="mt-3 max-w-xs text-sm text-muted-foreground">
             Simple booking software for independent yoga instructors.
           </p>
@@ -69,7 +69,7 @@ export function Footer() {
         ))}
       </div>
       <div className="mx-auto mt-12 w-full max-w-[1200px] border-t border-border pt-6 text-sm text-muted-foreground">
-        © 2026 Flowbuk. All rights reserved.
+        © 2026 Flowboc. All rights reserved.
       </div>
     </footer>
   );

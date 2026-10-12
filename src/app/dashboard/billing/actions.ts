@@ -15,7 +15,7 @@ type ActionResult = { ok: true } | { ok: false; error: string };
 // the instructor's email (Startbutton has no metadata/reference param for
 // this flow), so the webhook matches the subscriber back to an instructor
 // by email — the billing page's copy tells the instructor to use their
-// Flowbuk account email when subscribing.
+// Flowboc account email when subscribing.
 export async function startSubscription(
   interval: BillingInterval,
 ): Promise<{ ok: true; authorizationUrl: string } | { ok: false; error: string }> {
@@ -49,7 +49,7 @@ export async function cancelSubscription(): Promise<ActionResult> {
   try {
     await cancelSubscriber({
       subscriberId: instructor.subscriptionProviderId,
-      reason: "Canceled by instructor from Flowbuk billing dashboard",
+      reason: "Canceled by instructor from Flowboc billing dashboard",
     });
   } catch (err) {
     return {

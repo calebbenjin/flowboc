@@ -17,7 +17,7 @@ const reasons = [
       <div className="flex justify-center">
         <Image
           src="/phone-img.png"
-          alt="Flowbuk public booking page showing a yoga teacher's bio and upcoming classes"
+          alt="Flowboc public booking page showing a yoga teacher's bio and upcoming classes"
           width={693}
           height={1451}
           className="h-auto w-44 drop-shadow-xl sm:w-52"
@@ -48,7 +48,7 @@ const reasons = [
   },
 ];
 
-export function WhyFlowbuk() {
+export function WhyFlowboc() {
   const [active, setActive] = React.useState(0);
   const cardRefs = React.useRef<(HTMLDivElement | null)[]>([]);
 
@@ -73,11 +73,11 @@ export function WhyFlowbuk() {
         <div className="lg:sticky lg:top-58 lg:self-start">
           <Eyebrow className="mb-4">Why teachers switch</Eyebrow>
           <h2 className="text-3xl leading-[1.1] tracking-tight sm:text-4xl lg:text-[3rem]">
-            Why top yoga teachers use <span className="display italic text-clay">Flowbuk.</span>
+            Why top yoga teachers use <span className="display italic text-clay">Flowboc.</span>
           </h2>
           <p className="mt-4 max-w-md text-base leading-relaxed text-muted-foreground">
             You didn&apos;t start teaching yoga to manage a WhatsApp group, chase payment
-            screenshots and update a spreadsheet after every class. Flowbuk replaces all of it with
+            screenshots and update a spreadsheet after every class. Flowboc replaces all of it with
             one simple link.
           </p>
 

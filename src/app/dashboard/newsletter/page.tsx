@@ -9,10 +9,10 @@ import {
 } from "./queries";
 
 export const metadata: Metadata = {
-  title: "Newsletter — Flowbuk",
+  title: "Newsletter — Flowboc",
   description: "Email the students who've booked with you.",
   openGraph: {
-    title: "Newsletter — Flowbuk",
+    title: "Newsletter — Flowboc",
     description: "Email the students who've booked with you.",
     type: "website",
   },

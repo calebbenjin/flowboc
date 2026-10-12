@@ -5,10 +5,10 @@ import { getReferrals } from "./queries";
 import { ReferralsClient } from "./referrals-client";
 
 export const metadata: Metadata = {
-  title: "Referrals — Flowbuk",
+  title: "Referrals — Flowboc",
   description: "Share your referral link and earn 20% commission on every subscription you refer.",
   openGraph: {
-    title: "Referrals — Flowbuk",
+    title: "Referrals — Flowboc",
     description: "Earn 20% commission on every subscription you refer.",
     type: "website",
   },

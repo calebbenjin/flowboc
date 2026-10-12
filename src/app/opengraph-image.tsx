@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import { siteHost } from "@/lib/site";
 
-export const alt = "Flowbuk — Simple booking for yoga instructors";
+export const alt = "Flowboc — Simple booking for yoga instructors";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -39,7 +39,7 @@ async function loadFrauncesFont(weight: 500 | 600) {
 
 export default async function OpengraphImage() {
   const [logoBuffer, frauncesRegular, frauncesSemibold] = await Promise.all([
-    readFile(join(process.cwd(), "src/assets/flowbuk-logo.png")),
+    readFile(join(process.cwd(), "src/assets/flowboc-logo.png")),
     loadFrauncesFont(500),
     loadFrauncesFont(600),
   ]);

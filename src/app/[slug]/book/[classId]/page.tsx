@@ -4,10 +4,10 @@ import { prisma } from "@/lib/db";
 import { BookingFlowClient } from "./booking-flow-client";
 
 export const metadata: Metadata = {
-  title: "Book your class — Flowbuk",
+  title: "Book your class — Flowboc",
   description: "Enter your details, pay securely and get instant confirmation. No account needed.",
   openGraph: {
-    title: "Book your class — Flowbuk",
+    title: "Book your class — Flowboc",
     description: "Book and pay for your yoga class in a minute.",
     type: "website",
   },
