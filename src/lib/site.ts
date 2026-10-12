@@ -5,11 +5,11 @@ export const siteUrl = process.env["NEXT_PUBLIC_SITE_URL"] ?? "https://flowboc.c
 // lives in one place.
 export const siteHost = siteUrl.replace(/^https?:\/\//, "");
 
-export const siteName = "Flowbuk";
+export const siteName = "Flowboc";
 
 export const supportEmail = "hello@flowboc.com";
 
-export const siteTitle = "Flowbuk — Simple booking for yoga instructors";
+export const siteTitle = "Flowboc — Simple booking for yoga instructors";
 
 export const siteDescription =
   "Create your class, share your booking link, get paid. Booking software for independent yoga teachers.";

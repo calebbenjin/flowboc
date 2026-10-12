@@ -7,9 +7,9 @@ import { Reveal, Section, SectionHeader, Eyebrow, Pill } from "@/components/land
 import { Button } from "@/components/ui/button";
 import { referralProgram } from "@/lib/demo";
 
-const title = "Referral Program — Earn 20% commission | Flowbuk";
+const title = "Referral Program — Earn 20% commission | Flowboc";
 const description =
-  "Refer instructors to Flowbuk and earn 20% commission on every subscription you bring in, for as long as they stay subscribed.";
+  "Refer instructors to Flowboc and earn 20% commission on every subscription you bring in, for as long as they stay subscribed.";
 
 export const metadata: Metadata = {
   title,
@@ -51,7 +51,7 @@ const faqs = [
   },
   {
     q: "Who can join?",
-    a: "Any Flowbuk instructor. Sign in to your dashboard to find your referral link under Referrals.",
+    a: "Any Flowboc instructor. Sign in to your dashboard to find your referral link under Referrals.",
   },
 ];
 
@@ -70,7 +70,7 @@ export default function ReferralProgramPage() {
                 commission on every subscription you refer.
               </h1>
               <p className="mt-5 text-base leading-relaxed text-muted-foreground sm:text-lg">
-                Know an instructor who&apos;d love Flowbuk? Share your link. Every time they
+                Know an instructor who&apos;d love Flowboc? Share your link. Every time they
                 subscribe, you get paid — for as long as they stay a customer.
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3">

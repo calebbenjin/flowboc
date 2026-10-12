@@ -5,10 +5,10 @@ import { getCurrentInstructor } from "@/lib/get-current-instructor";
 import { ClassesClient } from "./classes-client";
 
 export const metadata: Metadata = {
-  title: "Classes — Flowbuk",
+  title: "Classes — Flowboc",
   description: "Create, publish and manage your yoga classes and series.",
   openGraph: {
-    title: "Classes — Flowbuk",
+    title: "Classes — Flowboc",
     description: "Create, publish and manage your yoga classes.",
     type: "website",
   },
@@ -22,6 +22,7 @@ export default async function ClassesPage() {
   const classes = await prisma.yogaClass.findMany({
     where: { instructorId: instructor.id },
     orderBy: { startAt: "asc" },
+    include: { _count: { select: { bookings: { where: { status: "CONFIRMED" } } } } },
   });
 
   return <ClassesClient classes={classes} />;

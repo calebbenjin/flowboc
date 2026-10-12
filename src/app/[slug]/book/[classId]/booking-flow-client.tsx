@@ -21,7 +21,7 @@ import {
 } from "./actions";
 
 function resumeKey(classId: string) {
-  return `flowbuk-booking-${classId}`;
+  return `flowboc-booking-${classId}`;
 }
 
 type Step = "details" | "payment" | "confirming" | "done";
@@ -309,7 +309,7 @@ export function BookingFlowClient({
             </div>
             <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
               <Lock className="size-3" /> You&apos;ll be redirected to Paystack&apos;s secure
-              checkout to pay — Flowbuk never sees your card details.
+              checkout to pay — Flowboc never sees your card details.
             </p>
             <Button
               type="button"
@@ -357,7 +357,7 @@ export function BookingFlowClient({
                     startAt: cls.startAt,
                     durationMinutes: cls.durationMinutes,
                     location: cls.location,
-                    details: `Booked with ${instructorName} via Flowbuk`,
+                    details: `Booked with ${instructorName} via Flowboc`,
                   })}
                   target="_blank"
                   rel="noopener noreferrer"

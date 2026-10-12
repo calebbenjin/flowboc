@@ -51,7 +51,7 @@ export function ContactClient() {
                 We&apos;d love to <span className="display italic text-clay">hear from you.</span>
               </h1>
               <p className="mt-5 text-base leading-relaxed text-muted-foreground sm:text-lg">
-                Question about Flowbuk, feedback on the product, or just want to say hi? Send us a
+                Question about Flowboc, feedback on the product, or just want to say hi? Send us a
                 message and we&apos;ll get back to you within a day.
               </p>
             </div>

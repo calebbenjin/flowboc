@@ -24,8 +24,8 @@ async function setPriceForInterval(
   let checkoutLink: string;
   try {
     const result = await createSubscriptionPlan({
-      name: `Flowbuk Pro (${interval === "MONTHLY" ? "monthly" : "annual"}, ${currency})`,
-      description: `Flowbuk Pro subscription — ${interval === "MONTHLY" ? "monthly" : "annual"} billing in ${currency}`,
+      name: `Flowboc Pro (${interval === "MONTHLY" ? "monthly" : "annual"}, ${currency})`,
+      description: `Flowboc Pro subscription — ${interval === "MONTHLY" ? "monthly" : "annual"} billing in ${currency}`,
       amount: price,
       currency,
       interval,

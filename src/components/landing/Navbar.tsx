@@ -53,7 +53,7 @@ export function Navbar() {
             href="#top"
             className="flex items-center font-extrabold text-primay xl:text-xl text-lg"
           >
-            flowbuk
+            flowboc
           </a>
 
           <div className="hidden items-center gap-4 md:flex">

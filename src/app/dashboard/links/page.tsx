@@ -5,10 +5,10 @@ import { getCurrentInstructor } from "@/lib/get-current-instructor";
 import { LinksClient } from "./links-client";
 
 export const metadata: Metadata = {
-  title: "Links — Flowbuk",
+  title: "Links — Flowboc",
   description: "Build a mobile-optimized link-in-bio page for your booking link.",
   openGraph: {
-    title: "Links — Flowbuk",
+    title: "Links — Flowboc",
     description: "Build a mobile-optimized link-in-bio page for your booking link.",
     type: "website",
   },

@@ -5,10 +5,10 @@ import { getCurrentInstructor } from "@/lib/get-current-instructor";
 import { ClassDetailClient } from "./class-detail-client";
 
 export const metadata: Metadata = {
-  title: "Class bookings & attendance — Flowbuk",
+  title: "Class bookings & attendance — Flowboc",
   description: "See who booked, who paid and who showed up for this class.",
   openGraph: {
-    title: "Class bookings & attendance — Flowbuk",
+    title: "Class bookings & attendance — Flowboc",
     description: "Bookings, payments and attendance in one view.",
     type: "website",
   },

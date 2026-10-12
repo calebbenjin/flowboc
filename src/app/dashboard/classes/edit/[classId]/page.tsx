@@ -5,10 +5,10 @@ import { getCurrentInstructor } from "@/lib/get-current-instructor";
 import { EditClassClient } from "./edit-class-client";
 
 export const metadata: Metadata = {
-  title: "Edit class — Flowbuk",
+  title: "Edit class — Flowboc",
   description: "Update the date, price, capacity and policy for your class.",
   openGraph: {
-    title: "Edit class — Flowbuk",
+    title: "Edit class — Flowboc",
     description: "Update your class details.",
     type: "website",
   },

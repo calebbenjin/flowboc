@@ -26,6 +26,7 @@ export async function signUp(input: {
   email: string;
   password: string;
   referralCode?: string;
+  acceptedTerms: boolean;
 }): Promise<ActionResult> {
   const email = input.email.trim().toLowerCase();
   const name = input.name.trim();
@@ -35,6 +36,9 @@ export async function signUp(input: {
   }
   if (input.password.length < 8) {
     return { ok: false, error: "Password must be at least 8 characters." };
+  }
+  if (!input.acceptedTerms) {
+    return { ok: false, error: "Please accept the Terms of Service and Privacy Policy." };
   }
 
   const existing = await prisma.user.findUnique({ where: { email } });
@@ -57,6 +61,7 @@ export async function signUp(input: {
     otpAttempts: 0,
     otpResendAvailableAt: new Date(now.getTime() + OTP_RESEND_COOLDOWN_MS),
     pendingReferralCode: input.referralCode?.trim() || null,
+    termsAcceptedAt: now,
   };
 
   const user = existing

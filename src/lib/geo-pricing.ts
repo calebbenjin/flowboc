@@ -73,7 +73,7 @@ export const REGIONAL_DISCOUNT_MONTHLY_PRICE = 15;
 // these, so any of them gets shown the real XOF price.
 const XOF_COUNTRY_CODES = ["BJ", "BF", "CI", "GW", "ML", "NE", "SN", "TG"];
 
-// Maps a visitor's IP country to one of the 5 currencies Flowbuk actually
+// Maps a visitor's IP country to one of the 5 currencies Flowboc actually
 // bills subscriptions in (see src/lib/payout.ts's PAYSTACK_CURRENCIES).
 // Everything else falls back to the USD estimate below (isAfricanCountry).
 const COUNTRY_TO_PAYSTACK_CURRENCY: Record<string, "NGN" | "GHS" | "ZAR" | "KES" | "XOF"> = {

@@ -6,7 +6,7 @@ import { ComposeClient } from "./compose-client";
 import { syncSubscribersFromBookings } from "../queries";
 
 export const metadata: Metadata = {
-  title: "New campaign — Flowbuk",
+  title: "New campaign — Flowboc",
 };
 
 export default async function ComposePage() {

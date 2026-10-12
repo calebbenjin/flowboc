@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Flowbuk design system.
+ * Flowboc design system.
  * Sand background, purple primary/accent (clay), mint highlight.
  * Never hardcode brand colors in components — use the tokens above.
  */

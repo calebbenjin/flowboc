@@ -22,7 +22,7 @@ type PlanInfo = { price: number; planCode: string } | null;
 // doesn't confirm it appends a query param to its redirect the way
 // Paystack's callback_url did, so this can't depend on the URL — it only
 // depends on the instructor's browser coming back to this page at all.
-const SUBSCRIBING_FLAG = "flowbuk:subscribing";
+const SUBSCRIBING_FLAG = "flowboc:subscribing";
 
 export function BillingClient({ plans }: { plans: Record<BillingInterval, PlanInfo> }) {
   const router = useRouter();
@@ -97,7 +97,7 @@ export function BillingClient({ plans }: { plans: Record<BillingInterval, PlanIn
     <DashboardShell>
       <div>
         <h1 className="text-3xl">Billing</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Manage your Flowbuk subscription.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Manage your Flowboc subscription.</p>
       </div>
 
       <div className="surface mt-6 p-6">
@@ -152,7 +152,7 @@ export function BillingClient({ plans }: { plans: Record<BillingInterval, PlanIn
                 </Button>
                 <p className="mt-2 text-xs text-muted-foreground">
                   Paid by card only, so your subscription can auto-renew each billing cycle. Use the
-                  email on your Flowbuk account ({instructor.email}) at checkout so we can match the
+                  email on your Flowboc account ({instructor.email}) at checkout so we can match the
                   payment back to your account.
                 </p>
               </>

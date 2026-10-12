@@ -6,10 +6,10 @@ import { slugify } from "@/lib/slug";
 import { OnboardingClient } from "./onboarding-client";
 
 export const metadata: Metadata = {
-  title: "Set up your instructor profile — Flowbuk",
+  title: "Set up your instructor profile — Flowboc",
   description: "Add your bio, location, specialties and booking link to publish your page.",
   openGraph: {
-    title: "Set up your instructor profile — Flowbuk",
+    title: "Set up your instructor profile — Flowboc",
     description: "Your booking page is minutes away.",
     type: "website",
   },

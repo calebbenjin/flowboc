@@ -51,8 +51,8 @@ export function TestimonialVideos() {
       <SectionHeader
         eyebrow="Testimonials"
         title="Yoga teachers"
-        serif="love Flowbuk."
-        body="Hear directly from instructors who moved their classes off spreadsheets and onto Flowbuk."
+        serif="love Flowboc."
+        body="Hear directly from instructors who moved their classes off spreadsheets and onto Flowboc."
       />
       <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {testimonials.map((t, i) => (

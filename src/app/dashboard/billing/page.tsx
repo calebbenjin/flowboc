@@ -4,11 +4,11 @@ import { getActivePlansForCurrency } from "@/lib/subscription-plans";
 import { BillingClient } from "./billing-client";
 
 export const metadata: Metadata = {
-  title: "Billing — Flowbuk",
-  description: "Manage your Flowbuk subscription.",
+  title: "Billing — Flowboc",
+  description: "Manage your Flowboc subscription.",
   openGraph: {
-    title: "Billing — Flowbuk",
-    description: "Manage your Flowbuk subscription.",
+    title: "Billing — Flowboc",
+    description: "Manage your Flowboc subscription.",
     type: "website",
   },
   twitter: { card: "summary_large_image" },

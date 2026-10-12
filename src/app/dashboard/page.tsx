@@ -56,10 +56,10 @@ const attentionMeta: Record<
 };
 
 export const metadata: Metadata = {
-  title: "Dashboard — Flowbuk",
+  title: "Dashboard — Flowboc",
   description: "Revenue, upcoming classes, recent bookings and what needs your attention.",
   openGraph: {
-    title: "Dashboard — Flowbuk",
+    title: "Dashboard — Flowboc",
     description: "Your teaching business at a glance.",
     type: "website",
   },

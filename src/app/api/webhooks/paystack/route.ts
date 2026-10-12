@@ -13,7 +13,7 @@ type PaystackEvent = {
 // The authoritative confirmation that a booking charge succeeded — doesn't
 // depend on the student's browser making it back to the callback URL. Must
 // be registered manually in Paystack Dashboard → Settings → API Keys &
-// Webhooks (there's no API for registering it). Flowbuk's own subscription
+// Webhooks (there's no API for registering it). Flowboc's own subscription
 // billing moved to Startbutton (see src/app/api/webhooks/startbutton) — this
 // route now only ever handles student booking payments.
 export async function POST(request: Request): Promise<NextResponse> {

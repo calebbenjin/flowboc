@@ -23,7 +23,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           href="/admin/billing"
           className="inline-flex font-extrabold text-2xl text-sidebar-foreground"
         >
-          flowbuk admin
+          flowboc admin
         </Link>
 
         <nav className="flex-1 space-y-1">
@@ -68,7 +68,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
               href="/admin/billing"
               className="inline-flex font-extrabold text-foreground text-2xl"
             >
-              flowbuk admin
+              flowboc admin
             </Link>
             <button
               type="button"

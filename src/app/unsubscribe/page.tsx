@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 
 export const metadata: Metadata = {
-  title: "Unsubscribe — Flowbuk",
+  title: "Unsubscribe — Flowboc",
 };
 
 export default async function UnsubscribePage({

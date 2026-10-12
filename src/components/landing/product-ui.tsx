@@ -124,7 +124,7 @@ export function DashboardMock({ compact = false }: { compact?: boolean }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-[150px_1fr]">
       <aside className="hidden flex-col gap-1 border-r border-border bg-sand/40 p-4 sm:flex">
-        <span className="display mb-4 text-sm">Flowbuk</span>
+        <span className="display mb-4 text-sm">Flowboc</span>
         {[
           { icon: Home, label: "Dashboard", active: true },
           { icon: CalendarDays, label: "Classes" },

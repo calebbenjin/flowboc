@@ -3,11 +3,11 @@ import { Suspense } from "react";
 import { AuthClient } from "./auth-client";
 
 export const metadata: Metadata = {
-  title: "Sign in to Flowbuk",
-  description: "Log in or create your Flowbuk instructor account.",
+  title: "Sign in to Flowboc",
+  description: "Log in or create your Flowboc instructor account.",
   openGraph: {
-    title: "Sign in to Flowbuk",
-    description: "Log in or create your Flowbuk instructor account.",
+    title: "Sign in to Flowboc",
+    description: "Log in or create your Flowboc instructor account.",
     type: "website",
   },
   twitter: { card: "summary_large_image" },

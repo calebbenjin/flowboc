@@ -16,7 +16,7 @@ export async function adminCancelSubscription(instructorId: string): Promise<Act
     try {
       await cancelSubscriber({
         subscriberId: instructor.subscriptionProviderId,
-        reason: "Canceled by admin from Flowbuk billing dashboard",
+        reason: "Canceled by admin from Flowboc billing dashboard",
       });
     } catch (err) {
       return {

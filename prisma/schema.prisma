@@ -26,6 +26,7 @@ model User {
   hashedPassword String
 
   emailVerifiedAt DateTime?
+  termsAcceptedAt DateTime?
 
   otpCode              String?
   otpExpiresAt         DateTime?
@@ -377,7 +378,7 @@ enum ReferralStatus {
 // "conversion" (PENDING -> ACTIVE) is meant to trigger on the referred
 // instructor's first paid booking, via the payments batch's webhook —
 // that batch is on hold pending Stripe/Paystack account setup, so every
-// Referral stays PENDING for now. commissionEarned likewise stays 0: Flowbuk
+// Referral stays PENDING for now. commissionEarned likewise stays 0: Flowboc
 // has no subscription billing of its own yet, so there's no revenue event
 // to calculate a percentage of.
 model Referral {

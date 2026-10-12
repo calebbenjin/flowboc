@@ -61,7 +61,7 @@ export function Hero() {
             <div className="relative w-full h-85 sm:h-175 lg:h-175">
               <Image
                 src="/phone-img.png"
-                alt="Flowbuk booking page shown on a phone, with upcoming classes and a book class button"
+                alt="Flowboc booking page shown on a phone, with upcoming classes and a book class button"
                 width={693}
                 height={1451}
                 priority
@@ -69,7 +69,7 @@ export function Hero() {
               />
               <Image
                 src="/phone-img.png"
-                alt="Flowbuk booking page shown on a phone, with upcoming classes and a book class button"
+                alt="Flowboc booking page shown on a phone, with upcoming classes and a book class button"
                 width={693}
                 height={1451}
                 priority
@@ -105,7 +105,7 @@ export function Hero() {
             <div className="overflow-hidden rounded-[1.5rem]">
               <Image
                 src="/dashboard.png"
-                alt="Flowbuk dashboard showing revenue, upcoming classes and bookings"
+                alt="Flowboc dashboard showing revenue, upcoming classes and bookings"
                 width={2560}
                 height={1600}
                 priority

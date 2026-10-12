@@ -232,7 +232,7 @@ export function PublicPagePreview({
               )}
             >
               <span>9:41</span>
-              <span>flowbuk</span>
+              <span>flowboc</span>
             </div>
 
             <div className="flex flex-col items-center px-3 pb-3 pt-1 text-center">

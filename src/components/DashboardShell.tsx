@@ -108,7 +108,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen lg:flex">
       <aside className="hidden bg-sidebar text-sidebar-foreground lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:w-64 lg:flex-col lg:gap-6 lg:overflow-y-auto lg:border-r lg:border-sidebar-border lg:p-6">
         <Link href="/" className="inline-flex font-extrabold text-2xl text-sidebar-foreground">
-          flowbuk
+          flowboc
         </Link>
 
         <nav className="flex-1 space-y-1">
@@ -154,7 +154,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         <div className="mx-auto max-w-6xl px-4 py-6 pb-20 lg:px-8 lg:pb-6">
           <div className="mb-6 flex items-center justify-between lg:hidden">
             <Link href="/" className="inline-flex font-extrabold text-foreground text-2xl">
-              flowbuk
+              flowboc
             </Link>
             <div className="flex items-center gap-3">
               <Link href={`/${instructor.slug}`} className="text-xs font-medium text-clay">
