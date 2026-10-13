@@ -2,6 +2,12 @@
 // theme (see globals.css) in hex, since email clients can't resolve CSS
 // variables or oklch(). Table-based layout for Outlook/old-client support.
 
+// Always the production domain, never siteUrl — email images are fetched by
+// the recipient's mail client, which can never reach a local dev server.
+const ASSET_BASE = "https://flowboc.com";
+const LOGO_URL = `${ASSET_BASE}/flowboc-brand-logo.png`;
+const FAVICON_URL = `${ASSET_BASE}/flowboc-favicon.png`;
+
 const COLOR = {
   pageBg: "#f7f3ea",
   cardBg: "#fffdf8",
@@ -30,6 +36,7 @@ export function emailLayout(input: {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="icon" href="${FAVICON_URL}" />
   </head>
   <body style="margin:0;padding:32px 16px;background:${COLOR.pageBg};font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -38,7 +45,7 @@ export function emailLayout(input: {
           <table role="presentation" width="560" style="max-width:560px;width:100%;" cellpadding="0" cellspacing="0">
             <tr>
               <td align="center" style="padding:0 0 24px;">
-                <span style="font-family:Georgia,'Times New Roman',serif;font-weight:700;font-size:22px;color:${COLOR.foreground};letter-spacing:-0.01em;">flowboc</span>
+                <img src="${LOGO_URL}" alt="Flowboc" height="28" style="height:28px;width:auto;display:inline-block;" />
               </td>
             </tr>
             <tr>
@@ -69,6 +76,7 @@ export function newsletterLayout(input: { bodyHtml: string; footerHtml: string }
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="icon" href="${FAVICON_URL}" />
   </head>
   <body style="margin:0;padding:32px 16px;background:${COLOR.pageBg};font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -82,7 +90,7 @@ export function newsletterLayout(input: { bodyHtml: string; footerHtml: string }
             </tr>
             <tr>
               <td align="center" style="padding:24px 8px 0;font-size:12px;line-height:1.6;color:${COLOR.muted};">
-                ${input.footerHtml}<br />Sent via <a href="https://flowboc.com" style="color:${COLOR.muted};">Flowboc</a>
+                ${input.footerHtml}<br />Sent via <a href="https://flowboc.com" style="color:${COLOR.muted};"><img src="${LOGO_URL}" alt="Flowboc" height="14" style="height:14px;width:auto;vertical-align:middle;" /></a>
               </td>
             </tr>
           </table>

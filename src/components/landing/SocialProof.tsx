@@ -34,14 +34,14 @@ const features = [
   {
     icon: Smartphone,
     title: "No app required",
-    description: "Students book straight from your link in any browser — nothing to install.",
+    description: "Students book straight from your link in any browser, nothing to install.",
     stat: "0",
     statLabel: "apps required",
   },
   {
     icon: CreditCard,
     title: "Get paid instantly",
-    description: "Secure payments powered by Stripe land straight in your account.",
+    description: "Secure payments powered by Stripe & PayStack land straight in your account.",
     stat: "100%",
     statLabel: "secure checkout",
   },

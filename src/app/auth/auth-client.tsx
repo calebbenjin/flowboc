@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { markDeviceAuthed } from "@/lib/auth-device";
 import { forgotPassword, resendOtp, resetPassword, signUp, verifyOtp } from "./actions";
 
 type Mode = "signup" | "login" | "verify" | "forgot" | "forgot-sent" | "reset";
@@ -40,8 +41,11 @@ export function AuthClient() {
   const searchParams = useSearchParams();
   const refParam = searchParams.get("ref");
   const resetToken = searchParams.get("token");
+  const modeParam = searchParams.get("mode");
 
-  const [mode, setMode] = useState<Mode>(resetToken ? "reset" : "signup");
+  const [mode, setMode] = useState<Mode>(
+    resetToken ? "reset" : modeParam === "login" ? "login" : "signup",
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
@@ -90,6 +94,7 @@ export function AuthClient() {
           toast.error("Invalid email or password");
         } else {
           toast.success("Welcome back");
+          markDeviceAuthed();
           const session = await getSession();
           router.push(session?.user?.role === "ADMIN" ? "/admin" : "/dashboard");
         }
@@ -113,6 +118,7 @@ export function AuthClient() {
       toast.success("Email verified");
 
       const signInResult = await signIn("credentials", { email, password, redirect: false });
+      if (!signInResult?.error) markDeviceAuthed();
       router.push(signInResult?.error ? "/auth" : "/onboarding");
     } finally {
       setPending(false);
@@ -172,7 +178,13 @@ export function AuthClient() {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-black/5" />
         <Link href="/" className="absolute left-10 top-10 font-extrabold text-2xl text-white">
-          flowboc
+          <Image
+            src="/flowboc-white-logo.png"
+            width={100}
+            height={100}
+            alt="Flowboc Logo"
+            className="h-6 w-auto"
+          />
         </Link>
         <div className="absolute inset-x-0 bottom-0 p-10">
           <p className="max-w-sm text-2xl text-white leading-snug">
@@ -201,7 +213,13 @@ export function AuthClient() {
             href="/"
             className="flex justify-center font-extrabold text-foreground text-2xl lg:hidden"
           >
-            flowboc
+            <Image
+              src="/flowboc-brand-logo.png"
+              width={100}
+              height={100}
+              alt="Flowboc Logo"
+              className="h-6 w-auto"
+            />
           </Link>
 
           {mode === "verify" ? (

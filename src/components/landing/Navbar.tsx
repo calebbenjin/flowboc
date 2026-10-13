@@ -6,6 +6,8 @@ import { useSession } from "next-auth/react";
 import { ArrowRight, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { hasDeviceAuthed } from "@/lib/auth-device";
+import Image from "next/image";
 
 const links = [
   { label: "Home", href: "/" },
@@ -20,6 +22,11 @@ export function Navbar() {
   const authed = status === "authenticated";
   const [open, setOpen] = React.useState(false);
   const [scrolled, setScrolled] = React.useState(false);
+  const [rememberedDevice, setRememberedDevice] = React.useState(false);
+
+  React.useEffect(() => {
+    setRememberedDevice(hasDeviceAuthed());
+  }, []);
 
   React.useEffect(() => {
     const hero = document.getElementById("top");
@@ -53,7 +60,23 @@ export function Navbar() {
             href="#top"
             className="flex items-center font-extrabold text-primay xl:text-xl text-lg"
           >
-            flowboc
+            {scrolled ? (
+              <Image
+                src="/flowboc-white-logo.png"
+                width={100}
+                height={100}
+                alt="Flowboc Logo"
+                className="h-6 w-auto"
+              />
+            ) : (
+              <Image
+                src="/flowboc-brand-logo.png"
+                width={100}
+                height={100}
+                alt="Flowboc Logo"
+                className="h-6 w-auto"
+              />
+            )}
           </a>
 
           <div className="hidden items-center gap-4 md:flex">
@@ -74,29 +97,30 @@ export function Navbar() {
           <div className="hidden items-center md:flex">
             {authed ? (
               <Button asChild size="lg" className="w-full">
-                <Link href="/dashboard">Dashboard</Link>
+                <Link href="/dashboard">My Account</Link>
+              </Button>
+            ) : rememberedDevice ? (
+              <Button
+                asChild
+                variant="secondary"
+                size="lg"
+                className="w-full bg-mint hover:bg-mint/90 text-mint-foreground"
+              >
+                <Link href="/auth?mode=login">
+                  Log in <ArrowRight className="size-4" />
+                </Link>
               </Button>
             ) : (
-              <>
-                {/* <Button
+              <Button
                 asChild
-                variant="ghost"
+                variant="secondary"
                 size="lg"
-                className={cn(scrolled ? "text-white" : "text-black")}
+                className="w-full bg-mint hover:bg-mint/90 text-mint-foreground"
               >
-                <Link href="/auth">Log in</Link>
-              </Button> */}
-                <Button
-                  asChild
-                  variant="secondary"
-                  size="lg"
-                  className="w-full bg-mint hover:bg-mint/90 text-mint-foreground"
-                >
-                  <Link href="/auth">
-                    Get free trial <ArrowRight className="size-4" />
-                  </Link>
-                </Button>
-              </>
+                <Link href="/auth">
+                  Get free trial <ArrowRight className="size-4" />
+                </Link>
+              </Button>
             )}
           </div>
 
@@ -131,7 +155,7 @@ export function Navbar() {
             <div className="mt-3 flex flex-col gap-2">
               {authed ? (
                 <Button asChild variant="mint" size="lg">
-                  <Link href="/dashboard">Dashboard</Link>
+                  <Link href="/dashboard">My Account</Link>
                 </Button>
               ) : (
                 <>
