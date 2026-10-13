@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
+import { slugify } from "@/lib/slug";
 
 export type AttentionItem = { id: string; kind: string; detail: string };
 
@@ -90,6 +91,55 @@ export async function getDashboardStats(instructorId: string): Promise<Dashboard
     totalBookings,
     totalStudents: students.length,
   };
+}
+
+export type ChecklistItem = {
+  key: string;
+  label: string;
+  done: boolean;
+  href: string;
+};
+
+export async function getOnboardingChecklist(instructor: {
+  id: string;
+  name: string;
+  slug: string;
+  payoutStatus: string;
+}): Promise<ChecklistItem[]> {
+  const [classCount, bookingCount] = await Promise.all([
+    prisma.yogaClass.count({ where: { instructorId: instructor.id } }),
+    prisma.booking.count({ where: { instructorId: instructor.id, status: "CONFIRMED" } }),
+  ]);
+
+  return [
+    {
+      key: "create-class",
+      label: "Create your first class",
+      done: classCount > 0,
+      href: "/dashboard/classes/new",
+    },
+    {
+      key: "connect-payouts",
+      label: "Connect your payouts",
+      done: instructor.payoutStatus === "CONNECTED",
+      href: "/dashboard/payouts",
+    },
+    {
+      key: "customize-slug",
+      label: "Customize your booking link",
+      // No stored "did they touch this" flag — approximated by comparing
+      // against the name-derived default. A false positive (kept the
+      // default, which happened to need a dedupe suffix) is harmless here.
+      done: instructor.slug !== slugify(instructor.name),
+      href: "/dashboard/profile",
+    },
+    {
+      key: "first-booking",
+      label: "Get your first booking",
+      done: bookingCount > 0,
+      href: `/${instructor.slug}`,
+    },
+  ];
 }
 
 export type RecentBooking = {

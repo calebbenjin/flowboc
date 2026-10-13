@@ -238,12 +238,21 @@ export async function sendNewsletterBatch(
       console.log(`[email] newsletter batch of ${chunk.length}`);
     }
 
-    const { data, error } = await resend.batch.send(chunk);
-    if (error) {
+    try {
+      const { data, error } = await resend.batch.send(chunk);
+      if (error) {
+        failed += chunk.length;
+      } else {
+        sent += data.data.length;
+        failed += chunk.length - data.data.length;
+      }
+    } catch (err) {
+      // A thrown error (network blip, timeout) is just as possible as a
+      // structured {error} response — without this, one bad chunk aborts
+      // the whole send and loses the sent/failed count for every chunk
+      // already delivered before it.
+      console.error("Newsletter batch chunk failed to send:", err);
       failed += chunk.length;
-    } else {
-      sent += data.data.length;
-      failed += chunk.length - data.data.length;
     }
 
     if (i + BATCH_CHUNK_SIZE < emails.length) {

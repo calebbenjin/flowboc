@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { upload } from "@vercel/blob/client";
 import { toast } from "sonner";
+import { compressImage } from "@/lib/compress-image";
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,7 +89,8 @@ function CoverPhotoUpload({
 
     setUploading(true);
     try {
-      const blob = await upload(file.name, file, {
+      const compressed = await compressImage(file, { maxDimension: 1600 });
+      const blob = await upload(compressed.name, compressed, {
         access: "public",
         handleUploadUrl: "/api/upload",
       });

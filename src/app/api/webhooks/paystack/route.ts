@@ -24,28 +24,44 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
-  const event = JSON.parse(rawBody) as PaystackEvent;
+  let event: PaystackEvent;
+  try {
+    event = JSON.parse(rawBody) as PaystackEvent;
+  } catch (err) {
+    // Malformed JSON will never parse differently on retry — log and 200 so
+    // Paystack doesn't hammer us with the same unprocessable payload forever.
+    console.error("Failed to parse Paystack webhook payload:", err);
+    return NextResponse.json({ ok: true });
+  }
 
-  switch (event.event) {
-    case "charge.success": {
-      const booking = event.data.reference
-        ? await prisma.booking.findUnique({ where: { paystackReference: event.data.reference } })
-        : null;
+  try {
+    switch (event.event) {
+      case "charge.success": {
+        const booking = event.data.reference
+          ? await prisma.booking.findUnique({ where: { paystackReference: event.data.reference } })
+          : null;
 
-      if (booking && booking.paymentStatus !== "PAID") {
-        await prisma.booking.update({
-          where: { id: booking.id },
-          data: {
-            paymentStatus: "PAID",
-            paystackFee: event.data.fees != null ? event.data.fees / 100 : null,
-          },
-        });
+        if (booking && booking.paymentStatus !== "PAID") {
+          await prisma.booking.update({
+            where: { id: booking.id },
+            data: {
+              paymentStatus: "PAID",
+              paystackFee: event.data.fees != null ? event.data.fees / 100 : null,
+            },
+          });
+        }
+        break;
       }
-      break;
-    }
 
-    default:
-      break;
+      default:
+        break;
+    }
+  } catch (err) {
+    // Unlike a parse error, this may well be transient (DB hiccup) — return
+    // a 500 so Paystack retries instead of silently dropping a real payment
+    // confirmation.
+    console.error("Failed to process Paystack webhook event:", err);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 
   // Always 200 once the signature's verified and the event's been handled —

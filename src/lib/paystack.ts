@@ -27,18 +27,37 @@ export class PaystackError extends Error {
   }
 }
 
+const PAYSTACK_TIMEOUT_MS = 15_000;
+
 async function paystackFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const key = process.env["PAYSTACK_SECRET_KEY"];
   if (!key) throw new PaystackError("Paystack is not configured.");
 
-  const res = await fetch(`${PAYSTACK_BASE}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
-  });
+  // Plain fetch has no default timeout — on a slow/flaky connection a hung
+  // Paystack call would otherwise hang the whole server action (booking
+  // submission, payment init) indefinitely with no feedback to the student.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PAYSTACK_TIMEOUT_MS);
+
+  let res: Response;
+  try {
+    res = await fetch(`${PAYSTACK_BASE}${path}`, {
+      ...init,
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+        ...init?.headers,
+      },
+    });
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new PaystackError("Paystack took too long to respond. Please try again.");
+    }
+    throw new PaystackError("Couldn't reach Paystack. Please check your connection and try again.");
+  } finally {
+    clearTimeout(timer);
+  }
 
   const body = await res.json().catch(() => null);
   if (!res.ok || body?.status === false) {

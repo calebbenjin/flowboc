@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import { logAdminActivity } from "@/lib/admin-activity";
 import { sendContactNotificationEmail } from "@/lib/email";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
@@ -17,10 +18,16 @@ const contactSchema = z.object({
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 const RATE_LIMIT_MAX_PER_WINDOW = 3;
 
+// On Vercel, x-forwarded-for is set by the edge network from the real
+// connecting client and isn't attacker-controllable the way it would be on
+// an arbitrary self-hosted reverse proxy. x-real-ip is checked as a fallback
+// for the (rare) case the former is missing, so the rate limit doesn't
+// silently degrade to email-only — which the submitter does control — when
+// an IP is available under a different header.
 async function getClientIp(): Promise<string | null> {
   const h = await headers();
-  const forwardedFor = h.get("x-forwarded-for");
-  return forwardedFor?.split(",")[0]?.trim() ?? null;
+  const forwardedFor = h.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return forwardedFor || h.get("x-real-ip")?.trim() || null;
 }
 
 export async function submitContactForm(input: {
@@ -52,6 +59,11 @@ export async function submitContactForm(input: {
 
   await prisma.contactMessage.create({
     data: { name, email, subject: subject || null, message, ip },
+  });
+
+  await logAdminActivity({
+    type: "CONTACT_MESSAGE",
+    message: `${name} sent a contact message`,
   });
 
   try {

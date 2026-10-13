@@ -186,6 +186,11 @@ model Instructor {
   payoutAccountId String?
   payoutBankLabel String?
 
+  // Dashboard "get set up" checklist — null while visible, set once the
+  // instructor dismisses it. Not reset if they later un-complete a step
+  // (e.g. cancel their only class); dismissal is a one-way door.
+  checklistDismissedAt DateTime?
+
   referralCode       String @unique
   commissionRate     Int    @default(20)
   referralClickCount Int    @default(0)
@@ -199,6 +204,7 @@ model Instructor {
   newsletterSubscribers NewsletterSubscriber[]
   newsletterCampaigns   NewsletterCampaign[]
   videoCallBookings     VideoCallBooking[]
+  activityEvents        AdminActivityEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -514,5 +520,29 @@ model VideoCallBooking {
 
   createdAt DateTime @default(now())
 
+  @@index([instructorId])
+}
+
+enum AdminEventType {
+  INSTRUCTOR_SIGNED_UP
+  SUBSCRIPTION_ACTIVATED
+  SUBSCRIPTION_CANCELED
+  TRIAL_EXTENDED
+  COMP_GRANTED
+  CONTACT_MESSAGE
+}
+
+// Insert-only platform activity feed for /admin/overview. message is a
+// pre-rendered human-readable string (not derived at read time) so the feed
+// stays correct even after the referenced instructor changes or is deleted.
+model AdminActivityEvent {
+  id           String         @id @default(cuid())
+  type         AdminEventType
+  message      String
+  instructorId String?
+  instructor   Instructor?    @relation(fields: [instructorId], references: [id], onDelete: SetNull)
+  createdAt    DateTime       @default(now())
+
+  @@index([createdAt])
   @@index([instructorId])
 }

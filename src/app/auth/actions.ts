@@ -3,8 +3,10 @@
 import { randomBytes, randomInt, createHash } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 import { sendOtpEmail, sendPasswordResetEmail } from "@/lib/email";
 import { siteUrl } from "@/lib/site";
+import { referralCodeExists } from "@/lib/referral-code";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -48,6 +50,18 @@ export async function signUp(input: {
       error: "An account with this email already exists. Try logging in instead.",
     };
   }
+  // Without this, resubmitting signUp() for an existing unverified account
+  // bypassed resendOtp()'s cooldown entirely — anyone could email-bomb an
+  // arbitrary address with OTP codes and refill the attempt budget each time.
+  if (existing?.otpResendAvailableAt && existing.otpResendAvailableAt > new Date()) {
+    const waitSeconds = Math.ceil((existing.otpResendAvailableAt.getTime() - Date.now()) / 1000);
+    return { ok: false, error: `Please wait ${waitSeconds}s before requesting a new code.` };
+  }
+
+  const referralCode = input.referralCode?.trim() || null;
+  if (referralCode && !(await referralCodeExists(referralCode))) {
+    return { ok: false, error: "That referral code isn't valid." };
+  }
 
   const hashedPassword = await bcrypt.hash(input.password, 12);
   const otpCode = generateOtp();
@@ -60,13 +74,27 @@ export async function signUp(input: {
     otpExpiresAt: new Date(now.getTime() + OTP_TTL_MS),
     otpAttempts: 0,
     otpResendAvailableAt: new Date(now.getTime() + OTP_RESEND_COOLDOWN_MS),
-    pendingReferralCode: input.referralCode?.trim() || null,
+    pendingReferralCode: referralCode,
     termsAcceptedAt: now,
   };
 
-  const user = existing
-    ? await prisma.user.update({ where: { email }, data })
-    : await prisma.user.create({ data: { email, ...data } });
+  let user;
+  try {
+    user = existing
+      ? await prisma.user.update({ where: { email }, data })
+      : await prisma.user.create({ data: { email, ...data } });
+  } catch (err) {
+    // Two concurrent signUp() calls for the same brand-new email can both
+    // pass the findUnique check above — the loser hits the unique
+    // constraint on create() instead of silently throwing.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return {
+        ok: false,
+        error: "An account with this email already exists. Try logging in instead.",
+      };
+    }
+    throw err;
+  }
 
   try {
     await sendOtpEmail(user.email, otpCode);
@@ -151,7 +179,10 @@ export async function forgotPassword(input: { email: string }): Promise<ActionRe
   const email = input.email.trim().toLowerCase();
   const user = await prisma.user.findUnique({ where: { email } });
 
-  if (user) {
+  // Unverified accounts can't log in anyway (see authorize() in
+  // src/lib/auth.ts) — skip issuing a reset token for one so a password
+  // isn't silently overwritten on an account nobody has finished creating.
+  if (user?.emailVerifiedAt) {
     const rawToken = randomBytes(32).toString("hex");
     await prisma.user.update({
       where: { email },
@@ -184,19 +215,21 @@ export async function resetPassword(input: {
   }
 
   const tokenHash = hashToken(input.token);
-  const user = await prisma.user.findFirst({
-    where: { passwordResetTokenHash: tokenHash, passwordResetExpiresAt: { gt: new Date() } },
-  });
-
-  if (!user) {
-    return { ok: false, error: "This reset link is invalid or has expired." };
-  }
-
   const hashedPassword = await bcrypt.hash(input.newPassword, 12);
-  await prisma.user.update({
-    where: { id: user.id },
+
+  // One conditional update instead of findFirst-then-update — Postgres
+  // serializes concurrent UPDATEs matching the same row, so if two requests
+  // race on the same still-valid token, only the first one's WHERE still
+  // matches; the second re-checks after the first commits and finds the
+  // token already cleared, instead of both silently succeeding.
+  const result = await prisma.user.updateMany({
+    where: { passwordResetTokenHash: tokenHash, passwordResetExpiresAt: { gt: new Date() } },
     data: { hashedPassword, passwordResetTokenHash: null, passwordResetExpiresAt: null },
   });
+
+  if (result.count === 0) {
+    return { ok: false, error: "This reset link is invalid or has expired." };
+  }
 
   return { ok: true };
 }

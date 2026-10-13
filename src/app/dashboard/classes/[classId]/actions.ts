@@ -14,6 +14,8 @@ import type { PaymentStatus } from "@/generated/prisma/enums";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
+class ManualActionError extends Error {}
+
 async function requireOwnedClass(classId: string) {
   const instructor = await requireInstructor();
   const cls = await prisma.yogaClass.findUnique({ where: { id: classId } });
@@ -32,39 +34,54 @@ export async function addStudentManually(
   if (!name || !email) {
     return { ok: false, error: "Please enter a name and email." };
   }
-
-  const confirmedCount = await prisma.booking.count({
-    where: { classId, status: "CONFIRMED", paymentStatus: { in: ["PAID", "PENDING"] } },
-  });
-  if (confirmedCount >= cls.capacity) {
-    return { ok: false, error: "This class is already full." };
+  if (cls.status === "CANCELLED" || cls.status === "COMPLETED") {
+    return { ok: false, error: "This class is no longer open for booking." };
   }
 
-  const existing = await prisma.booking.findFirst({
-    where: { classId, studentEmail: email, status: "CONFIRMED" },
-  });
-  if (existing) {
-    return { ok: false, error: "This student is already booked into this class." };
-  }
+  let justFilled = false;
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Serializes concurrent adds for this class — see createBookingIntent
+      // in src/app/[slug]/book/[classId]/actions.ts for the same pattern.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${classId}))`;
 
-  await prisma.booking.create({
-    data: {
-      classId,
-      instructorId: instructor.id,
-      studentName: name,
-      studentEmail: email,
-      studentPhone: input.studentPhone?.trim() || null,
-      status: "CONFIRMED",
-      paymentStatus: (input.paid ? "PAID" : "PENDING") satisfies PaymentStatus,
-      amount: cls.price,
-      currency: instructor.currency,
-      source: "MANUAL",
-    },
-  });
+      const confirmedCount = await tx.booking.count({
+        where: { classId, status: "CONFIRMED", paymentStatus: { in: ["PAID", "PENDING"] } },
+      });
+      if (confirmedCount >= cls.capacity) {
+        throw new ManualActionError("This class is already full.");
+      }
 
-  const justFilled = cls.status === "PUBLISHED" && confirmedCount + 1 >= cls.capacity;
-  if (justFilled) {
-    await prisma.yogaClass.update({ where: { id: classId }, data: { status: "FULL" } });
+      const existing = await tx.booking.findFirst({
+        where: { classId, studentEmail: email, status: "CONFIRMED" },
+      });
+      if (existing) {
+        throw new ManualActionError("This student is already booked into this class.");
+      }
+
+      await tx.booking.create({
+        data: {
+          classId,
+          instructorId: instructor.id,
+          studentName: name,
+          studentEmail: email,
+          studentPhone: input.studentPhone?.trim() || null,
+          status: "CONFIRMED",
+          paymentStatus: (input.paid ? "PAID" : "PENDING") satisfies PaymentStatus,
+          amount: cls.price,
+          currency: instructor.currency,
+          source: "MANUAL",
+        },
+      });
+
+      justFilled = cls.status === "PUBLISHED" && confirmedCount + 1 >= cls.capacity;
+      if (justFilled) {
+        await tx.yogaClass.update({ where: { id: classId }, data: { status: "FULL" } });
+      }
+    });
+  } catch (err) {
+    if (err instanceof ManualActionError) return { ok: false, error: err.message };
+    throw err;
   }
 
   await sendBookingConfirmationEmail({
@@ -104,10 +121,18 @@ export async function cancelBooking(bookingId: string): Promise<ActionResult> {
   const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
   if (!booking || booking.instructorId !== instructor.id) throw new Error("Booking not found");
 
-  await prisma.booking.update({ where: { id: bookingId }, data: { status: "CANCELLED" } });
+  await prisma.booking.update({
+    where: { id: bookingId },
+    data: {
+      status: "CANCELLED",
+      // Mark it for refund tracking — this doesn't call Paystack's refund
+      // API, just records that money was taken for a booking that no longer
+      // stands, so revenue/payout views stop showing it as a clean PAID sale.
+      paymentStatus: booking.paymentStatus === "PAID" ? "REFUNDED" : booking.paymentStatus,
+    },
+  });
 
-  // Cancelling frees a spot — flip a FULL class back to PUBLISHED. Actually
-  // refunding the payment waits on the payments batch.
+  // Cancelling frees a spot — flip a FULL class back to PUBLISHED.
   const cls = await prisma.yogaClass.findUnique({ where: { id: booking.classId } });
   if (cls?.status === "FULL") {
     await prisma.yogaClass.update({ where: { id: cls.id }, data: { status: "PUBLISHED" } });
@@ -159,33 +184,54 @@ export async function promoteWaitlistEntry(entryId: string): Promise<ActionResul
   }
 
   const cls = entry.class;
-  const confirmedCount = await prisma.booking.count({
-    where: { classId: cls.id, status: "CONFIRMED", paymentStatus: { in: ["PAID", "PENDING"] } },
-  });
-  if (confirmedCount >= cls.capacity) {
-    return { ok: false, error: "This class is already full." };
+  if (cls.status === "CANCELLED" || cls.status === "COMPLETED") {
+    return { ok: false, error: "This class is no longer open for booking." };
   }
 
-  await prisma.$transaction([
-    prisma.booking.create({
-      data: {
-        classId: cls.id,
-        instructorId: instructor.id,
-        studentName: entry.name,
-        studentEmail: entry.email,
-        status: "CONFIRMED",
-        paymentStatus: "PENDING",
-        amount: cls.price,
-        currency: instructor.currency,
-        source: "MANUAL",
-      },
-    }),
-    prisma.waitlistEntry.delete({ where: { id: entryId } }),
-  ]);
+  let justFilled = false;
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Serializes concurrent promotions/bookings for this class — see
+      // createBookingIntent in src/app/[slug]/book/[classId]/actions.ts.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${cls.id}))`;
 
-  const justFilled = cls.status === "PUBLISHED" && confirmedCount + 1 >= cls.capacity;
-  if (justFilled) {
-    await prisma.yogaClass.update({ where: { id: cls.id }, data: { status: "FULL" } });
+      // Re-check the entry hasn't already been promoted/removed by a
+      // concurrent call while we were waiting on the lock.
+      const stillWaiting = await tx.waitlistEntry.findUnique({ where: { id: entryId } });
+      if (!stillWaiting) {
+        throw new ManualActionError("This waitlist entry has already been handled.");
+      }
+
+      const confirmedCount = await tx.booking.count({
+        where: { classId: cls.id, status: "CONFIRMED", paymentStatus: { in: ["PAID", "PENDING"] } },
+      });
+      if (confirmedCount >= cls.capacity) {
+        throw new ManualActionError("This class is already full.");
+      }
+
+      await tx.booking.create({
+        data: {
+          classId: cls.id,
+          instructorId: instructor.id,
+          studentName: entry.name,
+          studentEmail: entry.email,
+          status: "CONFIRMED",
+          paymentStatus: "PENDING",
+          amount: cls.price,
+          currency: instructor.currency,
+          source: "MANUAL",
+        },
+      });
+      await tx.waitlistEntry.delete({ where: { id: entryId } });
+
+      justFilled = cls.status === "PUBLISHED" && confirmedCount + 1 >= cls.capacity;
+      if (justFilled) {
+        await tx.yogaClass.update({ where: { id: cls.id }, data: { status: "FULL" } });
+      }
+    });
+  } catch (err) {
+    if (err instanceof ManualActionError) return { ok: false, error: err.message };
+    throw err;
   }
 
   await sendBookingConfirmationEmail({

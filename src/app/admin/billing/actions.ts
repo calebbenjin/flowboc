@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/db";
+import { logAdminActivity } from "@/lib/admin-activity";
 import { requireAdmin } from "@/lib/require-admin";
 import { cancelSubscriber, StartbuttonError } from "@/lib/startbutton";
 
@@ -34,6 +35,12 @@ export async function adminCancelSubscription(instructorId: string): Promise<Act
     data: { planStatus: "CANCELED" },
   });
 
+  await logAdminActivity({
+    type: "SUBSCRIPTION_CANCELED",
+    message: `Admin canceled ${instructor.name}'s subscription`,
+    instructorId: instructor.id,
+  });
+
   return { ok: true };
 }
 
@@ -44,7 +51,7 @@ export async function adminGrantComp(input: {
 }): Promise<ActionResult> {
   await requireAdmin();
 
-  await prisma.instructor.update({
+  const result = await prisma.instructor.update({
     where: { id: input.instructorId },
     data: {
       planStatus: "COMPED",
@@ -52,6 +59,13 @@ export async function adminGrantComp(input: {
         input.days !== null ? new Date(Date.now() + input.days * 24 * 60 * 60 * 1000) : null,
       compNote: input.note?.trim() || null,
     },
+  });
+
+  const note = input.note?.trim();
+  await logAdminActivity({
+    type: "COMP_GRANTED",
+    message: `Admin granted ${result.name} comp access${note ? ` (${note})` : ""}`,
+    instructorId: result.id,
   });
 
   return { ok: true };
@@ -63,12 +77,18 @@ export async function adminExtendTrial(input: {
 }): Promise<ActionResult> {
   await requireAdmin();
 
-  await prisma.instructor.update({
+  const result = await prisma.instructor.update({
     where: { id: input.instructorId },
     data: {
       planStatus: "TRIALING",
       trialEndsAt: new Date(Date.now() + input.days * 24 * 60 * 60 * 1000),
     },
+  });
+
+  await logAdminActivity({
+    type: "TRIAL_EXTENDED",
+    message: `Admin extended ${result.name}'s trial by ${input.days} days`,
+    instructorId: result.id,
   });
 
   return { ok: true };
