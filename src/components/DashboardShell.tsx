@@ -30,6 +30,7 @@ import { useInstructor } from "@/components/InstructorProvider";
 import { TrialBanner } from "@/components/TrialBanner";
 import { siteHost } from "@/lib/site";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 const nav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, mobile: true },
@@ -107,8 +108,17 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen lg:flex">
       <aside className="hidden bg-sidebar text-sidebar-foreground lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:w-64 lg:flex-col lg:gap-6 lg:overflow-y-auto lg:border-r lg:border-sidebar-border lg:p-6">
-        <Link href="/" className="inline-flex font-extrabold text-2xl text-sidebar-foreground">
-          flowboc
+        <Link
+          href="/dashboard"
+          className="inline-flex font-extrabold text-2xl text-sidebar-foreground"
+        >
+          <Image
+            src="/flowboc-brand-logo.png"
+            width={100}
+            height={100}
+            alt="Flowboc Logo"
+            className="h-6 w-auto"
+          />
         </Link>
 
         <nav className="flex-1 space-y-1">
