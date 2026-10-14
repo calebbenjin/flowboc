@@ -1,8 +1,11 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { getPostHogLogger, loggerProvider, SeverityNumber } from "@/instrumentation";
 import { prisma } from "@/lib/db";
 import { logAdminActivity } from "@/lib/admin-activity";
 import { verifyWebhookSignature } from "@/lib/startbutton";
 import { intervalForPlanCode } from "@/lib/subscription-plans";
+
+const posthogLogger = getPostHogLogger();
 
 // Startbutton's docs only document one subscription-specific webhook event
 // (subscription.canceled.customer) — nothing for a successful recurring
@@ -55,6 +58,11 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
+  // Route handlers can finish before the batch processor exports logs.
+  after(async () => {
+    await loggerProvider?.forceFlush();
+  });
+
   let event: StartbuttonEvent;
   try {
     event = JSON.parse(rawBody) as StartbuttonEvent;
@@ -70,6 +78,15 @@ export async function POST(request: Request): Promise<NextResponse> {
     // plan code) — return a 500 so Startbutton retries instead of silently
     // dropping a real subscription event.
     console.error("Failed to process Startbutton webhook event:", err);
+    posthogLogger?.emit({
+      body: "webhook_processing_failed",
+      severityNumber: SeverityNumber.ERROR,
+      attributes: {
+        provider: "startbutton",
+        event: event.event,
+        error: err instanceof Error ? err.message : String(err),
+      },
+    });
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 
@@ -161,6 +178,11 @@ async function handleStartbuttonEvent(event: StartbuttonEvent, rawBody: string):
       // Not yet handled — log the raw event so its real shape is visible
       // during manual webhook verification instead of silently dropping it.
       console.warn(`[startbutton webhook] unhandled event: ${event.event}`, rawBody.slice(0, 2000));
+      posthogLogger?.emit({
+        body: "webhook_event_unhandled",
+        severityNumber: SeverityNumber.ERROR,
+        attributes: { provider: "startbutton", event: event.event },
+      });
       break;
   }
 }

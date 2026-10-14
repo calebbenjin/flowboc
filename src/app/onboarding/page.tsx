@@ -14,6 +14,7 @@ export const metadata: Metadata = {
     type: "website",
   },
   twitter: { card: "summary_large_image" },
+  robots: { index: false, follow: false },
 };
 
 async function suggestSlug(seed: string, currentUserId: string): Promise<string> {

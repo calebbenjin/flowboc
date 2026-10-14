@@ -83,6 +83,15 @@ export async function POST(request: Request): Promise<NextResponse> {
     // a 500 so Paystack retries instead of silently dropping a real payment
     // confirmation.
     console.error("Failed to process Paystack webhook event:", err);
+    posthogLogger?.emit({
+      body: "webhook_processing_failed",
+      severityNumber: SeverityNumber.ERROR,
+      attributes: {
+        provider: "paystack",
+        event: event.event,
+        error: err instanceof Error ? err.message : String(err),
+      },
+    });
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 

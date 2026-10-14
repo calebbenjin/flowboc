@@ -1,7 +1,8 @@
 import type { MetadataRoute } from "next";
+import { prisma } from "@/lib/db";
 import { siteUrl } from "@/lib/site";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const lastModified = new Date();
 
   const routes: {
@@ -17,10 +18,26 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/terms", priority: 0.3, changeFrequency: "yearly" },
   ];
 
-  return routes.map(({ path, priority, changeFrequency }) => ({
+  const staticEntries = routes.map(({ path, priority, changeFrequency }) => ({
     url: `${siteUrl}${path}`,
     lastModified,
     changeFrequency,
     priority,
   }));
+
+  // Published instructor pages — the actual product surface, left out of the
+  // sitemap would mean it never gets discovered via search-engine crawling.
+  const instructors = await prisma.instructor.findMany({
+    where: { onboardingCompletedAt: { not: null } },
+    select: { slug: true, updatedAt: true },
+  });
+
+  const instructorEntries = instructors.map(({ slug, updatedAt }) => ({
+    url: `${siteUrl}/${slug}`,
+    lastModified: updatedAt,
+    changeFrequency: "daily" as const,
+    priority: 0.8,
+  }));
+
+  return [...staticEntries, ...instructorEntries];
 }

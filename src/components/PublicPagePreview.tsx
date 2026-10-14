@@ -90,7 +90,7 @@ function PreviewClassRow({ c, layout }: { c: PreviewClass; layout: PageLayout })
       <div className="overflow-hidden rounded-lg border border-border bg-card">
         {c.coverUrl ? (
           <div>
-            <img src={c.coverUrl} alt="" className="aspect-4/3 w-full object-cover" />
+            <img src={c.coverUrl} alt={c.name} className="aspect-4/3 w-full object-cover" />
           </div>
         ) : (
           <div className="aspect-4/3 w-full bg-sand" />
@@ -115,7 +115,7 @@ function PreviewClassRow({ c, layout }: { c: PreviewClass; layout: PageLayout })
     <div className="fle  rounded-lg border border-border bg-card p-2.5">
       {c.coverUrl ? (
         <div className="flex gap-2.5">
-          <img src={c.coverUrl} alt="" className="size-12 shrink-0 rounded-md object-cover" />
+          <img src={c.coverUrl} alt={c.name} className="size-12 shrink-0 rounded-md object-cover" />
           <div>
             <p className="truncate text-xs font-medium">{c.name}</p>
             <p className="truncate text-[0.62rem] text-muted-foreground">{c.dateLabel}</p>
@@ -162,7 +162,7 @@ function PreviewVideoCallCard({ instructor }: { instructor: PreviewInstructor })
         <div className="flex gap-2.5">
           <img
             src={instructor.videoCallImageUrl}
-            alt=""
+            alt={title}
             className="size-10 shrink-0 rounded-md object-cover"
           />
           <div>
