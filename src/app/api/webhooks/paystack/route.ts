@@ -1,6 +1,9 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { getPostHogLogger, loggerProvider, SeverityNumber } from "@/instrumentation";
 import { prisma } from "@/lib/db";
 import { verifyWebhookSignature } from "@/lib/paystack";
+
+const posthogLogger = getPostHogLogger();
 
 type PaystackEvent = {
   event: string;
@@ -34,6 +37,18 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ ok: true });
   }
 
+  // Route handlers can finish before the batch processor exports logs.
+  after(async () => {
+    await loggerProvider?.forceFlush();
+  });
+
+  posthogLogger?.emit({
+    body: "payment_webhook_verified",
+    severityNumber: SeverityNumber.INFO,
+    attributes: { provider: "paystack", is_charge_success: event.event === "charge.success" },
+  });
+
+  let paymentUpdated = false;
   try {
     switch (event.event) {
       case "charge.success": {
@@ -49,7 +64,14 @@ export async function POST(request: Request): Promise<NextResponse> {
               paystackFee: event.data.fees != null ? event.data.fees / 100 : null,
             },
           });
+          paymentUpdated = true;
         }
+
+        posthogLogger?.emit({
+          body: "booking_payment_confirmed",
+          severityNumber: SeverityNumber.INFO,
+          attributes: { provider: "paystack", payment_updated: paymentUpdated },
+        });
         break;
       }
 

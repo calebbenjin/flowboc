@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { DashboardShell } from "@/components/DashboardShell";
@@ -49,6 +50,12 @@ export function ComposeClient({ subscriberCount }: { subscriberCount: number }) 
     try {
       const result = await sendNewsletterCampaign(pending);
       if (result.ok) {
+        if (
+          process.env["NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN"] &&
+          process.env["NEXT_PUBLIC_POSTHOG_HOST"]
+        ) {
+          posthog.capture("newsletter_campaign_sent", { recipient_count: result.sent });
+        }
         toast.success(`Campaign sent to ${result.sent} recipient${result.sent === 1 ? "" : "s"}`);
         router.push("/dashboard/newsletter");
       } else {

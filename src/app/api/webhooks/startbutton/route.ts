@@ -79,6 +79,10 @@ export async function POST(request: Request): Promise<NextResponse> {
 }
 
 async function handleStartbuttonEvent(event: StartbuttonEvent, rawBody: string): Promise<void> {
+  // TEMPORARY — webhook payload verification spike, remove after confirming
+  // real field names (see UNCONFIRMED comment above).
+  console.log(`[startbutton webhook] ${event.event}`, rawBody.slice(0, 4000));
+
   switch (event.event) {
     case "collection.verified":
     case "collection.completed": {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import posthog from "posthog-js";
 import { toast } from "sonner";
 import { DashboardShell } from "@/components/DashboardShell";
 import { ClassForm, type ClassFormInitial, type ClassFormDraft } from "@/components/ClassForm";
@@ -91,6 +92,12 @@ export function EditClassClient({ cls }: { cls: YogaClass }) {
         status: cls.status,
       });
       if (result.ok) {
+        if (
+          process.env["NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN"] &&
+          process.env["NEXT_PUBLIC_POSTHOG_HOST"]
+        ) {
+          posthog.capture("class_updated", { status: cls.status.toLowerCase() });
+        }
         toast.success("Class updated");
         router.push(`/dashboard/classes/${cls.id}`);
       } else {

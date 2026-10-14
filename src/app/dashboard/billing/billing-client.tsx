@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 import { toast } from "sonner";
 import { AlertTriangle, CheckCircle2, Clock, Loader2, XCircle } from "lucide-react";
 import { DashboardShell } from "@/components/DashboardShell";
@@ -62,6 +63,14 @@ export function BillingClient({ plans }: { plans: Record<BillingInterval, PlanIn
     try {
       const result = await startSubscription(interval);
       if (result.ok) {
+        if (
+          process.env["NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN"] &&
+          process.env["NEXT_PUBLIC_POSTHOG_HOST"]
+        ) {
+          posthog.capture("subscription_checkout_started", {
+            billing_interval: interval.toLowerCase(),
+          });
+        }
         window.sessionStorage.setItem(SUBSCRIBING_FLAG, "1");
         window.location.href = result.authorizationUrl;
       } else {
@@ -79,6 +88,12 @@ export function BillingClient({ plans }: { plans: Record<BillingInterval, PlanIn
     try {
       const result = await cancelSubscription();
       if (result.ok) {
+        if (
+          process.env["NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN"] &&
+          process.env["NEXT_PUBLIC_POSTHOG_HOST"]
+        ) {
+          posthog.capture("subscription_cancelled");
+        }
         toast.success("Subscription canceled");
         router.refresh();
       } else {

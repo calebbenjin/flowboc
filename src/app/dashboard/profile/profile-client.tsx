@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type FormEvent } from "react";
 import { signOut } from "next-auth/react";
+import posthog from "posthog-js";
 import { upload } from "@vercel/blob/client";
 import { toast } from "sonner";
 import { compressImage } from "@/lib/compress-image";
@@ -281,6 +282,12 @@ export function ProfileClient() {
       // The JWT session cookie stays valid until it's explicitly cleared, so
       // sign out immediately rather than navigating anywhere that would
       // re-query the now-deleted account.
+      if (
+        process.env["NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN"] &&
+        process.env["NEXT_PUBLIC_POSTHOG_HOST"]
+      ) {
+        posthog.reset();
+      }
       await signOut({ callbackUrl: "/" });
     } catch {
       setDeletePending(false);

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import posthog from "posthog-js";
 import { toast } from "sonner";
 import { DashboardShell } from "@/components/DashboardShell";
 import { ClassForm, type ClassFormDraft } from "@/components/ClassForm";
@@ -66,6 +67,12 @@ export function NewClassClient() {
         status: intent === "draft" ? "DRAFT" : "PUBLISHED",
       });
       if (result.ok) {
+        if (
+          process.env["NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN"] &&
+          process.env["NEXT_PUBLIC_POSTHOG_HOST"]
+        ) {
+          posthog.capture("class_created", { status: intent === "draft" ? "draft" : "published" });
+        }
         toast.success(intent === "draft" ? "Saved as draft" : "Class published");
         router.push("/dashboard/classes");
       } else {

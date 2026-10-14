@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { signOut } from "next-auth/react";
+import posthog from "posthog-js";
 import {
   CalendarDays,
   LayoutDashboard,
@@ -52,6 +53,12 @@ function UserMenu({ compact = false }: { compact?: boolean }) {
   const instructor = useInstructor();
 
   function handleLogout() {
+    if (
+      process.env["NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN"] &&
+      process.env["NEXT_PUBLIC_POSTHOG_HOST"]
+    ) {
+      posthog.reset();
+    }
     void signOut({ callbackUrl: "/auth" });
   }
 

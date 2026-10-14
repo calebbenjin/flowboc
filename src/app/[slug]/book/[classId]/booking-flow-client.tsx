@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import posthog from "posthog-js";
 import { toast } from "sonner";
 import { AlertTriangle, CalendarPlus, Check, Download, Loader2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -230,6 +231,12 @@ export function BookingFlowClient({
     }
     const result = outcome.value;
     if (result.ok) {
+      if (
+        process.env["NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN"] &&
+        process.env["NEXT_PUBLIC_POSTHOG_HOST"]
+      ) {
+        posthog.capture("booking_details_submitted", { currency, is_free: result.isFree });
+      }
       if (!result.isFree) localStorage.setItem(resumeKey(cls.id), result.bookingId);
       setBookingId(result.bookingId);
       setStep(result.isFree ? "done" : "payment");

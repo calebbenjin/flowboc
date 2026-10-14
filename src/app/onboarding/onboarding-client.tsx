@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import posthog from "posthog-js";
 import { toast } from "sonner";
 import { Building2, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -105,6 +106,12 @@ export function OnboardingClient({ defaults }: { defaults: Defaults }) {
     if (!result.ok) {
       toast.error(result.error);
       return;
+    }
+    if (
+      process.env["NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN"] &&
+      process.env["NEXT_PUBLIC_POSTHOG_HOST"]
+    ) {
+      posthog.capture("onboarding_completed");
     }
     setStep("done");
   }
