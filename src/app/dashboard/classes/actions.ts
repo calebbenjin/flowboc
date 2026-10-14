@@ -237,9 +237,16 @@ export async function cancelClass(classId: string): Promise<ActionResult> {
       where: { id: classId },
       data: { status: "CANCELLED", cancelledAt: new Date() },
     }),
+    // Paid bookings get marked REFUNDED (tracking only — doesn't call
+    // Paystack's refund API) so revenue/payout views stop showing them as
+    // clean sales; unpaid ones just move straight to CANCELLED.
     prisma.booking.updateMany({
-      where: { classId, status: "CONFIRMED" },
-      data: { status: "CANCELLED" },
+      where: { classId, status: "CONFIRMED", paymentStatus: "PAID" },
+      data: { status: "CANCELLED", paymentStatus: "REFUNDED" },
+    }),
+    prisma.booking.updateMany({
+      where: { classId, status: "CONFIRMED", paymentStatus: { not: "PAID" } },
+      data: { status: "CANCELLED", paymentStatus: "CANCELLED" },
     }),
   ]);
 

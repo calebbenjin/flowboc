@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import posthog from "posthog-js";
 import { toast } from "sonner";
-import { CalendarPlus, Check, Download, Loader2, Lock } from "lucide-react";
+import { AlertTriangle, CalendarPlus, Check, Download, Loader2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,12 +14,15 @@ import { PriceTag } from "@/components/PriceTag";
 import { money, timezoneLabel, type CurrencyCode } from "@/lib/demo";
 import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
 import { googleCalendarUrl } from "@/lib/calendar";
+import { usePendingAction } from "@/hooks/use-pending-action";
 import {
   checkResumableBooking,
   createBookingIntent,
   initiatePayment,
   verifyPayment,
 } from "./actions";
+
+const NETWORK_ERROR_MESSAGE = "Network error — please check your connection and try again.";
 
 function resumeKey(classId: string) {
   return `flowboc-booking-${classId}`;
@@ -56,32 +60,49 @@ export function BookingFlowClient({
 
   const [step, setStep] = useState<Step>(returningReference ? "confirming" : "details");
   const [name, setName] = useState("");
-  const [pending, setPending] = useState(false);
-  const [payPending, setPayPending] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   // "checking" until we know whether this visitor is sitting on their own
   // unexpired reservation — gates the "class is full" screen below so a
   // closed/declined checkout doesn't look like a dead end.
-  const [resumeStatus, setResumeStatus] = useState<"checking" | "resumable" | "none">(
+  const [resumeStatus, setResumeStatus] = useState<"checking" | "resumable" | "none" | "error">(
     returningReference ? "none" : "checking",
   );
 
+  const detailsAction = usePendingAction();
+  const payAction = usePendingAction();
+  const confirmAction = usePendingAction();
+
   // Paystack appends ?reference= to the callback URL on return — verify it
-  // once on mount rather than trusting the redirect alone (the webhook is
-  // the real source of truth, but this gives the student instant feedback
-  // without waiting on it).
-  useEffect(() => {
+  // once rather than trusting the redirect alone (the webhook is the real
+  // source of truth, but this gives the student instant feedback without
+  // waiting on it). Exposed as a function (not just an effect) so the
+  // "confirming" step's retry button can re-run it after a dropped
+  // connection, instead of leaving the student stuck on a spinner forever.
+  const runVerify = useCallback(async () => {
     if (!returningReference) return;
-    void verifyPayment(returningReference).then((result) => {
-      if (result.ok) {
-        setBookingId(result.bookingId);
-        setStep("done");
-      } else {
-        if (result.bookingId) setBookingId(result.bookingId);
-        toast.error(result.error);
-        setStep("payment");
-      }
-    });
+    setConfirmError(null);
+    const outcome = await confirmAction.run(() => verifyPayment(returningReference));
+
+    if (outcome.outcome !== "success") {
+      setConfirmError(NETWORK_ERROR_MESSAGE);
+      return;
+    }
+    const result = outcome.value;
+    if (result.ok) {
+      setBookingId(result.bookingId);
+      setStep("done");
+    } else {
+      if (result.bookingId) setBookingId(result.bookingId);
+      toast.error(result.error);
+      setStep("payment");
+    }
+    // confirmAction is a stable ref from usePendingAction — safe to omit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [returningReference]);
+
+  useEffect(() => {
+    void runVerify();
     // Only ever run once, for whatever reference was in the URL on first
     // render — not meant to re-run as other state changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -99,16 +120,22 @@ export function BookingFlowClient({
       setResumeStatus("none");
       return;
     }
-    void checkResumableBooking(stored).then((result) => {
-      if (result.ok) {
-        setBookingId(stored);
-        setStep(result.step);
-        setResumeStatus("resumable");
-      } else {
-        localStorage.removeItem(key);
-        setResumeStatus("none");
-      }
-    });
+    checkResumableBooking(stored)
+      .then((result) => {
+        if (result.ok) {
+          setBookingId(stored);
+          setStep(result.step);
+          setResumeStatus("resumable");
+        } else {
+          localStorage.removeItem(key);
+          setResumeStatus("none");
+        }
+      })
+      .catch(() => {
+        // Network failure, not "no reservation" — don't drop the stored id,
+        // a retry (reload) might still succeed.
+        setResumeStatus("error");
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -118,18 +145,16 @@ export function BookingFlowClient({
 
   async function handlePay() {
     if (!bookingId) return;
-    setPayPending(true);
-    try {
-      const result = await initiatePayment(bookingId);
-      if (result.ok) {
-        window.location.href = result.authorizationUrl;
-      } else {
-        toast.error(result.error);
-        setPayPending(false);
-      }
-    } catch {
-      toast.error("Couldn't start payment. Please try again.");
-      setPayPending(false);
+    const outcome = await payAction.run(() => initiatePayment(bookingId));
+    if (outcome.outcome !== "success") {
+      toast.error(NETWORK_ERROR_MESSAGE);
+      return;
+    }
+    const result = outcome.value;
+    if (result.ok) {
+      window.location.href = result.authorizationUrl;
+    } else {
+      toast.error(result.error);
     }
   }
 
@@ -138,6 +163,26 @@ export function BookingFlowClient({
       <div className="min-h-screen bg-sand/50 px-4 py-12">
         <div className="mx-auto max-w-2xl text-center">
           <Loader2 className="mx-auto size-6 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    );
+  }
+
+  if (cls.spots <= 0 && resumeStatus === "error") {
+    return (
+      <div className="min-h-screen bg-sand/50 px-4 py-12">
+        <div className="mx-auto max-w-2xl text-center">
+          <Link href={`/${slug}`} className="text-sm text-muted-foreground hover:text-clay">
+            ← {instructorName}
+          </Link>
+          <div className="surface mt-6 p-8">
+            <AlertTriangle className="mx-auto size-6 text-warning-foreground" />
+            <h1 className="mt-4 text-2xl">Couldn&apos;t check your reservation</h1>
+            <p className="mt-2 text-muted-foreground">{NETWORK_ERROR_MESSAGE}</p>
+            <Button variant="clay" className="mt-6" onClick={() => window.location.reload()}>
+              Try again
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -169,9 +214,8 @@ export function BookingFlowClient({
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
-    setPending(true);
-    try {
-      const result = await createBookingIntent({
+    const outcome = await detailsAction.run(() =>
+      createBookingIntent({
         slug,
         classId: cls.id,
         studentName: String(formData.get("fn") ?? ""),
@@ -179,16 +223,25 @@ export function BookingFlowClient({
         studentPhone: String(formData.get("ph") ?? ""),
         emergencyContact: String(formData.get("ec") ?? ""),
         notes: String(formData.get("nt") ?? ""),
-      });
-      if (result.ok) {
-        if (!result.isFree) localStorage.setItem(resumeKey(cls.id), result.bookingId);
-        setBookingId(result.bookingId);
-        setStep(result.isFree ? "done" : "payment");
-      } else {
-        toast.error(result.error);
+      }),
+    );
+    if (outcome.outcome !== "success") {
+      toast.error(NETWORK_ERROR_MESSAGE);
+      return;
+    }
+    const result = outcome.value;
+    if (result.ok) {
+      if (
+        process.env["NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN"] &&
+        process.env["NEXT_PUBLIC_POSTHOG_HOST"]
+      ) {
+        posthog.capture("booking_details_submitted", { currency, is_free: result.isFree });
       }
-    } finally {
-      setPending(false);
+      if (!result.isFree) localStorage.setItem(resumeKey(cls.id), result.bookingId);
+      setBookingId(result.bookingId);
+      setStep(result.isFree ? "done" : "payment");
+    } else {
+      toast.error(result.error);
     }
   }
 
@@ -295,8 +348,18 @@ export function BookingFlowClient({
             {cls.cancellationPolicy && (
               <p className="text-xs text-muted-foreground">{cls.cancellationPolicy}</p>
             )}
-            <Button type="submit" variant="default" size="lg" className="w-full" disabled={pending}>
-              {pending ? "Reserving your spot…" : "Continue to payment"}
+            <Button
+              type="submit"
+              variant="default"
+              size="lg"
+              className="w-full"
+              disabled={detailsAction.isPending}
+            >
+              {detailsAction.isSlow
+                ? "Still working — check your connection…"
+                : detailsAction.isPending
+                  ? "Reserving your spot…"
+                  : "Continue to payment"}
             </Button>
           </form>
         )}
@@ -316,18 +379,43 @@ export function BookingFlowClient({
               variant="clay"
               size="lg"
               className="w-full"
-              disabled={payPending}
+              disabled={payAction.isPending}
               onClick={() => void handlePay()}
             >
-              {payPending ? "Redirecting to checkout…" : `Pay ${money(cls.price, currency)}`}
+              {payAction.isSlow
+                ? "Still working — check your connection…"
+                : payAction.isPending
+                  ? "Redirecting to checkout…"
+                  : `Pay ${money(cls.price, currency)}`}
             </Button>
           </div>
         )}
 
         {step === "confirming" && (
           <div className="surface mt-4 p-8 text-center">
-            <Loader2 className="mx-auto size-6 animate-spin text-muted-foreground" />
-            <p className="mt-4 text-muted-foreground">Confirming your payment…</p>
+            {confirmError ? (
+              <>
+                <AlertTriangle className="mx-auto size-6 text-warning-foreground" />
+                <p className="mt-4 text-muted-foreground">{confirmError}</p>
+                <Button
+                  variant="clay"
+                  className="mt-6"
+                  disabled={confirmAction.isPending}
+                  onClick={() => void runVerify()}
+                >
+                  {confirmAction.isPending ? "Checking…" : "Try again"}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Loader2 className="mx-auto size-6 animate-spin text-muted-foreground" />
+                <p className="mt-4 text-muted-foreground">
+                  {confirmAction.isSlow
+                    ? "Still confirming — this is taking longer than usual…"
+                    : "Confirming your payment…"}
+                </p>
+              </>
+            )}
           </div>
         )}
 

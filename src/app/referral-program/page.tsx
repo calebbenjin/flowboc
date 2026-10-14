@@ -14,6 +14,7 @@ const description =
 export const metadata: Metadata = {
   title,
   description,
+  alternates: { canonical: "/referral-program" },
   openGraph: { title, description, type: "website" },
   twitter: { card: "summary_large_image" },
 };

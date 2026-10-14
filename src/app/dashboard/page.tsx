@@ -20,7 +20,13 @@ import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/db";
 import { getCurrentInstructor } from "@/lib/get-current-instructor";
 import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
-import { getAttentionItems, getDashboardStats, getRecentBookings } from "./queries";
+import {
+  getAttentionItems,
+  getDashboardStats,
+  getOnboardingChecklist,
+  getRecentBookings,
+} from "./queries";
+import { OnboardingChecklist } from "./OnboardingChecklist";
 import { money, timezoneLabel } from "@/lib/demo";
 import { siteHost } from "@/lib/site";
 import { cn } from "@/lib/utils";
@@ -72,7 +78,7 @@ export default async function Dashboard() {
     redirect("/onboarding");
   }
 
-  const [upcoming, attention, stats, recent] = await Promise.all([
+  const [upcoming, attention, stats, recent, checklist] = await Promise.all([
     prisma.yogaClass.findMany({
       where: {
         instructorId: instructor.id,
@@ -85,6 +91,7 @@ export default async function Dashboard() {
     getAttentionItems(instructor.id),
     getDashboardStats(instructor.id),
     getRecentBookings(instructor.id),
+    instructor.checklistDismissedAt ? null : getOnboardingChecklist(instructor),
   ]);
   const today = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
@@ -117,6 +124,12 @@ export default async function Dashboard() {
           </Button>
         </div>
       </div>
+
+      {checklist ? (
+        <div className="mt-6">
+          <OnboardingChecklist items={checklist} />
+        </div>
+      ) : null}
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[

@@ -7,6 +7,7 @@ const description = "Questions, feedback, or need a hand? Get in touch with the 
 export const metadata: Metadata = {
   title,
   description,
+  alternates: { canonical: "/contact" },
   openGraph: { title, description, type: "website" },
   twitter: { card: "summary_large_image" },
 };

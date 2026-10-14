@@ -8,6 +8,7 @@ const description = "The terms that govern your use of Flowboc.";
 export const metadata: Metadata = {
   title,
   description,
+  alternates: { canonical: "/terms" },
   openGraph: { title, description, type: "website" },
   twitter: { card: "summary_large_image" },
 };

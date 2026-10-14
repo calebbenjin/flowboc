@@ -54,7 +54,7 @@ function BookPill({ full = false, label = "SAVE MY SEAT" }: { full?: boolean; la
   return (
     <span
       className={cn(
-        "shrink-0 rounded-xs px-2 py-1 text-center text-[0.6rem] font-medium text-white",
+        "shrink-0 rounded-full px-2 py-2 text-center text-[0.6rem] font-medium text-white",
         full && "block w-full",
       )}
       style={{ backgroundColor: "var(--theme)" }}
@@ -77,10 +77,10 @@ function PreviewClassRow({ c, layout }: { c: PreviewClass; layout: PageLayout })
             price={c.price}
             originalPrice={c.originalPrice ?? undefined}
             currency={c.currency}
-            priceClassName="display text-xs"
+            priceClassName="display text-lg"
           />
-          <BookPill />
         </div>
+        <BookPill full />
       </div>
     );
   }
@@ -89,7 +89,9 @@ function PreviewClassRow({ c, layout }: { c: PreviewClass; layout: PageLayout })
     return (
       <div className="overflow-hidden rounded-lg border border-border bg-card">
         {c.coverUrl ? (
-          <img src={c.coverUrl} alt="" className="aspect-4/3 w-full object-cover" />
+          <div>
+            <img src={c.coverUrl} alt={c.name} className="aspect-4/3 w-full object-cover" />
+          </div>
         ) : (
           <div className="aspect-4/3 w-full bg-sand" />
         )}
@@ -100,7 +102,7 @@ function PreviewClassRow({ c, layout }: { c: PreviewClass; layout: PageLayout })
             price={c.price}
             originalPrice={c.originalPrice ?? undefined}
             currency={c.currency}
-            priceClassName="display text-xs"
+            priceClassName="display text-lg"
           />
           <BookPill full />
         </div>
@@ -110,27 +112,35 @@ function PreviewClassRow({ c, layout }: { c: PreviewClass; layout: PageLayout })
 
   // CLASSIC
   return (
-    <div className="flex gap-2.5 rounded-lg border border-border bg-card p-2.5">
+    <div className="fle  rounded-lg border border-border bg-card p-2.5">
       {c.coverUrl ? (
-        <img src={c.coverUrl} alt="" className="size-12 shrink-0 rounded-md object-cover" />
-      ) : (
-        <div className="size-12 shrink-0 rounded-md bg-sand" />
-      )}
-      <div className="min-w-0 flex-1 space-y-1.5">
-        <div>
-          <p className="truncate text-xs font-medium">{c.name}</p>
-          <p className="truncate text-[0.62rem] text-muted-foreground">{c.dateLabel}</p>
+        <div className="flex gap-2.5">
+          <img src={c.coverUrl} alt={c.name} className="size-12 shrink-0 rounded-md object-cover" />
+          <div>
+            <p className="truncate text-xs font-medium">{c.name}</p>
+            <p className="truncate text-[0.62rem] text-muted-foreground">{c.dateLabel}</p>
+          </div>
         </div>
+      ) : (
+        <div className="flex gap-2.5">
+          <div className="size-12 shrink-0 rounded-md bg-sand" />
+          <div>
+            <p className="truncate text-xs font-medium">{c.name}</p>
+            <p className="truncate text-[0.62rem] text-muted-foreground">{c.dateLabel}</p>
+          </div>
+        </div>
+      )}
+      <div className="mt-2">
         <div className="flex items-center justify-between gap-2">
           <PriceTag
-            price={c.price}
-            originalPrice={c.originalPrice ?? undefined}
-            currency={c.currency}
-            priceClassName="display text-sm"
+            price={c?.price}
+            originalPrice={c?.originalPrice ?? undefined}
+            currency={c?.currency}
+            priceClassName="display text-lg"
           />
-          {c.spots !== null && c.spots !== undefined && (
+          {c?.spots !== null && c?.spots !== undefined && (
             <span className="shrink-0 text-[0.6rem]" style={{ color: "var(--theme)" }}>
-              {c.spots} left
+              {c?.spots} left
             </span>
           )}
         </div>
@@ -147,29 +157,41 @@ function PreviewVideoCallCard({ instructor }: { instructor: PreviewInstructor })
   const isPaid = (instructor.videoCallPrice ?? 0) > 0;
 
   return (
-    <div className="mx-3 mb-3 flex items-center gap-2.5 rounded-lg border border-border bg-card p-2.5">
+    <div className="mx-3 mb-3 fle items-center gap-2.5 rounded-lg border border-border bg-card p-2.5">
       {instructor.videoCallImageUrl ? (
-        <img
-          src={instructor.videoCallImageUrl}
-          alt=""
-          className="size-10 shrink-0 rounded-md object-cover"
-        />
+        <div className="flex gap-2.5">
+          <img
+            src={instructor.videoCallImageUrl}
+            alt={title}
+            className="size-10 shrink-0 rounded-md object-cover"
+          />
+          <div>
+            <p className="truncate text-xs font-medium">{title}</p>
+            <p className="text-[0.6rem] font-semibold" style={{ color: "var(--theme)" }}>
+              {isPaid ? money(instructor.videoCallPrice!, instructor.currency ?? "NGN") : "FREE"}
+            </p>
+          </div>
+        </div>
       ) : (
-        <div className="grid size-10 shrink-0 place-items-center rounded-md bg-(--theme)/12 text-(--theme)">
-          <Video className="size-4" />
+        <div className="flex gap-2.5">
+          <div className="grid size-10 shrink-0 place-items-center rounded-md bg-(--theme)/12 text-(--theme)">
+            <Video className="size-4" />
+          </div>
+          <div>
+            <p className="truncate text-xs font-medium">{title}</p>
+            <p className="text-[0.6rem] font-semibold" style={{ color: "var(--theme)" }}>
+              {isPaid ? money(instructor.videoCallPrice!, instructor.currency ?? "NGN") : "FREE"}
+            </p>
+          </div>
         </div>
       )}
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-medium">{title}</p>
-        <p className="text-[0.6rem] font-semibold" style={{ color: "var(--theme)" }}>
-          {isPaid ? money(instructor.videoCallPrice!, instructor.currency ?? "NGN") : "FREE"}
-        </p>
+      <div className="min-w-0 flex-1 mt-2">
         {isPaid ? (
           <span className="shrink-0 rounded-xs bg-secondary px-2 py-1 text-[0.6rem] font-medium text-secondary-foreground">
             Coming soon
           </span>
         ) : (
-          <BookPill label="Find a Time" />
+          <BookPill full label="FIND A TIME" />
         )}
       </div>
     </div>
@@ -298,12 +320,12 @@ export function PublicPagePreview({
               className={cn(
                 "px-3 pb-4",
                 instructor.pageLayout === "COVER_GRID"
-                  ? "grid grid-cols-2 gap-2"
+                  ? "grid grid-cols-1 gap-2"
                   : "flex flex-col gap-2",
               )}
             >
-              {items.map((c) => (
-                <PreviewClassRow key={c.id} c={c} layout={instructor.pageLayout} />
+              {items?.map((c) => (
+                <PreviewClassRow key={c.id} c={c} layout={instructor?.pageLayout} />
               ))}
             </div>
           </div>

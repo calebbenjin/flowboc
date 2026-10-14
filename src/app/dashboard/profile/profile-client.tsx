@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type FormEvent } from "react";
 import { signOut } from "next-auth/react";
+import posthog from "posthog-js";
 import { upload } from "@vercel/blob/client";
 import { toast } from "sonner";
+import { compressImage } from "@/lib/compress-image";
 import { ArrowUpRight, Gift, ImagePlus, Landmark, Loader2, X } from "lucide-react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { useInstructor } from "@/components/InstructorProvider";
@@ -52,7 +54,8 @@ function VideoCallImageUpload({
     }
     setUploading(true);
     try {
-      const blob = await upload(file.name, file, {
+      const compressed = await compressImage(file, { maxDimension: 1200 });
+      const blob = await upload(compressed.name, compressed, {
         access: "public",
         handleUploadUrl: "/api/upload",
       });
@@ -222,7 +225,8 @@ export function ProfileClient() {
 
     setPhotoPending(true);
     try {
-      const blob = await upload(file.name, file, {
+      const compressed = await compressImage(file, { maxDimension: 1000 });
+      const blob = await upload(compressed.name, compressed, {
         access: "public",
         handleUploadUrl: "/api/upload",
       });
@@ -278,6 +282,12 @@ export function ProfileClient() {
       // The JWT session cookie stays valid until it's explicitly cleared, so
       // sign out immediately rather than navigating anywhere that would
       // re-query the now-deleted account.
+      if (
+        process.env["NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN"] &&
+        process.env["NEXT_PUBLIC_POSTHOG_HOST"]
+      ) {
+        posthog.reset();
+      }
       await signOut({ callbackUrl: "/" });
     } catch {
       setDeletePending(false);

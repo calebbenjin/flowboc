@@ -2,6 +2,8 @@
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
+import { logAdminActivity } from "@/lib/admin-activity";
 import { payoutProviderForCurrency } from "@/lib/payout";
 import { consumeReferralCode, generateReferralCode } from "@/lib/referral-code";
 import { isReservedSlug, isValidSlugFormat } from "@/lib/reserved-slugs";
@@ -74,43 +76,69 @@ export async function saveProfile(input: {
     return { ok: false, error: slugCheck.reason ?? "That link isn't available." };
   }
 
-  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  let user;
+  try {
+    user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
+      return { ok: false, error: "Your session has expired. Please sign in again." };
+    }
+    throw err;
+  }
+
   const payoutProvider = payoutProviderForCurrency(input.currency);
   const existingInstructor = await prisma.instructor.findUnique({ where: { userId } });
 
-  const instructor = existingInstructor
-    ? await prisma.instructor.update({
-        where: { userId },
-        data: {
-          name,
-          slug,
-          location: input.location?.trim() || null,
-          bio: input.bio?.trim() || null,
-          phone: input.phone?.trim() || null,
-          specialties: input.specialties,
-          currency: input.currency,
-          payoutProvider,
-        },
-      })
-    : await prisma.instructor.create({
-        data: {
-          userId,
-          name,
-          slug,
-          email: user.email,
-          location: input.location?.trim() || null,
-          bio: input.bio?.trim() || null,
-          phone: input.phone?.trim() || null,
-          specialties: input.specialties,
-          currency: input.currency,
-          payoutProvider,
-          trialEndsAt: newTrialEndsAt(),
-          referralCode: await generateReferralCode(name),
-        },
-      });
+  let instructor;
+  try {
+    instructor = existingInstructor
+      ? await prisma.instructor.update({
+          where: { userId },
+          data: {
+            name,
+            slug,
+            location: input.location?.trim() || null,
+            bio: input.bio?.trim() || null,
+            phone: input.phone?.trim() || null,
+            specialties: input.specialties,
+            currency: input.currency,
+            payoutProvider,
+          },
+        })
+      : await prisma.instructor.create({
+          data: {
+            userId,
+            name,
+            slug,
+            email: user.email,
+            location: input.location?.trim() || null,
+            bio: input.bio?.trim() || null,
+            phone: input.phone?.trim() || null,
+            specialties: input.specialties,
+            currency: input.currency,
+            payoutProvider,
+            trialEndsAt: newTrialEndsAt(),
+            referralCode: await generateReferralCode(name),
+          },
+        });
+  } catch (err) {
+    // checkSlugAvailable above can't close the gap to this write by itself —
+    // two submissions landing on the same slug at the same instant both pass
+    // that check; the loser hits the unique constraint here instead of
+    // throwing an unhandled 500.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return { ok: false, error: "That link was just taken. Try another." };
+    }
+    throw err;
+  }
 
   if (!existingInstructor) {
     await consumePendingReferral(userId, instructor.id, user.pendingReferralCode);
+    await logAdminActivity({
+      type: "INSTRUCTOR_SIGNED_UP",
+      message: `${instructor.name} signed up`,
+      instructorId: instructor.id,
+    });
   }
 
   const instagramHandle = input.instagramHandle?.trim();
@@ -153,7 +181,16 @@ export async function skipOnboarding(): Promise<ActionResult> {
     return { ok: true };
   }
 
-  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  let user;
+  try {
+    user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
+      return { ok: false, error: "Your session has expired. Please sign in again." };
+    }
+    throw err;
+  }
+
   const base = slugify(user.name || user.email.split("@")[0] || "instructor");
   let slug = base;
   let suffix = 1;
@@ -162,21 +199,37 @@ export async function skipOnboarding(): Promise<ActionResult> {
   }
 
   const name = user.name || "Instructor";
-  const instructor = await prisma.instructor.create({
-    data: {
-      userId,
-      name,
-      slug,
-      email: user.email,
-      currency: "NGN",
-      payoutProvider: payoutProviderForCurrency("NGN"),
-      onboardingCompletedAt: new Date(),
-      trialEndsAt: newTrialEndsAt(),
-      referralCode: await generateReferralCode(name),
-    },
-  });
+  let instructor;
+  try {
+    instructor = await prisma.instructor.create({
+      data: {
+        userId,
+        name,
+        slug,
+        email: user.email,
+        currency: "NGN",
+        payoutProvider: payoutProviderForCurrency("NGN"),
+        onboardingCompletedAt: new Date(),
+        trialEndsAt: newTrialEndsAt(),
+        referralCode: await generateReferralCode(name),
+      },
+    });
+  } catch (err) {
+    // Same slug TOCTOU as saveProfile above — the suggestion loop checks
+    // availability before this create, which another concurrent onboarding
+    // completion can still beat.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return { ok: false, error: "That link was just taken. Please try onboarding again." };
+    }
+    throw err;
+  }
 
   await consumePendingReferral(userId, instructor.id, user.pendingReferralCode);
+  await logAdminActivity({
+    type: "INSTRUCTOR_SIGNED_UP",
+    message: `${instructor.name} signed up`,
+    instructorId: instructor.id,
+  });
 
   return { ok: true };
 }

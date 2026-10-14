@@ -13,9 +13,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { markDeviceAuthed } from "@/lib/auth-device";
+import { usePendingAction } from "@/hooks/use-pending-action";
 import { forgotPassword, resendOtp, resetPassword, signUp, verifyOtp } from "./actions";
 
 type Mode = "signup" | "login" | "verify" | "forgot" | "forgot-sent" | "reset";
+
+const NETWORK_ERROR_MESSAGE = "Network error — please check your connection and try again.";
 
 function PasswordInput(props: ComponentProps<typeof Input>) {
   const [visible, setVisible] = useState(false);
@@ -51,7 +54,13 @@ export function AuthClient() {
   const [otp, setOtp] = useState("");
   const [referralCode, setReferralCode] = useState(refParam ?? "");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [pending, setPending] = useState(false);
+  const action = usePendingAction();
+  const resendAction = usePendingAction();
+
+  function slowLabel(idleLabel: string, pendingLabel: string, forAction = action) {
+    if (forAction.isSlow) return "Still working — check your connection…";
+    return forAction.isPending ? pendingLabel : idleLabel;
+  }
 
   async function handleAuthSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -66,41 +75,45 @@ export function AuthClient() {
       return;
     }
 
-    setPending(true);
-    try {
-      if (mode === "signup") {
-        const nameValue = String(formData.get("name") ?? "");
-        const referralValue = String(formData.get("referralCode") ?? "");
-        const result = await signUp({
+    if (mode === "signup") {
+      const nameValue = String(formData.get("name") ?? "");
+      const referralValue = String(formData.get("referralCode") ?? "");
+      const outcome = await action.run(() =>
+        signUp({
           name: nameValue,
           email: emailValue,
           password: passwordValue,
           acceptedTerms,
           referralCode: referralValue,
-        });
-        if (result.ok) {
-          toast.success("Account created");
-          setMode("verify");
-        } else {
-          toast.error(result.error);
-        }
-      } else {
-        const result = await signIn("credentials", {
-          email: emailValue,
-          password: passwordValue,
-          redirect: false,
-        });
-        if (result?.error) {
-          toast.error("Invalid email or password");
-        } else {
-          toast.success("Welcome back");
-          markDeviceAuthed();
-          const session = await getSession();
-          router.push(session?.user?.role === "ADMIN" ? "/admin" : "/dashboard");
-        }
+        }),
+      );
+      if (outcome.outcome !== "success") {
+        toast.error(NETWORK_ERROR_MESSAGE);
+        return;
       }
-    } finally {
-      setPending(false);
+      if (outcome.value.ok) {
+        toast.success("Account created");
+        setMode("verify");
+      } else {
+        toast.error(outcome.value.error);
+      }
+      return;
+    }
+
+    const outcome = await action.run(() =>
+      signIn("credentials", { email: emailValue, password: passwordValue, redirect: false }),
+    );
+    if (outcome.outcome !== "success") {
+      toast.error(NETWORK_ERROR_MESSAGE);
+      return;
+    }
+    if (outcome.value?.error) {
+      toast.error("Invalid email or password");
+    } else {
+      toast.success("Welcome back");
+      markDeviceAuthed();
+      const session = await getSession();
+      router.push(session?.user?.role === "ADMIN" ? "/admin" : "/dashboard");
     }
   }
 
@@ -108,41 +121,49 @@ export function AuthClient() {
     e.preventDefault();
     if (otp.length !== 6) return;
 
-    setPending(true);
-    try {
-      const result = await verifyOtp({ email, code: otp });
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Email verified");
-
-      const signInResult = await signIn("credentials", { email, password, redirect: false });
-      if (!signInResult?.error) markDeviceAuthed();
-      router.push(signInResult?.error ? "/auth" : "/onboarding");
-    } finally {
-      setPending(false);
+    const outcome = await action.run(() => verifyOtp({ email, code: otp }));
+    if (outcome.outcome !== "success") {
+      toast.error(NETWORK_ERROR_MESSAGE);
+      return;
     }
+    if (!outcome.value.ok) {
+      toast.error(outcome.value.error);
+      return;
+    }
+    toast.success("Email verified");
+
+    const signInOutcome = await action.run(() =>
+      signIn("credentials", { email, password, redirect: false }),
+    );
+    if (signInOutcome.outcome !== "success") {
+      toast.error(NETWORK_ERROR_MESSAGE);
+      return;
+    }
+    if (!signInOutcome.value?.error) markDeviceAuthed();
+    router.push(signInOutcome.value?.error ? "/auth" : "/onboarding");
   }
 
   async function handleResend() {
-    const result = await resendOtp({ email });
-    if (result.ok) {
+    const outcome = await resendAction.run(() => resendOtp({ email }));
+    if (outcome.outcome !== "success") {
+      toast.error(NETWORK_ERROR_MESSAGE);
+      return;
+    }
+    if (outcome.value.ok) {
       toast.success("Code resent");
     } else {
-      toast.error(result.error);
+      toast.error(outcome.value.error);
     }
   }
 
   async function handleForgotSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setPending(true);
-    try {
-      await forgotPassword({ email });
-      setMode("forgot-sent");
-    } finally {
-      setPending(false);
+    const outcome = await action.run(() => forgotPassword({ email }));
+    if (outcome.outcome !== "success") {
+      toast.error(NETWORK_ERROR_MESSAGE);
+      return;
     }
+    setMode("forgot-sent");
   }
 
   async function handleResetSubmit(e: FormEvent<HTMLFormElement>) {
@@ -150,19 +171,18 @@ export function AuthClient() {
     const formData = new FormData(e.currentTarget);
     const newPassword = String(formData.get("newPassword") ?? "");
 
-    setPending(true);
-    try {
-      const result = await resetPassword({ token: resetToken ?? "", newPassword });
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Password reset. Please log in.");
-      router.replace("/auth");
-      setMode("login");
-    } finally {
-      setPending(false);
+    const outcome = await action.run(() => resetPassword({ token: resetToken ?? "", newPassword }));
+    if (outcome.outcome !== "success") {
+      toast.error(NETWORK_ERROR_MESSAGE);
+      return;
     }
+    if (!outcome.value.ok) {
+      toast.error(outcome.value.error);
+      return;
+    }
+    toast.success("Password reset. Please log in.");
+    router.replace("/auth");
+    setMode("login");
   }
 
   return (
@@ -247,11 +267,12 @@ export function AuthClient() {
                   variant="clay"
                   size="lg"
                   className="w-full"
-                  disabled={otp.length !== 6 || pending}
+                  disabled={otp.length !== 6 || action.isPending}
                 >
-                  {pending ? (
+                  {action.isPending ? (
                     <>
-                      <Loader2 className="size-4 animate-spin" /> Verifying…
+                      <Loader2 className="size-4 animate-spin" />{" "}
+                      {slowLabel("Verify email", "Verifying…")}
                     </>
                   ) : (
                     "Verify email"
@@ -260,10 +281,11 @@ export function AuthClient() {
               </form>
               <button
                 type="button"
-                className="mt-4 text-sm text-muted-foreground underline underline-offset-4"
+                className="mt-4 text-sm text-muted-foreground underline underline-offset-4 disabled:opacity-50"
                 onClick={handleResend}
+                disabled={resendAction.isPending}
               >
-                Resend code
+                {slowLabel("Resend code", "Sending…", resendAction)}
               </button>
             </div>
           ) : mode === "forgot" ? (
@@ -290,11 +312,12 @@ export function AuthClient() {
                   variant="clay"
                   size="lg"
                   className="w-full"
-                  disabled={pending}
+                  disabled={action.isPending}
                 >
-                  {pending ? (
+                  {action.isPending ? (
                     <>
-                      <Loader2 className="size-4 animate-spin" /> Sending…
+                      <Loader2 className="size-4 animate-spin" />{" "}
+                      {slowLabel("Send reset link", "Sending…")}
                     </>
                   ) : (
                     "Send reset link"
@@ -348,11 +371,12 @@ export function AuthClient() {
                   variant="clay"
                   size="lg"
                   className="w-full"
-                  disabled={pending}
+                  disabled={action.isPending}
                 >
-                  {pending ? (
+                  {action.isPending ? (
                     <>
-                      <Loader2 className="size-4 animate-spin" /> Resetting…
+                      <Loader2 className="size-4 animate-spin" />{" "}
+                      {slowLabel("Reset password", "Resetting…")}
                     </>
                   ) : (
                     "Reset password"
@@ -453,12 +477,15 @@ export function AuthClient() {
                   variant="clay"
                   size="lg"
                   className="w-full"
-                  disabled={pending || (mode === "signup" && !acceptedTerms)}
+                  disabled={action.isPending || (mode === "signup" && !acceptedTerms)}
                 >
-                  {pending ? (
+                  {action.isPending ? (
                     <>
                       <Loader2 className="size-4 animate-spin" />
-                      {mode === "signup" ? "Creating account…" : "Logging in…"}
+                      {slowLabel(
+                        mode === "signup" ? "Create account" : "Log in",
+                        mode === "signup" ? "Creating account…" : "Logging in…",
+                      )}
                     </>
                   ) : mode === "signup" ? (
                     "Create account"

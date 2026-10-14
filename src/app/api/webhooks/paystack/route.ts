@@ -1,6 +1,9 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { getPostHogLogger, loggerProvider, SeverityNumber } from "@/instrumentation";
 import { prisma } from "@/lib/db";
 import { verifyWebhookSignature } from "@/lib/paystack";
+
+const posthogLogger = getPostHogLogger();
 
 type PaystackEvent = {
   event: string;
@@ -24,28 +27,72 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
-  const event = JSON.parse(rawBody) as PaystackEvent;
+  let event: PaystackEvent;
+  try {
+    event = JSON.parse(rawBody) as PaystackEvent;
+  } catch (err) {
+    // Malformed JSON will never parse differently on retry — log and 200 so
+    // Paystack doesn't hammer us with the same unprocessable payload forever.
+    console.error("Failed to parse Paystack webhook payload:", err);
+    return NextResponse.json({ ok: true });
+  }
 
-  switch (event.event) {
-    case "charge.success": {
-      const booking = event.data.reference
-        ? await prisma.booking.findUnique({ where: { paystackReference: event.data.reference } })
-        : null;
+  // Route handlers can finish before the batch processor exports logs.
+  after(async () => {
+    await loggerProvider?.forceFlush();
+  });
 
-      if (booking && booking.paymentStatus !== "PAID") {
-        await prisma.booking.update({
-          where: { id: booking.id },
-          data: {
-            paymentStatus: "PAID",
-            paystackFee: event.data.fees != null ? event.data.fees / 100 : null,
-          },
+  posthogLogger?.emit({
+    body: "payment_webhook_verified",
+    severityNumber: SeverityNumber.INFO,
+    attributes: { provider: "paystack", is_charge_success: event.event === "charge.success" },
+  });
+
+  let paymentUpdated = false;
+  try {
+    switch (event.event) {
+      case "charge.success": {
+        const booking = event.data.reference
+          ? await prisma.booking.findUnique({ where: { paystackReference: event.data.reference } })
+          : null;
+
+        if (booking && booking.paymentStatus !== "PAID") {
+          await prisma.booking.update({
+            where: { id: booking.id },
+            data: {
+              paymentStatus: "PAID",
+              paystackFee: event.data.fees != null ? event.data.fees / 100 : null,
+            },
+          });
+          paymentUpdated = true;
+        }
+
+        posthogLogger?.emit({
+          body: "booking_payment_confirmed",
+          severityNumber: SeverityNumber.INFO,
+          attributes: { provider: "paystack", payment_updated: paymentUpdated },
         });
+        break;
       }
-      break;
-    }
 
-    default:
-      break;
+      default:
+        break;
+    }
+  } catch (err) {
+    // Unlike a parse error, this may well be transient (DB hiccup) — return
+    // a 500 so Paystack retries instead of silently dropping a real payment
+    // confirmation.
+    console.error("Failed to process Paystack webhook event:", err);
+    posthogLogger?.emit({
+      body: "webhook_processing_failed",
+      severityNumber: SeverityNumber.ERROR,
+      attributes: {
+        provider: "paystack",
+        event: event.event,
+        error: err instanceof Error ? err.message : String(err),
+      },
+    });
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 
   // Always 200 once the signature's verified and the event's been handled —

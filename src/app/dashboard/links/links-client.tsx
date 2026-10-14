@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 import { toast } from "sonner";
 import {
   DndContext,
@@ -158,6 +159,13 @@ export function LinksClient({
         ? await updateLink(editTarget.id, { label: formLabel, url: formUrl })
         : await createLink({ label: formLabel, url: formUrl });
       if (result.ok) {
+        if (
+          !editTarget &&
+          process.env["NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN"] &&
+          process.env["NEXT_PUBLIC_POSTHOG_HOST"]
+        ) {
+          posthog.capture("instructor_link_created");
+        }
         toast.success(editTarget ? "Link updated" : "Link added");
         setCreating(false);
         router.refresh();
@@ -189,6 +197,12 @@ export function LinksClient({
     try {
       const result = await deleteLink(deleteId);
       if (result.ok) {
+        if (
+          process.env["NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN"] &&
+          process.env["NEXT_PUBLIC_POSTHOG_HOST"]
+        ) {
+          posthog.capture("instructor_link_deleted");
+        }
         toast.success("Link deleted");
         setLinks((prev) => prev.filter((l) => l.id !== deleteId));
         setDeleteId(null);

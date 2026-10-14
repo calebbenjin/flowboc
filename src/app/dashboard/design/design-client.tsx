@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 import { toast } from "sonner";
+import { compressImage } from "@/lib/compress-image";
 import { Check, ImagePlus, Loader2, X } from "lucide-react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { useInstructor } from "@/components/InstructorProvider";
@@ -86,7 +87,8 @@ export function DesignClient() {
     }
     setUploading(true);
     try {
-      const blob = await upload(file.name, file, {
+      const compressed = await compressImage(file, { maxDimension: 1920 });
+      const blob = await upload(compressed.name, compressed, {
         access: "public",
         handleUploadUrl: "/api/upload",
       });

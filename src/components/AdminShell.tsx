@@ -4,10 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { signOut, useSession } from "next-auth/react";
-import { CreditCard, LogOut, Tag } from "lucide-react";
+import { CreditCard, LayoutDashboard, LogOut, Tag } from "lucide-react";
+import posthog from "posthog-js";
 import { cn } from "@/lib/utils";
 
 const nav = [
+  { to: "/admin/overview", label: "Overview", icon: LayoutDashboard },
   { to: "/admin/billing", label: "Billing", icon: CreditCard },
   { to: "/admin/pricing", label: "Pricing", icon: Tag },
 ];
@@ -16,11 +18,21 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const { data: session } = useSession();
 
+  function handleLogout() {
+    if (
+      process.env["NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN"] &&
+      process.env["NEXT_PUBLIC_POSTHOG_HOST"]
+    ) {
+      posthog.reset();
+    }
+    void signOut({ callbackUrl: "/auth" });
+  }
+
   return (
     <div className="min-h-screen lg:flex">
       <aside className="hidden bg-sidebar text-sidebar-foreground lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:w-64 lg:flex-col lg:gap-6 lg:overflow-y-auto lg:border-r lg:border-sidebar-border lg:p-6">
         <Link
-          href="/admin/billing"
+          href="/admin/overview"
           className="inline-flex font-extrabold text-2xl text-sidebar-foreground"
         >
           flowboc admin
@@ -53,7 +65,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           )}
           <button
             type="button"
-            onClick={() => void signOut({ callbackUrl: "/auth" })}
+            onClick={handleLogout}
             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
           >
             <LogOut className="size-4" /> Log out
@@ -65,14 +77,14 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8">
           <div className="mb-6 flex items-center justify-between lg:hidden">
             <Link
-              href="/admin/billing"
+              href="/admin/overview"
               className="inline-flex font-extrabold text-foreground text-2xl"
             >
               flowboc admin
             </Link>
             <button
               type="button"
-              onClick={() => void signOut({ callbackUrl: "/auth" })}
+              onClick={handleLogout}
               className="text-xs font-medium text-destructive"
             >
               Log out

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import posthog from "posthog-js";
 import { toast } from "sonner";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -82,6 +83,12 @@ export function PayoutConnectForm({
     try {
       const result = await connectPayoutAccount({ method, bankCode, bankName, accountNumber });
       if (result.ok) {
+        if (
+          process.env["NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN"] &&
+          process.env["NEXT_PUBLIC_POSTHOG_HOST"]
+        ) {
+          posthog.capture("payout_account_connected", { currency, method });
+        }
         toast.success("Payout account connected");
         onConnected();
       } else {

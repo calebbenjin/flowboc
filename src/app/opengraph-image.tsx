@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import { siteHost } from "@/lib/site";
+import { loadFrauncesFont } from "@/lib/og-font";
 
 export const alt = "Flowboc — Simple booking for yoga instructors";
 export const size = { width: 1200, height: 630 };
@@ -22,26 +23,11 @@ const FONT_TEXT = Array.from(
   new Set(`${EYEBROW.toUpperCase()}${HEADLINE}${SUBHEAD}${DOMAIN}`),
 ).join("");
 
-async function loadFrauncesFont(weight: 500 | 600) {
-  const css = await (
-    await fetch(
-      `https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,${weight}&text=${encodeURIComponent(
-        FONT_TEXT,
-      )}`,
-    )
-  ).text();
-  const match = css.match(/src: url\(([^)]+)\) format\('(opentype|truetype)'\)/);
-  const fontUrl = match?.[1];
-  if (!fontUrl) throw new Error("Could not find Fraunces font source");
-  const res = await fetch(fontUrl);
-  return res.arrayBuffer();
-}
-
 export default async function OpengraphImage() {
   const [logoBuffer, frauncesRegular, frauncesSemibold] = await Promise.all([
     readFile(join(process.cwd(), "src/assets/flowboc-logo.png")),
-    loadFrauncesFont(500),
-    loadFrauncesFont(600),
+    loadFrauncesFont(500, FONT_TEXT),
+    loadFrauncesFont(600, FONT_TEXT),
   ]);
   const logoSrc = `data:image/png;base64,${logoBuffer.toString("base64")}`;
 

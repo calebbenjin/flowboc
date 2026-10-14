@@ -2,6 +2,7 @@
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 import { payoutProviderForCurrency } from "@/lib/payout";
 import { requireInstructor } from "@/lib/require-instructor";
 import { checkSlugAvailable } from "@/app/onboarding/actions";
@@ -34,19 +35,29 @@ export async function updateProfile(input: {
     }
   }
 
-  await prisma.instructor.update({
-    where: { id: instructor.id },
-    data: {
-      name,
-      email,
-      slug,
-      location: input.location?.trim() || null,
-      bio: input.bio?.trim() || null,
-      phone: input.phone?.trim() || null,
-      currency: input.currency,
-      payoutProvider: payoutProviderForCurrency(input.currency),
-    },
-  });
+  try {
+    await prisma.instructor.update({
+      where: { id: instructor.id },
+      data: {
+        name,
+        email,
+        slug,
+        location: input.location?.trim() || null,
+        bio: input.bio?.trim() || null,
+        phone: input.phone?.trim() || null,
+        currency: input.currency,
+        payoutProvider: payoutProviderForCurrency(input.currency),
+      },
+    });
+  } catch (err) {
+    // checkSlugAvailable above can't close the gap to this write by itself —
+    // another instructor claiming the same slug at the same instant hits the
+    // unique constraint here instead of an unhandled 500.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return { ok: false, error: "That link was just taken. Try another." };
+    }
+    throw err;
+  }
 
   return { ok: true };
 }

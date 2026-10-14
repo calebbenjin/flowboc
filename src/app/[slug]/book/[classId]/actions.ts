@@ -195,6 +195,29 @@ export async function initiatePayment(bookingId: string): Promise<PaymentResult>
     return { ok: false, error: "This instructor hasn't finished setting up payments yet." };
   }
 
+  // A prior call already generated a reference for this booking — check
+  // whether that one actually succeeded before overwriting it. Otherwise a
+  // charge completed on the old (now orphaned) reference can never be
+  // matched back to this booking by the webhook or verifyPayment.
+  if (booking.paystackReference) {
+    try {
+      const prior = await verifyTransaction(booking.paystackReference);
+      if (prior.status === "success") {
+        await prisma.booking.update({
+          where: { id: booking.id },
+          data: {
+            paymentStatus: "PAID",
+            paystackFee: prior.fees !== null ? prior.fees / 100 : null,
+          },
+        });
+        return { ok: false, error: "This booking has already been paid for." };
+      }
+    } catch {
+      // Prior reference couldn't be verified (never completed) — fall
+      // through and start a fresh transaction.
+    }
+  }
+
   try {
     const { authorizationUrl, reference } = await initializeTransaction({
       email: booking.studentEmail,
@@ -255,7 +278,40 @@ export async function verifyPayment(reference: string): Promise<VerifyResult> {
   // Idempotent — the webhook may have already confirmed this before the
   // student's browser made it back from Paystack's checkout page.
   if (booking.paymentStatus === "PAID") {
-    return { ok: true, bookingId: booking.id };
+    return booking.status === "CONFIRMED"
+      ? { ok: true, bookingId: booking.id }
+      : {
+          ok: false,
+          error: "This class was cancelled. Contact support for a refund.",
+          bookingId: booking.id,
+        };
+  }
+
+  // The booking was cancelled (by the instructor, or by the expired-
+  // reservation cron) while the student was mid-checkout. Don't resurrect
+  // it as a valid booking — but still record a successful charge so it's
+  // visible for a manual refund instead of silently disappearing.
+  if (booking.status !== "CONFIRMED") {
+    try {
+      const result = await verifyTransaction(reference);
+      if (result.status === "success") {
+        await prisma.booking.update({
+          where: { id: booking.id },
+          data: {
+            paymentStatus: "PAID",
+            paystackFee: result.fees !== null ? result.fees / 100 : null,
+          },
+        });
+      }
+    } catch {
+      // Best-effort — the cancelled-class message below still applies.
+    }
+    return {
+      ok: false,
+      error:
+        "This class was cancelled before your payment completed. Contact support for a refund.",
+      bookingId: booking.id,
+    };
   }
 
   try {

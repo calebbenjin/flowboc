@@ -3,6 +3,7 @@ import { Fraunces, DM_Sans } from "next/font/google";
 import type { ReactNode } from "react";
 
 import { Providers } from "./providers";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { Toaster } from "@/components/ui/sonner";
 import { siteDescription, siteKeywords, siteName, siteTitle, siteUrl } from "@/lib/site";
 import "./globals.css";
@@ -71,6 +72,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${fraunces.variable} ${dmSans.variable}`}>
       <body>
+        <OfflineBanner />
         <Providers>{children}</Providers>
         <Toaster position="top-center" />
       </body>

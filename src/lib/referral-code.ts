@@ -22,6 +22,15 @@ export async function generateReferralCode(name: string): Promise<string> {
   return `${base}${Date.now().toString(36).toUpperCase()}`;
 }
 
+// Lets signUp() give the user feedback on a bad code immediately, instead of
+// consumeReferralCode's deliberately-silent no-op at onboarding time.
+export async function referralCodeExists(rawCode: string): Promise<boolean> {
+  const code = rawCode.trim().toUpperCase();
+  if (!code) return false;
+  const referrer = await prisma.instructor.findUnique({ where: { referralCode: code } });
+  return referrer !== null;
+}
+
 // Turns a signup-time referral code into a PENDING Referral row once the
 // referred instructor's own Instructor record exists. Silently no-ops on an
 // invalid code, a self-referral, or a missing code — this runs as part of

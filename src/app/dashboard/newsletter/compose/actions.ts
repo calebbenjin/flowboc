@@ -29,6 +29,16 @@ export async function sendNewsletterCampaign(input: {
   }
   const { subject, bodyHtml } = parsed.data;
 
+  // Guards a double-click/duplicate submit from sending two full campaigns
+  // to every subscriber — only one campaign can be actively sending per
+  // instructor at a time.
+  const inFlight = await prisma.newsletterCampaign.findFirst({
+    where: { instructorId: instructor.id, status: "SENDING" },
+  });
+  if (inFlight) {
+    return { ok: false, error: "A campaign is already sending. Please wait for it to finish." };
+  }
+
   await syncSubscribersFromBookings(instructor.id);
 
   const subscribers = await prisma.newsletterSubscriber.findMany({

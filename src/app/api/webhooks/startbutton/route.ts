@@ -1,7 +1,11 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { getPostHogLogger, loggerProvider, SeverityNumber } from "@/instrumentation";
 import { prisma } from "@/lib/db";
+import { logAdminActivity } from "@/lib/admin-activity";
 import { verifyWebhookSignature } from "@/lib/startbutton";
 import { intervalForPlanCode } from "@/lib/subscription-plans";
+
+const posthogLogger = getPostHogLogger();
 
 // Startbutton's docs only document one subscription-specific webhook event
 // (subscription.canceled.customer) — nothing for a successful recurring
@@ -34,7 +38,8 @@ type StartbuttonEvent = {
 };
 
 function emailOf(data: StartbuttonEvent["data"]): string | undefined {
-  return data.email ?? data.customer?.email;
+  const email = data.email ?? data.customer?.email;
+  return email?.trim().toLowerCase();
 }
 
 function planCodeOf(data: StartbuttonEvent["data"]): string | undefined {
@@ -53,7 +58,47 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
-  const event = JSON.parse(rawBody) as StartbuttonEvent;
+  // Route handlers can finish before the batch processor exports logs.
+  after(async () => {
+    await loggerProvider?.forceFlush();
+  });
+
+  let event: StartbuttonEvent;
+  try {
+    event = JSON.parse(rawBody) as StartbuttonEvent;
+  } catch (err) {
+    console.error("Failed to parse Startbutton webhook payload:", err);
+    return NextResponse.json({ ok: true });
+  }
+
+  try {
+    await handleStartbuttonEvent(event, rawBody);
+  } catch (err) {
+    // Unlike a parse error, this may well be transient (DB hiccup, unknown
+    // plan code) — return a 500 so Startbutton retries instead of silently
+    // dropping a real subscription event.
+    console.error("Failed to process Startbutton webhook event:", err);
+    posthogLogger?.emit({
+      body: "webhook_processing_failed",
+      severityNumber: SeverityNumber.ERROR,
+      attributes: {
+        provider: "startbutton",
+        event: event.event,
+        error: err instanceof Error ? err.message : String(err),
+      },
+    });
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+  }
+
+  // Always 200 once the signature's verified and the event's been handled —
+  // Startbutton retries on anything else (same convention as Paystack's).
+  return NextResponse.json({ ok: true });
+}
+
+async function handleStartbuttonEvent(event: StartbuttonEvent, rawBody: string): Promise<void> {
+  // TEMPORARY — webhook payload verification spike, remove after confirming
+  // real field names (see UNCONFIRMED comment above).
+  console.log(`[startbutton webhook] ${event.event}`, rawBody.slice(0, 4000));
 
   switch (event.event) {
     case "collection.verified":
@@ -66,10 +111,16 @@ export async function POST(request: Request): Promise<NextResponse> {
       const planCode = planCodeOf(event.data);
       if (!email || !planCode) break;
 
-      // Instructor.email isn't DB-unique, but is always set from the
-      // 1:1-owning User.email (which is unique) at onboarding — findFirst
-      // is safe here in practice.
-      const instructor = await prisma.instructor.findFirst({ where: { email } });
+      // The billing page tells the instructor to check out with "your
+      // Flowboc account email" — that's User.email (unique), not
+      // Instructor.email (a separate, instructor-editable public contact
+      // field that can drift from the account email, or collide with
+      // another instructor's). Match through the account instead.
+      const user = await prisma.user.findUnique({
+        where: { email },
+        include: { instructor: true },
+      });
+      const instructor = user?.instructor;
       if (!instructor) break;
 
       const interval = await intervalForPlanCode(planCode);
@@ -87,6 +138,14 @@ export async function POST(request: Request): Promise<NextResponse> {
             : null,
         },
       });
+
+      await logAdminActivity({
+        type: "SUBSCRIPTION_ACTIVATED",
+        message: interval
+          ? `${instructor.name} subscribed (${interval.toLowerCase()})`
+          : `${instructor.name} subscribed`,
+        instructorId: instructor.id,
+      });
       break;
     }
 
@@ -94,10 +153,24 @@ export async function POST(request: Request): Promise<NextResponse> {
       const email = emailOf(event.data);
       if (!email) break;
 
-      await prisma.instructor.updateMany({
-        where: { email, planStatus: { not: "CANCELED" } },
+      const user = await prisma.user.findUnique({
+        where: { email },
+        include: { instructor: true },
+      });
+      if (!user?.instructor) break;
+
+      const result = await prisma.instructor.updateMany({
+        where: { id: user.instructor.id, planStatus: { not: "CANCELED" } },
         data: { planStatus: "CANCELED" },
       });
+
+      if (result.count > 0) {
+        await logAdminActivity({
+          type: "SUBSCRIPTION_CANCELED",
+          message: `${user.instructor.name}'s subscription was canceled`,
+          instructorId: user.instructor.id,
+        });
+      }
       break;
     }
 
@@ -105,10 +178,11 @@ export async function POST(request: Request): Promise<NextResponse> {
       // Not yet handled — log the raw event so its real shape is visible
       // during manual webhook verification instead of silently dropping it.
       console.warn(`[startbutton webhook] unhandled event: ${event.event}`, rawBody.slice(0, 2000));
+      posthogLogger?.emit({
+        body: "webhook_event_unhandled",
+        severityNumber: SeverityNumber.ERROR,
+        attributes: { provider: "startbutton", event: event.event },
+      });
       break;
   }
-
-  // Always 200 once the signature's verified and the event's been handled —
-  // Startbutton retries on anything else (same convention as Paystack's).
-  return NextResponse.json({ ok: true });
 }

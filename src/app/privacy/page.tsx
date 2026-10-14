@@ -7,6 +7,7 @@ const description = "How Flowboc collects, uses, and protects your information."
 export const metadata: Metadata = {
   title,
   description,
+  alternates: { canonical: "/privacy" },
   openGraph: { title, description, type: "website" },
   twitter: { card: "summary_large_image" },
 };
