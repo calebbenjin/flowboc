@@ -167,11 +167,20 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <div className="dashboard-content min-h-screen flex-1 bg-white lg:pl-64">
+      <div className="dashboard-content bg-white min-h-screen flex-1 lg:pl-64">
         <div className="mx-auto max-w-6xl px-4 py-6 pb-20 lg:px-8 lg:pb-6">
           <div className="mb-6 flex items-center justify-between lg:hidden">
-            <Link href="/" className="inline-flex font-extrabold text-foreground text-2xl">
-              flowboc
+            <Link
+              href="/dashboard"
+              className="inline-flex font-extrabold text-2xl text-sidebar-foreground"
+            >
+              <Image
+                src="/flowboc-brand-logo.png"
+                width={100}
+                height={100}
+                alt="Flowboc Logo"
+                className="h-6 w-auto"
+              />
             </Link>
             <div className="flex items-center gap-3">
               <Link href={`/${instructor.slug}`} className="text-xs font-medium text-clay">
@@ -185,7 +194,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </div>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-white backdrop-blur lg:hidden">
         <div
           className="mx-auto flex max-w-7xl"
           style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
@@ -208,7 +217,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                     className={cn("size-5", active ? "text-clay" : "text-muted-foreground")}
                   />
                 </span>
-                <span className={active ? "font-medium text-clay" : "text-muted-foreground"}>
+                <span className={active ? "font-bold text-clay" : "text-muted-foreground font-bold"}>
                   {item.label}
                 </span>
               </Link>

@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/db";
+import { recordFirstPaidBookingMilestone } from "@/lib/admin-activity";
 import {
   sendBookingConfirmationEmail,
   sendCapacityReachedEmail,
@@ -156,6 +157,15 @@ export async function createBookingIntent(input: {
         timezone: cls.timezone,
         capacity: cls.capacity,
       }).catch((err: unknown) => console.error("Failed to send capacity-reached notice:", err));
+    }
+
+    // Free classes land on PAID immediately above — paid classes only hit
+    // PAID later, via the Paystack webhook (see that route for the same
+    // call).
+    if (isFree) {
+      await recordFirstPaidBookingMilestone(cls.instructorId).catch((err: unknown) =>
+        console.error("Failed to record first-booking milestone:", err),
+      );
     }
 
     return { ok: true, bookingId, isFree };

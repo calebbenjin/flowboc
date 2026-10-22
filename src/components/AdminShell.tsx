@@ -4,13 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { signOut, useSession } from "next-auth/react";
-import { CreditCard, LayoutDashboard, LogOut, Tag } from "lucide-react";
+import { CreditCard, LayoutDashboard, LogOut, Share2, Tag } from "lucide-react";
 import posthog from "posthog-js";
 import { cn } from "@/lib/utils";
 
 const nav = [
   { to: "/admin/overview", label: "Overview", icon: LayoutDashboard },
   { to: "/admin/billing", label: "Billing", icon: CreditCard },
+  { to: "/admin/referrals", label: "Referrals", icon: Share2 },
   { to: "/admin/pricing", label: "Pricing", icon: Tag },
 ];
 

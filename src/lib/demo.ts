@@ -80,7 +80,7 @@ export const instructor = {
     { platform: "linkedin", handle: "linkedin.com/in/sarahboone" },
   ] as Social[],
   specialties: ["Vinyasa", "Yin", "Breathwork", "Beginners"],
-  currency: "NGN" as CurrencyCode,
+  currency: "USD" as CurrencyCode,
 };
 
 export const referralProgram = {

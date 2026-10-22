@@ -1,6 +1,15 @@
 import type { Metadata } from "next";
 import { formatDistanceToNow } from "date-fns";
-import { Clock, CreditCard, Gift, Mail, UserPlus, XCircle, type LucideIcon } from "lucide-react";
+import {
+  CalendarCheck,
+  Clock,
+  CreditCard,
+  Gift,
+  Mail,
+  UserPlus,
+  XCircle,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getAdminOverviewStats, getRecentActivity } from "./queries";
 
@@ -10,6 +19,7 @@ export const metadata: Metadata = {
 
 const activityIcons: Record<string, LucideIcon> = {
   INSTRUCTOR_SIGNED_UP: UserPlus,
+  INSTRUCTOR_FIRST_BOOKING: CalendarCheck,
   SUBSCRIPTION_ACTIVATED: CreditCard,
   SUBSCRIPTION_CANCELED: XCircle,
   TRIAL_EXTENDED: Clock,
@@ -23,6 +33,7 @@ export default async function AdminOverviewPage() {
   const cards = [
     { label: "Total instructors", value: stats.totalInstructors },
     { label: "New this week", value: stats.newInstructorsThisWeek },
+    { label: "Converted to first booking", value: stats.convertedToFirstBooking },
     { label: "Active subscriptions", value: stats.activeSubscriptions },
     { label: "Trialing", value: stats.trialing },
     { label: "Past due", value: stats.pastDue },

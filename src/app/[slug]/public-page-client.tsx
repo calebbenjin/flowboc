@@ -1,7 +1,16 @@
 "use client";
 
 import { useState, type CSSProperties } from "react";
-import { Instagram, Share2, Check, CalendarX2, Loader2, Send, Video } from "lucide-react";
+import {
+  Instagram,
+  Share2,
+  Check,
+  CalendarX2,
+  Loader2,
+  Send,
+  Video,
+  ArrowRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -17,6 +26,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { Reveal } from "@/components/landing/primitives";
 import { cn } from "@/lib/utils";
 import { money } from "@/lib/demo";
+import { useIsBrightImage } from "@/lib/use-image-brightness";
 import { toast } from "sonner";
 import {
   socialIcons,
@@ -96,8 +106,8 @@ function NewsletterSignupDialog({ slug }: { slug: string }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="quiet" size="sm">
-          <Send className="size-4" /> Subscribe
+        <Button variant="quiet" size="sm" className="flex items-center gap-2 rounded-md">
+          <Send className="size-4" /> Join my newsletter
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
@@ -356,41 +366,62 @@ function VideoCallCard({ instructor }: { instructor: PublicInstructor }) {
 
   return (
     <Reveal>
-      <article className="surface mb-6 flex items-center gap-4 p-4 sm:p-5">
+      <article className="surface mb-6 items-center gap-4 p-4 sm:p-5">
         {instructor.videoCallImageUrl ? (
-          <img
-            src={instructor.videoCallImageUrl}
-            alt=""
-            className="size-16 shrink-0 rounded-xl object-cover sm:size-20"
-          />
+          <div className="w-full flex gap-x-4 mb-2">
+            <img
+              src={instructor.videoCallImageUrl}
+              alt=""
+              className="size-18 shrink-0 rounded-lg object-cover sm:size-20"
+            />
+            <div>
+              <h2 className="text-sm font-medium sm:text-lg uppercase">{title}</h2>
+              {instructor.videoCallDescription && (
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {instructor.videoCallDescription}
+                </p>
+              )}
+              <p className="mt-1 text-lg font-semibold" style={{ color: "var(--theme)" }}>
+                {isPaid ? money(instructor.videoCallPrice!, instructor.currency) : "FREE"}
+              </p>
+            </div>
+          </div>
         ) : (
-          <div className="grid size-16 shrink-0 place-items-center rounded-xl bg-(--theme)/12 text-(--theme) sm:size-20">
-            <Video className="size-6" />
+          <div className="min-w-0 flex gap-x-4 mb-2">
+            <div className="grid size-16 shrink-0 place-items-center rounded-xl bg-(--theme)/12 text-(--theme) sm:size-20">
+              <Video className="size-6" />
+            </div>
+            <div>
+              <h2 className="text-base font-medium sm:text-lg uppercase">{title}</h2>
+              {instructor.videoCallDescription && (
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {instructor.videoCallDescription}
+                </p>
+              )}
+              <p className="mt-1 text-base font-semibold" style={{ color: "var(--theme)" }}>
+                {isPaid ? money(instructor.videoCallPrice!, instructor.currency) : "FREE"}
+              </p>
+            </div>
           </div>
         )}
-        <div className="min-w-0 flex-1 space-y-2">
-          <h2 className="text-base font-medium sm:text-lg">{title}</h2>
-          {instructor.videoCallDescription && (
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {instructor.videoCallDescription}
-            </p>
-          )}
-          <p className="mt-1 text-sm font-semibold" style={{ color: "var(--theme)" }}>
-            {isPaid ? money(instructor.videoCallPrice!, instructor.currency) : "FREE"}
-          </p>
-          {isPaid ? (
-            <Button variant="quiet" size="sm" disabled className="shrink-0">
-              Coming soon
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              className="rounded-sm shrink-0 bg-(--theme) text-white hover:bg-(--theme) w-full sm:w-auto sm:px-6"
-              onClick={() => setOpen(true)}
-            >
-              FIND A TIME
-            </Button>
-          )}
+
+        <div className="mt-4">
+          <div className="w-full flex items-end justify-end space-y-2">
+            {isPaid ? (
+              <Button variant="quiet" size="sm" disabled className="shrink-0">
+                Coming soon
+              </Button>
+            ) : (
+              <Button
+                // size="sm"
+                className="relative flex items-center gap-2 py-5 rounded-sm shrink-0 bg-(--theme) text-white hover:bg-(--theme) w-full sm:px-20 px-10"
+                onClick={() => setOpen(true)}
+              >
+                <span className="font-extrabold absolute left-4">FIND A TIME</span>{" "}
+                <ArrowRight className="size-4 absolute right-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </article>
       <BookCallDialog
@@ -419,8 +450,24 @@ export function PublicPageClient({
   // A photo background can be any brightness, so the header (sitting
   // directly over it, outside the cards' own bg-card surfaces) switches to
   // white text + a shadow for guaranteed contrast, same treatment as
-  // captions over a photo anywhere else.
+  // captions over a photo anywhere else — unless the photo itself is light,
+  // in which case white text disappears, so it falls back to dark text.
   const hasBg = Boolean(instructor.backgroundImageUrl);
+  const bgIsBright = useIsBrightImage(instructor.backgroundImageUrl);
+  // Over a background image, pick white or black outright based on measured
+  // brightness (no soft "muted" shades) and bump the weight to font-medium —
+  // the extra contrast and heft are what keep the header legible over an
+  // arbitrary photo.
+  const heroTextClass = hasBg
+    ? bgIsBright
+      ? "text-black font-medium"
+      : "text-white font-medium drop-shadow-sm"
+    : undefined;
+  const heroSecondaryTextClass = hasBg
+    ? bgIsBright
+      ? "text-black/80 font-medium"
+      : "text-white/85 font-medium drop-shadow-sm"
+    : "text-muted-foreground";
 
   return (
     <div
@@ -436,14 +483,12 @@ export function PublicPageClient({
     >
       <div
         className={
-          instructor.backgroundImageUrl
-            ? "min-h-screen bg-background/40 backdrop-blur-[1px]"
-            : undefined
+          instructor.backgroundImageUrl ? "min-h-screen bg-black/20 backdrop-blur-[4px]" : undefined
         }
       >
-        <div className="mx-auto max-w-3xl px-4 py-12 lg:px-0">
+        <div className="mx-auto max-w-3xl px-4 pt-14 pb-6 lg:px-0">
           <Reveal>
-            <header className="flex flex-col gap-6 p-8 sm:flex-row items-center">
+            <header className="flex flex-col gap-4 px-2 sm:flex-row items-center">
               {instructor.photoUrl ? (
                 <img
                   src={instructor.photoUrl}
@@ -451,7 +496,7 @@ export function PublicPageClient({
                   width={600}
                   height={600}
                   className={cn(
-                    "size-48 rounded-full object-cover shadow-2xl",
+                    "sm:size-48 size-38 rounded-full object-cover shadow-2xl",
                     hasBg && "ring-4 ring-white/80",
                   )}
                 />
@@ -470,9 +515,7 @@ export function PublicPageClient({
               )}
               <div className="flex-1">
                 <div className="flex flex-wrap items-center text-center sm:justify-start justify-center gap-3">
-                  <h1 className={cn("text-3xl", hasBg && "text-white drop-shadow-sm")}>
-                    {instructor.name}
-                  </h1>
+                  <h1 className={cn("sm:text-3xl text-2xl", heroTextClass)}>{instructor.name}</h1>
                 </div>
                 {instructor.socials.length > 0 && (
                   <div className="mt-4 flex flex-wrap items-center sm:justify-start justify-center gap-2">
@@ -499,8 +542,8 @@ export function PublicPageClient({
                 {instructor.bio && (
                   <p
                     className={cn(
-                      "mt-2 max-w-md sm:text-left text-center",
-                      hasBg ? "text-white/85 drop-shadow-sm" : "text-muted-foreground",
+                      "mt-2 max-w-md sm:text-left text-center smtext-base text-sm leading-relaxed",
+                      heroSecondaryTextClass,
                     )}
                   >
                     {instructor.bio}
@@ -526,12 +569,12 @@ export function PublicPageClient({
                 <div
                   className={cn(
                     "mt-4 flex flex-wrap sm:justify-start justify-center gap-2 text-sm",
-                    hasBg ? "text-white/85 drop-shadow-sm" : "text-muted-foreground",
+                    heroSecondaryTextClass,
                   )}
                 >
                   <div className="flex items-center gap-2">
                     <NewsletterSignupDialog slug={instructor.slug} />
-                    <ShareButton instructorName={instructor.name} />
+                    {/* <ShareButton instructorName={instructor.name} /> */}
                   </div>
                   {/* {instructor.location && (
                 <span className="inline-flex items-center gap-1.5">
@@ -551,7 +594,7 @@ export function PublicPageClient({
             </header>
           </Reveal>
 
-          <div className="mt-6">
+          <div className="mt-2">
             <VideoCallCard instructor={instructor} />
           </div>
 
@@ -638,7 +681,7 @@ export function PublicPageClient({
             }}
           />
 
-          <p className="mt-12 text-center text-xs text-muted-foreground">
+          <p className="mt-4 text-center text-xs text-muted-foreground">
             Booking powered by <span className="display text-foreground">Flowboc</span>
           </p>
         </div>

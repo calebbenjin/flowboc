@@ -143,7 +143,7 @@ export function ProfileClient() {
       href: "/dashboard/referrals",
       icon: Gift,
       title: "Referral Program",
-      body: `Earn ${instructor.commissionRate}% commission on every subscription you refer.`,
+      body: `Earn a ${instructor.commissionRate}% one-time bonus for every instructor you refer who subscribes.`,
       cta: "View referrals",
     },
     {

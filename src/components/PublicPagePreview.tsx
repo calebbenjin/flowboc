@@ -1,3 +1,5 @@
+"use client";
+
 import type { CSSProperties } from "react";
 import { Instagram, Video } from "lucide-react";
 import { PriceTag } from "@/components/PriceTag";
@@ -9,6 +11,7 @@ import {
   type CurrencyCode,
 } from "@/lib/demo";
 import { cn } from "@/lib/utils";
+import { useIsBrightImage } from "@/lib/use-image-brightness";
 
 export type PreviewInstructor = {
   name: string;
@@ -54,7 +57,7 @@ function BookPill({ full = false, label = "SAVE MY SEAT" }: { full?: boolean; la
   return (
     <span
       className={cn(
-        "shrink-0 rounded-full px-2 py-2 text-center text-[0.6rem] font-medium text-white",
+        "shrink-0 rounded-lg px-2 py-2 text-center text-[0.6rem] font-medium text-white",
         full && "block w-full",
       )}
       style={{ backgroundColor: "var(--theme)" }}
@@ -67,7 +70,7 @@ function BookPill({ full = false, label = "SAVE MY SEAT" }: { full?: boolean; la
 function PreviewClassRow({ c, layout }: { c: PreviewClass; layout: PageLayout }) {
   if (layout === "COMPACT") {
     return (
-      <div className="space-y-2 rounded-lg border border-border bg-card px-3 py-2.5">
+      <div className="space-y-2 rounded-md border border-border bg-card px-3 py-2.5">
         <div className="min-w-0">
           <p className="truncate text-xs font-medium">{c.name}</p>
           <p className="truncate text-[0.65rem] text-muted-foreground">{c.dateLabel}</p>
@@ -87,7 +90,7 @@ function PreviewClassRow({ c, layout }: { c: PreviewClass; layout: PageLayout })
 
   if (layout === "COVER_GRID") {
     return (
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <div className="overflow-hidden rounded-md border border-border bg-card">
         {c.coverUrl ? (
           <div>
             <img src={c.coverUrl} alt={c.name} className="aspect-4/3 w-full object-cover" />
@@ -114,7 +117,7 @@ function PreviewClassRow({ c, layout }: { c: PreviewClass; layout: PageLayout })
   return (
     <div className="fle  rounded-lg border border-border bg-card p-2.5">
       {c.coverUrl ? (
-        <div className="flex gap-2.5">
+        <div className="flex gap-2">
           <img src={c.coverUrl} alt={c.name} className="size-12 shrink-0 rounded-md object-cover" />
           <div>
             <p className="truncate text-xs font-medium">{c.name}</p>
@@ -131,7 +134,7 @@ function PreviewClassRow({ c, layout }: { c: PreviewClass; layout: PageLayout })
         </div>
       )}
       <div className="mt-2">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 mb-2">
           <PriceTag
             price={c?.price}
             originalPrice={c?.originalPrice ?? undefined}
@@ -217,11 +220,22 @@ export function PublicPagePreview({
 
   const frameWidth = size === "md" ? "w-72" : "w-56";
   const screenHeight = size === "md" ? "h-[576px]" : "h-[448px]";
-  // A photo background can be any brightness, so the header (sitting
-  // directly over it, outside the cards' own bg-card surfaces) switches to
-  // white text + a shadow for guaranteed contrast, same treatment as
-  // captions over a photo anywhere else.
+  // Over a background image, pick white or black outright based on measured
+  // brightness (no soft "muted" shades) and bump the weight to font-medium —
+  // the extra contrast and heft are what keep the header legible over an
+  // arbitrary photo.
   const hasBg = Boolean(instructor.backgroundImageUrl);
+  const bgIsBright = useIsBrightImage(instructor.backgroundImageUrl);
+  const heroTextClass = hasBg
+    ? bgIsBright
+      ? "text-black font-medium"
+      : "text-white font-medium drop-shadow-sm"
+    : undefined;
+  const heroSecondaryTextClass = hasBg
+    ? bgIsBright
+      ? "text-black/80 font-medium"
+      : "text-white/85 font-medium drop-shadow-sm"
+    : "text-muted-foreground";
 
   return (
     <div className={cn("relative mx-auto", frameWidth, className)}>
@@ -250,7 +264,7 @@ export function PublicPagePreview({
             <div
               className={cn(
                 "flex items-center justify-between px-3 pb-1 pt-2.5 text-[0.55rem]",
-                hasBg ? "text-white/80 drop-shadow-sm" : "text-muted-foreground",
+                heroSecondaryTextClass,
               )}
             >
               <span>9:41</span>
@@ -280,16 +294,9 @@ export function PublicPagePreview({
                     .join("")}
                 </div>
               )}
-              <p className={cn("mt-2 text-xs font-semibold", hasBg && "text-white drop-shadow-sm")}>
-                {name}
-              </p>
+              <p className={cn("mt-2 text-xs font-semibold", heroTextClass)}>{name}</p>
               {instructor.bio ? (
-                <p
-                  className={cn(
-                    "mt-1 line-clamp-2 text-[0.62rem]",
-                    hasBg ? "text-white/85 drop-shadow-sm" : "text-muted-foreground",
-                  )}
-                >
+                <p className={cn("mt-1 line-clamp-2 text-[0.62rem]", heroSecondaryTextClass)}>
                   {instructor.bio}
                 </p>
               ) : null}

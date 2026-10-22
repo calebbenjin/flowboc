@@ -3,15 +3,15 @@ import { Instagram, Youtube, Music2 } from "lucide-react";
 import Image from "next/image";
 
 const columns = [
-  {
-    title: "Product",
-    links: [
-      { label: "Features", href: "/#product" },
-      { label: "Pricing", href: "/#pricing" },
-      { label: "How it works", href: "/#how-it-works" },
-      { label: "Referral Program", href: "/referral-program" },
-    ],
-  },
+  // {
+  //   title: "Product",
+  //   links: [
+  //     { label: "Features", href: "/#product" },
+  //     { label: "Pricing", href: "/#pricing" },
+  //     { label: "How it works", href: "/#how-it-works" },
+  //     { label: "Referral Program", href: "/referral-program" },
+  //   ],
+  // },
   {
     title: "Resources",
     links: [
@@ -22,7 +22,7 @@ const columns = [
   {
     title: "Company",
     links: [
-      { label: "About", href: "/about" },
+      // { label: "About", href: "/about" },
       { label: "Contact", href: "/contact" },
       { label: "Privacy", href: "/privacy" },
       { label: "Terms", href: "/terms" },

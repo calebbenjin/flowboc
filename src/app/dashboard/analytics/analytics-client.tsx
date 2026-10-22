@@ -49,10 +49,10 @@ function StatCard({
   return (
     <div className="surface p-5">
       <div className="flex items-center justify-between">
-        <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
+        <p className="sm:text-xs text-[13px] uppercase tracking-wider text-muted-foreground">{label}</p>
         <Icon className="size-4 text-muted-foreground" />
       </div>
-      <p className="display mt-2 text-3xl">{value}</p>
+      <p className="display mt-2 sm:text-3xl text-2xl">{value}</p>
       {delta !== null && (
         <p
           className={cn(
@@ -136,7 +136,7 @@ export function AnalyticsClient({
         </div>
       </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4 grid-cols-2">
         <StatCard
           label="Revenue"
           value={money(totalRevenue, instructor.currency)}
