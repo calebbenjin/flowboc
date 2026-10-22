@@ -2,8 +2,9 @@ import { after, NextResponse } from "next/server";
 import { getPostHogLogger, loggerProvider, SeverityNumber } from "@/instrumentation";
 import { prisma } from "@/lib/db";
 import { logAdminActivity } from "@/lib/admin-activity";
+import { creditOneTimeReferralBonus, markReferralChurned } from "@/lib/referral-code";
 import { verifyWebhookSignature } from "@/lib/startbutton";
-import { intervalForPlanCode } from "@/lib/subscription-plans";
+import { getPlanByCode } from "@/lib/subscription-plans";
 
 const posthogLogger = getPostHogLogger();
 
@@ -123,7 +124,8 @@ async function handleStartbuttonEvent(event: StartbuttonEvent, rawBody: string):
       const instructor = user?.instructor;
       if (!instructor) break;
 
-      const interval = await intervalForPlanCode(planCode);
+      const plan = await getPlanByCode(planCode);
+      const interval = plan?.interval ?? null;
 
       await prisma.instructor.update({
         where: { id: instructor.id },
@@ -146,6 +148,11 @@ async function handleStartbuttonEvent(event: StartbuttonEvent, rawBody: string):
           : `${instructor.name} subscribed`,
         instructorId: instructor.id,
       });
+
+      await creditOneTimeReferralBonus(
+        instructor.id,
+        plan ? { price: plan.price, interval: plan.interval } : null,
+      );
       break;
     }
 
@@ -171,6 +178,8 @@ async function handleStartbuttonEvent(event: StartbuttonEvent, rawBody: string):
           instructorId: user.instructor.id,
         });
       }
+
+      await markReferralChurned(user.instructor.id);
       break;
     }
 

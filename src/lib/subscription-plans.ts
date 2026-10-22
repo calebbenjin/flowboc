@@ -24,7 +24,6 @@ export async function getAllActivePlans() {
 // Searches every row ever created (not just the currently active one) so a
 // webhook event for a subscriber on a now-superseded plan still resolves —
 // see the model comment in prisma/schema.prisma.
-export async function intervalForPlanCode(planCode: string): Promise<BillingInterval | null> {
-  const plan = await prisma.subscriptionPlan.findFirst({ where: { providerPlanCode: planCode } });
-  return plan?.interval ?? null;
+export async function getPlanByCode(planCode: string) {
+  return prisma.subscriptionPlan.findFirst({ where: { providerPlanCode: planCode } });
 }

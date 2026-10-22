@@ -41,7 +41,8 @@ export function ReferralsClient({
         <div>
           <h1 className="text-3xl">Referrals</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Earn {instructor.commissionRate}% commission on every subscription you refer.
+            Earn a {instructor.commissionRate}% one-time bonus for every instructor you refer who
+            subscribes.
           </p>
         </div>
         <Button asChild variant="ghost" size="sm">
@@ -62,8 +63,8 @@ export function ReferralsClient({
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
           Code: <span className="font-medium text-foreground">{instructor.referralCode}</span> ·
-          Share this link with instructors — when they subscribe, you earn{" "}
-          {instructor.commissionRate}% of their subscription, every billing cycle.
+          Share this link with instructors — when they subscribe, you earn a one-time bonus of{" "}
+          {instructor.commissionRate}% of their first payment.
         </p>
       </div>
 

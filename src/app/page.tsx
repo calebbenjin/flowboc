@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
 import { Navbar } from "@/components/landing/Navbar";
 import { Hero } from "@/components/landing/Hero";
+import { MarqueeStrip } from "@/components/landing/MarqueeStrip";
 import { SocialProof } from "@/components/landing/SocialProof";
 import { ProblemSection } from "@/components/landing/ProblemSection";
 import { CreatorShowcase } from "@/components/landing/CreatorShowcase";
 import { WhyFlowboc } from "@/components/landing/WhyFlowboc";
 import { FeatureGrid } from "@/components/landing/FeatureGrid";
 import { HowItWorks } from "@/components/landing/HowItWorks";
+import { BuildAndPrice } from "@/components/landing/BuildAndPrice";
+import { TeachYourWay } from "@/components/landing/TeachYourWay";
+import { GetStarted } from "@/components/landing/GetStarted";
+import { OneLink } from "@/components/landing/OneLink";
 import { InstructorExperience } from "@/components/landing/InstructorExperience";
 import { TestimonialVideos } from "@/components/landing/TestimonialVideos";
 import { Pricing } from "@/components/landing/Pricing";
@@ -43,14 +48,10 @@ export default function Landing() {
       <Navbar />
       <main>
         <Hero />
-        <SocialProof />
-        {/* <ProblemSection /> */}
-        <CreatorShowcase />
-        <WhyFlowboc />
-        <FeatureGrid />
+        <MarqueeStrip />
         <HowItWorks />
-        <InstructorExperience />
-        <TestimonialVideos />
+        <TeachYourWay />
+        <OneLink />
         <Pricing />
         <FAQ />
         <FinalCTA />

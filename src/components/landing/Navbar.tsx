@@ -10,11 +10,12 @@ import { hasDeviceAuthed } from "@/lib/auth-device";
 import Image from "next/image";
 
 const links = [
-  { label: "Home", href: "/" },
-  { label: "About", href: "/about" },
+  // { label: "Home", href: "/" },
   { label: "How it works", href: "#how-it-works" },
-  { label: "Pricing", href: "#pricing" },
+  { label: "Why Flowboc", href: "#teach-your-way" },
+  { label: "Examples", href: "#one-link" },
   // { label: "FAQ", href: "#faq" },
+  { label: "Pricing", href: "#pricing" },
 ];
 
 export function Navbar() {
@@ -52,7 +53,7 @@ export function Navbar() {
       <div className="w-full max-w-6xl mx-auto">
         <nav
           className={cn(
-            "mr-auto flex h-16 w-full max-w-2xl rounded-xl bg-white items-center justify-between px-5 sm:px-4",
+            "mr-auto flex h-16 w-full  rounded-xl bg-white items-center justify-between px-5 sm:px-4",
             scrolled ? "bg-primary text-white" : "bg-white/90",
           )}
         >
@@ -79,13 +80,13 @@ export function Navbar() {
             )}
           </a>
 
-          <div className="hidden items-center gap-4 md:flex">
+          <div className="hidden items-center gap-8 md:flex">
             {links.map((l) => (
               <a
                 key={l.label}
                 href={l.href}
                 className={cn(
-                  "text-sm transition-colors hover:text-foreground",
+                  "text-base transition-colors hover:text-foreground",
                   scrolled ? "text-white" : "text-black",
                 )}
               >
@@ -96,7 +97,7 @@ export function Navbar() {
 
           <div className="hidden items-center md:flex">
             {authed ? (
-              <Button asChild size="lg" className="w-full">
+              <Button asChild size="lg" className={cn("bg-mint hover:bg-mint/90 text-mint-foreground")}>
                 <Link href="/dashboard">My Account</Link>
               </Button>
             ) : rememberedDevice ? (

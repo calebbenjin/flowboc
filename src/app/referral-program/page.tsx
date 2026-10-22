@@ -7,9 +7,9 @@ import { Reveal, Section, SectionHeader, Eyebrow, Pill } from "@/components/land
 import { Button } from "@/components/ui/button";
 import { referralProgram } from "@/lib/demo";
 
-const title = "Referral Program — Earn 20% commission | Flowboc";
+const title = "Referral Program — Earn a 20% bonus | Flowboc";
 const description =
-  "Refer instructors to Flowboc and earn 20% commission on every subscription you bring in, for as long as they stay subscribed.";
+  "Refer instructors to Flowboc and earn a 20% one-time bonus on their first subscription payment.";
 
 export const metadata: Metadata = {
   title,
@@ -32,19 +32,19 @@ const steps = [
   },
   {
     icon: Wallet,
-    title: "Earn 20%, recurring",
-    body: "You earn 20% commission on their subscription every billing cycle, for as long as they stay subscribed.",
+    title: "Earn a 20% bonus",
+    body: "The moment they make their first subscription payment, you earn a one-time bonus worth 20% of it.",
   },
 ];
 
 const faqs = [
   {
     q: "How much do I earn?",
-    a: "20% of every subscription payment made by an instructor you referred — recurring for as long as they remain a paying customer.",
+    a: "A one-time bonus worth 20% of the first subscription payment made by an instructor you referred.",
   },
   {
     q: "When do I get paid?",
-    a: "Commissions accrue as your referrals are billed, and are paid out monthly once you cross the minimum payout threshold.",
+    a: "As soon as your referral's first payment goes through — it shows up in your referrals dashboard right away.",
   },
   {
     q: "Is there a limit to how much I can earn?",
@@ -66,13 +66,13 @@ export default function ReferralProgramPage() {
             <div className="mx-auto max-w-2xl text-center">
               <Eyebrow className="justify-center">Referral Program</Eyebrow>
               <h1 className="mt-4 text-4xl leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
-                Earn{" "}
+                Earn a{" "}
                 <span className="display italic text-clay">{referralProgram.commissionRate}%</span>{" "}
-                commission on every subscription you refer.
+                bonus for every instructor you refer.
               </h1>
               <p className="mt-5 text-base leading-relaxed text-muted-foreground sm:text-lg">
-                Know an instructor who&apos;d love Flowboc? Share your link. Every time they
-                subscribe, you get paid — for as long as they stay a customer.
+                Know an instructor who&apos;d love Flowboc? Share your link. The moment they
+                subscribe, you get paid.
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                 <Button asChild size="lg" variant="clay">
@@ -91,7 +91,7 @@ export default function ReferralProgramPage() {
             eyebrow="How it works"
             title="Three steps."
             serif="No catches."
-            body="Set up in minutes, earn for as long as your referrals stay subscribed."
+            body="Set up in minutes, get paid the moment your referral subscribes."
           />
           <div className="mx-auto mt-14 grid max-w-4xl gap-5 sm:grid-cols-3">
             {steps.map((s, i) => (
@@ -112,21 +112,21 @@ export default function ReferralProgramPage() {
           <div className="mx-auto grid max-w-4xl items-center gap-10 lg:grid-cols-2">
             <Reveal>
               <div>
-                <Pill tone="clay">Recurring commission</Pill>
+                <Pill tone="clay">Instant bonus</Pill>
                 <h2 className="mt-4 text-3xl leading-[1.1] tracking-tight sm:text-4xl">
-                  Get paid every cycle, not just once.
+                  Get paid the moment they subscribe.
                 </h2>
                 <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-                  Most referral programs pay a one-time bounty. Ours doesn&apos;t stop — you earn{" "}
-                  {referralProgram.commissionRate}% of your referral&apos;s subscription every time
-                  they&apos;re billed, for as long as they remain subscribed.
+                  No waiting, no monthly payout threshold to hit. The instant your referral&apos;s
+                  first subscription payment goes through, you earn a{" "}
+                  {referralProgram.commissionRate}% bonus on it — paid out right away.
                 </p>
                 <ul className="mt-6 space-y-2.5 text-sm">
                   {[
                     "No cap on how many instructors you refer",
                     "No cap on how much you can earn",
                     "Track referrals and earnings from your dashboard",
-                    "Monthly payouts once you hit the threshold",
+                    "Paid as soon as your referral's first payment clears",
                   ].map((f) => (
                     <li key={f} className="flex items-start gap-2">
                       <Check className="mt-0.5 size-4 shrink-0 text-success" /> {f}
@@ -139,9 +139,11 @@ export default function ReferralProgramPage() {
               <div className="surface p-7">
                 <p className="text-sm text-muted-foreground">Example</p>
                 <p className="mt-2 text-sm leading-relaxed">
-                  Refer 5 instructors on the Pro plan ($19/mo). You&apos;d earn{" "}
+                  Refer 5 instructors on the Pro plan ($19/mo). As soon as each one subscribes, you
+                  earn <span className="font-medium text-foreground">${(19 * 0.2).toFixed(2)}</span>{" "}
+                  —{" "}
                   <span className="font-medium text-foreground">${(19 * 0.2 * 5).toFixed(2)}</span>{" "}
-                  every month, automatically, for as long as they stay subscribed.
+                  total once all 5 have subscribed.
                 </p>
               </div>
             </Reveal>

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 export type AdminOverviewStats = {
   totalInstructors: number;
   newInstructorsThisWeek: number;
+  convertedToFirstBooking: number;
   activeSubscriptions: number;
   trialing: number;
   pastDue: number;
@@ -15,6 +16,7 @@ export async function getAdminOverviewStats(): Promise<AdminOverviewStats> {
   const [
     totalInstructors,
     newInstructorsThisWeek,
+    instructorsWithPaidBooking,
     activeSubscriptions,
     trialing,
     pastDue,
@@ -22,15 +24,27 @@ export async function getAdminOverviewStats(): Promise<AdminOverviewStats> {
   ] = await Promise.all([
     prisma.instructor.count(),
     prisma.instructor.count({ where: { createdAt: { gte: since } } }),
+    // instructorId on Booking is a denormalized scalar, not a Prisma
+    // relation (see schema comment), so this can't be an instructor.count
+    // relation filter — group by it instead.
+    prisma.booking.groupBy({
+      by: ["instructorId"],
+      where: { status: "CONFIRMED", paymentStatus: "PAID" },
+    }),
     prisma.instructor.count({ where: { planStatus: "ACTIVE" } }),
     prisma.instructor.count({ where: { planStatus: "TRIALING" } }),
     prisma.instructor.count({ where: { planStatus: "PAST_DUE" } }),
     prisma.contactMessage.count({ where: { createdAt: { gte: since } } }),
   ]);
 
+  // The activation rate behind outreach/referral links — distinct
+  // instructors who've gotten at least one paid booking, not just signed up.
+  const convertedToFirstBooking = instructorsWithPaidBooking.length;
+
   return {
     totalInstructors,
     newInstructorsThisWeek,
+    convertedToFirstBooking,
     activeSubscriptions,
     trialing,
     pastDue,

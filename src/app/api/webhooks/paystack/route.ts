@@ -1,6 +1,7 @@
 import { after, NextResponse } from "next/server";
 import { getPostHogLogger, loggerProvider, SeverityNumber } from "@/instrumentation";
 import { prisma } from "@/lib/db";
+import { recordFirstPaidBookingMilestone } from "@/lib/admin-activity";
 import { verifyWebhookSignature } from "@/lib/paystack";
 
 const posthogLogger = getPostHogLogger();
@@ -65,6 +66,9 @@ export async function POST(request: Request): Promise<NextResponse> {
             },
           });
           paymentUpdated = true;
+          await recordFirstPaidBookingMilestone(booking.instructorId).catch((err: unknown) =>
+            console.error("Failed to record first-booking milestone:", err),
+          );
         }
 
         posthogLogger?.emit({

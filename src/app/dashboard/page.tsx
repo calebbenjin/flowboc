@@ -137,16 +137,16 @@ export default async function Dashboard() {
             label: "Revenue this month",
             value: money(stats.revenueThisMonth, instructor.currency),
             icon: Wallet,
-            tone: "clay",
+            tone: "white",
           },
           {
             label: "Upcoming classes",
             value: stats.upcomingClasses,
             icon: CalendarDays,
-            tone: "mint",
+            tone: "white",
           },
-          { label: "Bookings", value: stats.totalBookings, icon: Users, tone: "success" },
-          { label: "Students", value: stats.totalStudents, icon: UserRound, tone: "warning" },
+          { label: "Bookings", value: stats.totalBookings, icon: Users, tone: "white" },
+          { label: "Students", value: stats.totalStudents, icon: UserRound, tone: "white" },
         ].map((s) => (
           <div
             key={s.label}
@@ -159,7 +159,7 @@ export default async function Dashboard() {
               <p className="text-xs uppercase tracking-wider text-muted-foreground">{s.label}</p>
               <span
                 className={cn(
-                  "grid size-9 shrink-0 place-items-center rounded-full",
+                  "grid size-9 shrink-0 place-items-center rounded-full bg-primary/20",
                   statToneClasses[s.tone as keyof typeof statToneClasses],
                 )}
               >

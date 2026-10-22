@@ -37,7 +37,7 @@ const faqs = [
 
 export function FAQ() {
   return (
-    <Section id="faq">
+    <Section id="faq" className="bg-white">
       <SectionHeader title="Questions," serif="answered." />
       <div className="mx-auto mt-12 max-w-2xl">
         <Accordion type="single" collapsible className="w-full">

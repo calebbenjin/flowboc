@@ -51,3 +51,49 @@ export async function consumeReferralCode(
     update: {},
   });
 }
+
+// Called from the Startbutton webhook when a referred instructor's
+// subscription activates. The bonus is one-time — paid out of the
+// referred instructor's *first* successful subscription payment only, never
+// on renewals or on reactivating after a churn. commissionEarned > 0 is
+// therefore the "already paid" marker; a later reactivation just flips
+// status back to ACTIVE without re-crediting.
+export async function creditOneTimeReferralBonus(
+  referredInstructorId: string,
+  subscription: { price: number; interval: string } | null,
+): Promise<void> {
+  const referral = await prisma.referral.findUnique({
+    where: { referredInstructorId },
+    include: { referrerInstructor: { select: { commissionRate: true } } },
+  });
+  if (!referral) return;
+
+  if (referral.commissionEarned > 0) {
+    if (referral.status !== "ACTIVE") {
+      await prisma.referral.update({ where: { referredInstructorId }, data: { status: "ACTIVE" } });
+    }
+    return;
+  }
+
+  const bonus = subscription
+    ? Math.round((subscription.price * referral.referrerInstructor.commissionRate) / 100)
+    : 0;
+
+  await prisma.referral.update({
+    where: { referredInstructorId },
+    data: {
+      status: "ACTIVE",
+      plan: subscription?.interval ?? referral.plan,
+      commissionEarned: bonus,
+    },
+  });
+}
+
+// Called from the Startbutton webhook on cancellation. The one-time bonus
+// already paid is never clawed back — only the status reflects churn.
+export async function markReferralChurned(referredInstructorId: string): Promise<void> {
+  await prisma.referral.updateMany({
+    where: { referredInstructorId, status: "ACTIVE" },
+    data: { status: "CHURNED" },
+  });
+}

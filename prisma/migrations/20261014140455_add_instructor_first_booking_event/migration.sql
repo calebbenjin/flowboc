@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "AdminEventType" ADD VALUE 'INSTRUCTOR_FIRST_BOOKING';
