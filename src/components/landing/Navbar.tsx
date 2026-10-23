@@ -97,7 +97,11 @@ export function Navbar() {
 
           <div className="hidden items-center md:flex">
             {authed ? (
-              <Button asChild size="lg" className={cn("bg-mint hover:bg-mint/90 text-mint-foreground")}>
+              <Button
+                asChild
+                size="lg"
+                className={cn("bg-mint hover:bg-mint/90 text-mint-foreground")}
+              >
                 <Link href="/dashboard">My Account</Link>
               </Button>
             ) : rememberedDevice ? (

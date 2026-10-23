@@ -217,7 +217,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                     className={cn("size-5", active ? "text-clay" : "text-muted-foreground")}
                   />
                 </span>
-                <span className={active ? "font-bold text-clay" : "text-muted-foreground font-bold"}>
+                <span
+                  className={active ? "font-bold text-clay" : "text-muted-foreground font-bold"}
+                >
                   {item.label}
                 </span>
               </Link>
