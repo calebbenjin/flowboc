@@ -10,7 +10,16 @@ const TIERS: PlanTier[] = ["STARTER", "PRO", "PREMIUM"];
 type TierPricing = { annual: number; monthly: number } | null;
 
 export async function GET(request: Request) {
-  const country = request.headers.get("x-vercel-ip-country");
+  // Debug override for QA — e.g. /?debugCountry=GH on the pricing page, or
+  // calling this route directly as /api/pricing-geo?debugCountry=GH.
+  // VPNs are unreliable for testing this: a VPN's advertised "Ghana"
+  // server often sits on a datacenter IP that Vercel's IP-geolocation
+  // actually resolves to a different country entirely, so real header
+  // testing from a VPN can't be trusted. This bypasses the header read
+  // entirely so each currency path can be checked directly, including in
+  // production where the real header only exists in the first place.
+  const debugCountry = new URL(request.url).searchParams.get("debugCountry");
+  const country = debugCountry || request.headers.get("x-vercel-ip-country");
   const currency = subscriptionCurrencyForCountry(country);
 
   if (!currency) {

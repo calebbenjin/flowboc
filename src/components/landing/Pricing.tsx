@@ -215,7 +215,17 @@ export function Pricing() {
   const [country, setCountry] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    fetch("/api/pricing-geo")
+    // QA override — visiting the page as ?debugCountry=GH forces that
+    // country through the same lookup the real geo header uses, bypassing
+    // it entirely. Read directly off window.location rather than
+    // useSearchParams so this doesn't force the whole (otherwise static)
+    // landing page into a Suspense boundary just for a debug knob.
+    const debugCountry = new URLSearchParams(window.location.search).get("debugCountry");
+    const url = debugCountry
+      ? `/api/pricing-geo?debugCountry=${encodeURIComponent(debugCountry)}`
+      : "/api/pricing-geo";
+
+    fetch(url)
       .then((r) => r.json())
       .then(
         (data: {
