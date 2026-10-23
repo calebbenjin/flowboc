@@ -49,7 +49,9 @@ function StatCard({
   return (
     <div className="surface p-5">
       <div className="flex items-center justify-between">
-        <p className="sm:text-xs text-[13px] uppercase tracking-wider text-muted-foreground">{label}</p>
+        <p className="sm:text-xs text-[13px] uppercase tracking-wider text-muted-foreground">
+          {label}
+        </p>
         <Icon className="size-4 text-muted-foreground" />
       </div>
       <p className="display mt-2 sm:text-3xl text-2xl">{value}</p>

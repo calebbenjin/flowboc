@@ -11,7 +11,7 @@ import Image from "next/image";
 
 type Panel = {
   bg: string;
-  url?: string;
+  url: string;
   dark?: boolean;
   heading: string;
   accent: string;
@@ -92,7 +92,7 @@ function StickyPanel({ panel, index }: { panel: Panel; index: number }) {
           <PhoneFrame className="mx-auto w-full sm:max-w-[335px] max-w-[280px] -rotate-[3deg]">
             <div className="sm:min-h-[670px] min-h-[530px]">
               <Image
-                src={panel?.url}
+                src={panel.url}
                 alt="Flowboc booking page showing an instructor's profile, a bookable video call and upcoming classes"
                 fill
                 sizes="(min-width: 1024px) 240px, (min-width: 640px) 200px, 170px"
