@@ -14,11 +14,15 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image" },
 };
 
+const EMPTY_PLANS = {
+  STARTER: { MONTHLY: null, ANNUAL: null },
+  PRO: { MONTHLY: null, ANNUAL: null },
+  PREMIUM: { MONTHLY: null, ANNUAL: null },
+} as const;
+
 export default async function BillingPage() {
   const instructor = await getCurrentInstructor();
-  const plans = instructor
-    ? await getActivePlansForCurrency(instructor.currency)
-    : { MONTHLY: null, ANNUAL: null };
+  const plans = instructor ? await getActivePlansForCurrency(instructor.currency) : EMPTY_PLANS;
 
   return <BillingClient plans={plans} />;
 }

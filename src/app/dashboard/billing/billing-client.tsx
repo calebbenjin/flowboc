@@ -12,11 +12,18 @@ import { money } from "@/lib/demo";
 import { isTrialExpired } from "@/lib/trial";
 import { cn } from "@/lib/utils";
 import { startSubscription, cancelSubscription, refreshBillingStatus } from "./actions";
-import type { BillingInterval } from "@/generated/prisma/enums";
+import type { BillingInterval, PlanTier } from "@/generated/prisma/enums";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 type PlanInfo = { price: number; planCode: string } | null;
+
+const TIERS: PlanTier[] = ["STARTER", "PRO", "PREMIUM"];
+const TIER_LABEL: Record<PlanTier, string> = {
+  STARTER: "Starter",
+  PRO: "Pro",
+  PREMIUM: "Premium",
+};
 
 // Set in sessionStorage right before redirecting to Startbutton's hosted
 // checkout, and checked for on return. Startbutton's subscription endpoint
@@ -24,30 +31,55 @@ type PlanInfo = { price: number; planCode: string } | null;
 // Paystack's callback_url did, so this can't depend on the URL — it only
 // depends on the instructor's browser coming back to this page at all.
 const SUBSCRIBING_FLAG = "flowboc:subscribing";
+// The plan code being checked out — stored alongside SUBSCRIBING_FLAG so
+// the post-redirect poll can detect "the specific new plan's charge
+// landed" rather than just "planStatus is ACTIVE", which for a plan
+// *switch* (already ACTIVE before redirecting) is true on the very first
+// poll tick regardless of whether the new charge has actually confirmed.
+const TARGET_PLAN_CODE = "flowboc:subscribing:planCode";
 
-export function BillingClient({ plans }: { plans: Record<BillingInterval, PlanInfo> }) {
+export function BillingClient({
+  plans,
+}: {
+  plans: Record<PlanTier, Record<BillingInterval, PlanInfo>>;
+}) {
   const router = useRouter();
   const instructor = useInstructor();
-  const [interval, setInterval] = useState<BillingInterval>("MONTHLY");
+  const isActive = instructor.planStatus === "ACTIVE";
+  const [tier, setTier] = useState<PlanTier>(instructor.planTier);
+  const [interval, setInterval] = useState<BillingInterval>(
+    instructor.billingInterval ?? "MONTHLY",
+  );
   const [starting, setStarting] = useState(false);
   const [canceling, setCanceling] = useState(false);
   const activating = useRef(false);
 
-  const selectedPlan = plans[interval];
+  const tierPlans = plans[tier];
+  const selectedPlan = tierPlans[interval];
+  const isCurrentPlan =
+    isActive && instructor.planTier === tier && instructor.billingInterval === interval;
 
   // Poll briefly for the Startbutton webhook to land rather than leave the
-  // page showing a stale "Trialing" state after a checkout redirect back.
+  // page showing a stale state after a checkout redirect back. Compares
+  // subscriptionPlanCode (not just planStatus) so a plan switch — already
+  // ACTIVE before redirecting — waits for the specific new charge, not just
+  // "still active from the old plan".
   useEffect(() => {
+    const targetPlanCode = window.sessionStorage.getItem(TARGET_PLAN_CODE);
     if (!window.sessionStorage.getItem(SUBSCRIBING_FLAG) || activating.current) return;
     activating.current = true;
     window.sessionStorage.removeItem(SUBSCRIBING_FLAG);
+    window.sessionStorage.removeItem(TARGET_PLAN_CODE);
     toast.success("Checking for your payment — activating your subscription…");
 
     let attempts = 0;
     const id = window.setInterval(() => {
       attempts += 1;
       void refreshBillingStatus().then((result) => {
-        if (result.planStatus === "ACTIVE" || attempts >= 6) {
+        const landed = targetPlanCode
+          ? result.subscriptionPlanCode === targetPlanCode
+          : result.planStatus === "ACTIVE";
+        if (landed || attempts >= 6) {
           window.clearInterval(id);
           router.refresh();
         }
@@ -61,17 +93,22 @@ export function BillingClient({ plans }: { plans: Record<BillingInterval, PlanIn
     if (!selectedPlan) return;
     setStarting(true);
     try {
-      const result = await startSubscription(interval);
+      const result = await startSubscription(tier, interval);
       if (result.ok) {
         if (
           process.env["NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN"] &&
           process.env["NEXT_PUBLIC_POSTHOG_HOST"]
         ) {
-          posthog.capture("subscription_checkout_started", {
-            billing_interval: interval.toLowerCase(),
-          });
+          posthog.capture(
+            isActive ? "subscription_plan_switch_started" : "subscription_checkout_started",
+            {
+              billing_interval: interval.toLowerCase(),
+              plan_tier: tier.toLowerCase(),
+            },
+          );
         }
         window.sessionStorage.setItem(SUBSCRIBING_FLAG, "1");
+        window.sessionStorage.setItem(TARGET_PLAN_CODE, selectedPlan.planCode);
         window.location.href = result.authorizationUrl;
       } else {
         toast.error(result.error);
@@ -118,18 +155,38 @@ export function BillingClient({ plans }: { plans: Record<BillingInterval, PlanIn
       <div className="surface mt-6 p-6">
         <StatusHeader instructor={instructor} trialDaysLeft={trialDaysLeft} />
 
-        {(instructor.planStatus === "TRIALING" ||
+        {(isActive ||
+          instructor.planStatus === "TRIALING" ||
           instructor.planStatus === "CANCELED" ||
           instructor.planStatus === "PAST_DUE" ||
           (instructor.planStatus === "COMPED" &&
             instructor.compedUntil !== null &&
             instructor.compedUntil.getTime() < Date.now())) && (
           <div className="mt-6 border-t border-border pt-6">
-            {plans.MONTHLY || plans.ANNUAL ? (
+            {isActive && <p className="mb-3 text-sm font-medium">Change plan</p>}
+            <div className="flex gap-2">
+              {TIERS.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setTier(t)}
+                  className={cn(
+                    "flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
+                    tier === t
+                      ? "border-clay bg-clay/5 text-clay"
+                      : "border-border text-muted-foreground hover:bg-accent",
+                  )}
+                >
+                  {TIER_LABEL[t]}
+                </button>
+              ))}
+            </div>
+
+            {tierPlans.MONTHLY || tierPlans.ANNUAL ? (
               <>
-                <div className="flex gap-2">
+                <div className="mt-3 flex gap-2">
                   {(["MONTHLY", "ANNUAL"] as const).map((i) => {
-                    const plan = plans[i];
+                    const plan = tierPlans[i];
                     return (
                       <button
                         key={i}
@@ -154,26 +211,32 @@ export function BillingClient({ plans }: { plans: Record<BillingInterval, PlanIn
                 <Button
                   variant="clay"
                   className="mt-4 w-full sm:w-auto"
-                  disabled={!selectedPlan || starting}
+                  disabled={!selectedPlan || starting || isCurrentPlan}
                   onClick={() => void handleSubscribe()}
                 >
                   {starting ? (
                     <>
                       <Loader2 className="size-4 animate-spin" /> Redirecting…
                     </>
+                  ) : isCurrentPlan ? (
+                    "Your current plan"
+                  ) : isActive ? (
+                    `Switch to ${TIER_LABEL[tier]}`
                   ) : (
                     "Subscribe with card"
                   )}
                 </Button>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Paid by card only, so your subscription can auto-renew each billing cycle. Use the
-                  email on your Flowboc account ({instructor.email}) at checkout so we can match the
-                  payment back to your account.
+                  {isActive && !isCurrentPlan
+                    ? `Starts a new ${TIER_LABEL[tier]} subscription and cancels your current one once the new charge confirms — no overlap in billing.`
+                    : "Paid by card only, so your subscription can auto-renew each billing cycle."}{" "}
+                  Use the email on your Flowboc account ({instructor.email}) at checkout so we can
+                  match the payment back to your account.
                 </p>
               </>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                Subscriptions for {instructor.currency} aren&apos;t available yet.
+              <p className="mt-3 text-sm text-muted-foreground">
+                {TIER_LABEL[tier]} isn&apos;t available in {instructor.currency} yet.
               </p>
             )}
           </div>

@@ -119,6 +119,7 @@ export async function saveProfile(input: {
             payoutProvider,
             trialEndsAt: newTrialEndsAt(),
             referralCode: await generateReferralCode(name),
+            ...(user.pendingPlanTier ? { planTier: user.pendingPlanTier } : {}),
           },
         });
   } catch (err) {
@@ -212,6 +213,7 @@ export async function skipOnboarding(): Promise<ActionResult> {
         onboardingCompletedAt: new Date(),
         trialEndsAt: newTrialEndsAt(),
         referralCode: await generateReferralCode(name),
+        ...(user.pendingPlanTier ? { planTier: user.pendingPlanTier } : {}),
       },
     });
   } catch (err) {

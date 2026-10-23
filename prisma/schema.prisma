@@ -40,6 +40,12 @@ model User {
   // the Instructor row (later batch).
   pendingReferralCode String?
 
+  // Which pricing-page tier the signup came in through (?plan= on /auth),
+  // consumed the same way as pendingReferralCode above — null means no
+  // tier was selected, so the Instructor falls back to its own STARTER
+  // default.
+  pendingPlanTier PlanTier?
+
   instructor Instructor?
 
   createdAt DateTime @default(now())
@@ -100,6 +106,15 @@ enum PageLayout {
   COVER_GRID
 }
 
+// STARTER is the base tier (every instructor starts here). PRO and PREMIUM
+// unlock gated features — see src/components/ProGate.tsx for the UI side of
+// that check. Mirrors the three cards on the public pricing page.
+enum PlanTier {
+  STARTER
+  PRO
+  PREMIUM
+}
+
 // Insert-only history — never updated or deleted in place. Startbutton plans
 // are immutable, so "changing a price" creates a new row (and a new
 // Startbutton plan) and deactivates the old one, rather than mutating it.
@@ -110,6 +125,11 @@ model SubscriptionPlan {
   currency         CurrencyCode
   interval         BillingInterval
   price            Int
+  // Which of the three pricing-page tiers this plan bills for. Existing
+  // rows predate tiering entirely, so they're backfilled to PRO (see the
+  // add_plan_tier migration) — that's what they always were in practice,
+  // back when there was only one paid plan.
+  tier             PlanTier        @default(PRO)
   providerPlanCode String
   // Startbutton's hosted checkout link for this plan code (e.g.
   // https://pay.startbutton.tech/#/subscription/{code}) — returned once at
@@ -166,6 +186,14 @@ model Instructor {
   planStatus  PlanStatus @default(TRIALING)
   trialEndsAt DateTime?
 
+  // Which pricing-tier's features this instructor can use — independent of
+  // planStatus (that's whether they're paying at all; this is which plan).
+  // Defaults new signups to STARTER. Instructors who existed before tiering
+  // shipped are backfilled to PRO (see the add_plan_tier migration) so nothing
+  // they already relied on (recurring classes, page design, newsletter)
+  // broke on rollout.
+  planTier PlanTier @default(STARTER)
+
   // Admin-granted free access (see src/app/admin/billing) — a distinct
   // status from ACTIVE since there's no real Paystack subscription behind
   // it. compedUntil null means indefinite, same "never expires" convention
@@ -180,6 +208,16 @@ model Instructor {
   subscriptionProviderId  String?
   subscriptionPlanCode    String?
   subscriptionRenewsAt    DateTime?
+
+  // Set by startSubscription when an already-ACTIVE instructor switches
+  // tier/interval — holds the OLD subscriptionProviderId so the Startbutton
+  // webhook can cancel it once the NEW plan's charge is confirmed (see
+  // src/app/api/webhooks/startbutton/route.ts). Deliberately not trusted
+  // from the client: if it were, a forged subscriber id could cancel an
+  // unrelated subscription. Left set (harmlessly — the old plan just keeps
+  // billing) if the instructor abandons checkout before the new charge
+  // lands.
+  pendingCancelSubscriptionId String?
 
   payoutProvider  PayoutProvider @default(STRIPE)
   payoutStatus    PayoutStatus   @default(NOT_CONNECTED)

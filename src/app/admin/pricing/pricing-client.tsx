@@ -15,14 +15,21 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { adminSetPrices } from "./actions";
-import type { CurrencyCode } from "@/generated/prisma/enums";
+import type { CurrencyCode, PlanTier } from "@/generated/prisma/enums";
 
 type PlanInfo = { price: number; planCode: string } | null;
 
 type Row = {
   currency: CurrencyCode;
+  tier: PlanTier;
   monthly: PlanInfo;
   annual: PlanInfo;
+};
+
+const TIER_LABEL: Record<PlanTier, string> = {
+  STARTER: "Starter",
+  PRO: "Pro",
+  PREMIUM: "Premium",
 };
 
 function CurrencyRow({ row }: { row: Row }) {
@@ -46,6 +53,7 @@ function CurrencyRow({ row }: { row: Row }) {
     try {
       const result = await adminSetPrices({
         currency: row.currency,
+        tier: row.tier,
         monthly: monthlyValue,
         annual: annualValue,
       });
@@ -63,6 +71,7 @@ function CurrencyRow({ row }: { row: Row }) {
   return (
     <TableRow>
       <TableCell className="font-medium">{row.currency}</TableCell>
+      <TableCell>{TIER_LABEL[row.tier]}</TableCell>
       <TableCell>
         <Input
           type="number"
@@ -101,7 +110,7 @@ export function PricingClient({ rows }: { rows: Row[] }) {
       <div>
         <h1 className="text-3xl">Pricing</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Set the Pro plan&apos;s monthly and annual price per currency.
+          Set each plan&apos;s monthly and annual price, per currency and tier.
         </p>
       </div>
 
@@ -120,6 +129,7 @@ export function PricingClient({ rows }: { rows: Row[] }) {
           <TableHeader>
             <TableRow>
               <TableHead>Currency</TableHead>
+              <TableHead>Tier</TableHead>
               <TableHead>Monthly price</TableHead>
               <TableHead>Annual price</TableHead>
               <TableHead>Plan codes (monthly / annual)</TableHead>
@@ -128,7 +138,7 @@ export function PricingClient({ rows }: { rows: Row[] }) {
           </TableHeader>
           <TableBody>
             {rows.map((row) => (
-              <CurrencyRow key={row.currency} row={row} />
+              <CurrencyRow key={`${row.currency}-${row.tier}`} row={row} />
             ))}
           </TableBody>
         </Table>

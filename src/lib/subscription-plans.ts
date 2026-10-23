@@ -1,20 +1,31 @@
 import { prisma } from "@/lib/db";
-import type { BillingInterval, CurrencyCode } from "@/generated/prisma/enums";
+import type { BillingInterval, CurrencyCode, PlanTier } from "@/generated/prisma/enums";
 
-export async function getActivePlan(currency: CurrencyCode, interval: BillingInterval) {
-  return prisma.subscriptionPlan.findFirst({ where: { currency, interval, active: true } });
+export async function getActivePlan(
+  currency: CurrencyCode,
+  interval: BillingInterval,
+  tier: PlanTier,
+) {
+  return prisma.subscriptionPlan.findFirst({ where: { currency, interval, tier, active: true } });
 }
 
+// Keyed by tier then interval — mirrors the shape the billing page and the
+// admin pricing page both need (pick a tier, then a billing interval).
 export async function getActivePlansForCurrency(
   currency: CurrencyCode,
-): Promise<Record<BillingInterval, { price: number; planCode: string } | null>> {
+): Promise<Record<PlanTier, Record<BillingInterval, { price: number; planCode: string } | null>>> {
   const rows = await prisma.subscriptionPlan.findMany({ where: { currency, active: true } });
-  const monthly = rows.find((r) => r.interval === "MONTHLY") ?? null;
-  const annual = rows.find((r) => r.interval === "ANNUAL") ?? null;
-  return {
-    MONTHLY: monthly ? { price: monthly.price, planCode: monthly.providerPlanCode } : null,
-    ANNUAL: annual ? { price: annual.price, planCode: annual.providerPlanCode } : null,
+  const forTier = (tier: PlanTier, interval: BillingInterval) => {
+    const row = rows.find((r) => r.tier === tier && r.interval === interval);
+    return row ? { price: row.price, planCode: row.providerPlanCode } : null;
   };
+  const tiers: PlanTier[] = ["STARTER", "PRO", "PREMIUM"];
+  return Object.fromEntries(
+    tiers.map((tier) => [
+      tier,
+      { MONTHLY: forTier(tier, "MONTHLY"), ANNUAL: forTier(tier, "ANNUAL") },
+    ]),
+  ) as Record<PlanTier, Record<BillingInterval, { price: number; planCode: string } | null>>;
 }
 
 export async function getAllActivePlans() {
