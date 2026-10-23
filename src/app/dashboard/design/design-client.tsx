@@ -9,6 +9,7 @@ import { Check, ImagePlus, Loader2, X } from "lucide-react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { useInstructor } from "@/components/InstructorProvider";
 import { PublicPagePreview } from "@/components/PublicPagePreview";
+import { ProBadge, UpgradeModal } from "@/components/ProGate";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -79,6 +80,8 @@ export function DesignClient() {
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const isStarter = instructor.planTier === "STARTER";
 
   async function handleBackgroundFile(file: File) {
     if (!file.type.startsWith("image/")) {
@@ -101,6 +104,10 @@ export function DesignClient() {
   }
 
   async function handleSave() {
+    if (isStarter) {
+      setUpgradeOpen(true);
+      return;
+    }
     setSaving(true);
     try {
       const result = await updateDesign({ themeColor, backgroundImageUrl, pageLayout });
@@ -263,7 +270,8 @@ export function DesignClient() {
               </div>
             </section>
 
-            <div className="flex justify-end">
+            <div className="flex items-center justify-end gap-3">
+              {isStarter && <ProBadge />}
               <Button variant="clay" size="lg" onClick={() => void handleSave()} disabled={saving}>
                 {saving ? (
                   <>
@@ -274,6 +282,11 @@ export function DesignClient() {
                 )}
               </Button>
             </div>
+            <UpgradeModal
+              open={upgradeOpen}
+              onOpenChange={setUpgradeOpen}
+              feature="Custom page design"
+            />
           </div>
 
           <div className="lg:sticky lg:top-8">

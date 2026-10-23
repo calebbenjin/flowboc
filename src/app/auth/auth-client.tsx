@@ -45,6 +45,14 @@ export function AuthClient() {
   const refParam = searchParams.get("ref");
   const resetToken = searchParams.get("token");
   const modeParam = searchParams.get("mode");
+  // Pricing-page CTAs link here as ?plan=starter|pro|premium so the tier
+  // picked on the marketing site carries through to the Instructor row
+  // onboarding creates (see pendingPlanTier on User).
+  const planParam = searchParams.get("plan")?.toUpperCase();
+  const validPlan =
+    planParam === "STARTER" || planParam === "PRO" || planParam === "PREMIUM"
+      ? planParam
+      : undefined;
 
   const [mode, setMode] = useState<Mode>(
     resetToken ? "reset" : modeParam === "login" ? "login" : "signup",
@@ -85,6 +93,7 @@ export function AuthClient() {
           password: passwordValue,
           acceptedTerms,
           referralCode: referralValue,
+          ...(validPlan ? { planTier: validPlan } : {}),
         }),
       );
       if (outcome.outcome !== "success") {

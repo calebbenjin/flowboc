@@ -7,6 +7,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { sendOtpEmail, sendPasswordResetEmail } from "@/lib/email";
 import { siteUrl } from "@/lib/site";
 import { referralCodeExists } from "@/lib/referral-code";
+import type { PlanTier } from "@/generated/prisma/enums";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -28,6 +29,7 @@ export async function signUp(input: {
   email: string;
   password: string;
   referralCode?: string;
+  planTier?: PlanTier;
   acceptedTerms: boolean;
 }): Promise<ActionResult> {
   const email = input.email.trim().toLowerCase();
@@ -75,6 +77,7 @@ export async function signUp(input: {
     otpAttempts: 0,
     otpResendAvailableAt: new Date(now.getTime() + OTP_RESEND_COOLDOWN_MS),
     pendingReferralCode: referralCode,
+    pendingPlanTier: input.planTier ?? null,
     termsAcceptedAt: now,
   };
 

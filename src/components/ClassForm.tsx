@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { ProBadge, UpgradeModal } from "@/components/ProGate";
 import { cn } from "@/lib/utils";
 import { currencies, money, timezones } from "@/lib/demo";
 import { DEADLINE_OPTIONS, deadlineMinutesToLabel } from "@/lib/class-deadline";
@@ -179,6 +180,8 @@ export function ClassForm({
   onLiveChange,
 }: ClassFormProps) {
   const instructor = useInstructor();
+  const isStarter = instructor.planTier === "STARTER";
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [recurring, setRecurring] = useState(initial?.recurring ?? false);
   const [online, setOnline] = useState(initial?.online ?? false);
   const [pickedDays, setPickedDays] = useState<string[]>(initial?.recurringDays ?? ["Tue", "Thu"]);
@@ -259,11 +262,27 @@ export function ClassForm({
         </h2>
         <div className="flex items-center justify-between rounded-lg bg-primary/10 px-4 py-3">
           <div>
-            <p className="text-sm font-medium">Recurring class</p>
+            <p className="flex items-center gap-2 text-sm font-medium">
+              Recurring class {isStarter && <ProBadge />}
+            </p>
             <p className="text-xs text-muted-foreground">Repeats weekly until you end the series</p>
           </div>
-          <Switch checked={recurring} onCheckedChange={setRecurring} />
+          <Switch
+            checked={recurring}
+            onCheckedChange={(next) => {
+              if (next && isStarter) {
+                setUpgradeOpen(true);
+                return;
+              }
+              setRecurring(next);
+            }}
+          />
         </div>
+        <UpgradeModal
+          open={upgradeOpen}
+          onOpenChange={setUpgradeOpen}
+          feature="Recurring classes"
+        />
 
         {recurring && (
           <div className="flex flex-wrap gap-2">

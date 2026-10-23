@@ -6,6 +6,8 @@ import posthog from "posthog-js";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { DashboardShell } from "@/components/DashboardShell";
+import { useInstructor } from "@/components/InstructorProvider";
+import { ProBadge, UpgradeModal } from "@/components/ProGate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,12 +30,19 @@ function isBlank(html: string) {
 
 export function ComposeClient({ subscriberCount }: { subscriberCount: number }) {
   const router = useRouter();
+  const instructor = useInstructor();
+  const isStarter = instructor.planTier === "STARTER";
   const [bodyHtml, setBodyHtml] = useState("");
   const [pending, setPending] = useState<PendingCampaign | null>(null);
   const [sending, setSending] = useState(false);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (isStarter) {
+      setUpgradeOpen(true);
+      return;
+    }
     const formData = new FormData(e.currentTarget);
     const subject = String(formData.get("subject") ?? "").trim();
     if (!subject) return;
@@ -96,12 +105,19 @@ export function ComposeClient({ subscriberCount }: { subscriberCount: number }) 
             placeholder="Hi everyone, here's what's new..."
           />
         </div>
-        <div className="flex justify-end">
+        <div className="flex items-center justify-end gap-3">
+          {isStarter && <ProBadge />}
           <Button type="submit" variant="clay" disabled={subscriberCount === 0}>
             Send campaign
           </Button>
         </div>
       </form>
+
+      <UpgradeModal
+        open={upgradeOpen}
+        onOpenChange={setUpgradeOpen}
+        feature="Newsletter campaigns"
+      />
 
       <AlertDialog open={pending !== null} onOpenChange={(open) => !open && setPending(null)}>
         <AlertDialogContent>

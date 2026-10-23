@@ -3,7 +3,7 @@ import { getPostHogLogger, loggerProvider, SeverityNumber } from "@/instrumentat
 import { prisma } from "@/lib/db";
 import { logAdminActivity } from "@/lib/admin-activity";
 import { creditOneTimeReferralBonus, markReferralChurned } from "@/lib/referral-code";
-import { verifyWebhookSignature } from "@/lib/startbutton";
+import { cancelSubscriber, StartbuttonError, verifyWebhookSignature } from "@/lib/startbutton";
 import { getPlanByCode } from "@/lib/subscription-plans";
 
 const posthogLogger = getPostHogLogger();
@@ -126,26 +126,68 @@ async function handleStartbuttonEvent(event: StartbuttonEvent, rawBody: string):
 
       const plan = await getPlanByCode(planCode);
       const interval = plan?.interval ?? null;
+      const newSubscriberId =
+        event.data.subscriberId ?? event.data._id ?? instructor.subscriptionProviderId;
+
+      // A plan switch (see startSubscription) stashed the OLD subscriber id
+      // here before redirecting. Now that the NEW plan's charge is
+      // confirmed, it's safe to cancel the old one — doing it any earlier
+      // risked leaving the instructor with neither plan if they abandoned
+      // checkout.
+      const cancelOldId =
+        instructor.pendingCancelSubscriptionId &&
+        instructor.pendingCancelSubscriptionId !== newSubscriberId
+          ? instructor.pendingCancelSubscriptionId
+          : null;
 
       await prisma.instructor.update({
         where: { id: instructor.id },
         data: {
           planStatus: "ACTIVE",
+          // Only bump the tier up/down if the plan code resolved to a known
+          // plan — an unrecognized code (stale/manually-edited) shouldn't
+          // silently downgrade someone who already has a tier set.
+          ...(plan ? { planTier: plan.tier } : {}),
           billingInterval: interval,
           subscriptionPlanCode: planCode,
-          subscriptionProviderId:
-            event.data.subscriberId ?? event.data._id ?? instructor.subscriptionProviderId,
+          subscriptionProviderId: newSubscriberId,
           subscriptionRenewsAt: event.data.nextPaymentDate
             ? new Date(event.data.nextPaymentDate)
             : null,
+          pendingCancelSubscriptionId: null,
         },
       });
 
+      if (cancelOldId) {
+        try {
+          await cancelSubscriber({
+            subscriberId: cancelOldId,
+            reason: "Superseded by a plan switch on Flowboc",
+          });
+        } catch (err) {
+          // Non-fatal — the new plan is already active either way. Logged
+          // so a stuck old subscription can be caught and canceled
+          // manually rather than silently double-billing the instructor.
+          console.error("Failed to cancel superseded subscription:", err);
+          posthogLogger?.emit({
+            body: "plan_switch_old_cancel_failed",
+            severityNumber: SeverityNumber.ERROR,
+            attributes: {
+              provider: "startbutton",
+              instructorId: instructor.id,
+              oldSubscriberId: cancelOldId,
+              error: err instanceof StartbuttonError ? err.message : String(err),
+            },
+          });
+        }
+      }
+
       await logAdminActivity({
         type: "SUBSCRIPTION_ACTIVATED",
-        message: interval
-          ? `${instructor.name} subscribed (${interval.toLowerCase()})`
-          : `${instructor.name} subscribed`,
+        message:
+          interval && plan
+            ? `${instructor.name} subscribed to ${plan.tier} (${interval.toLowerCase()})`
+            : `${instructor.name} subscribed`,
         instructorId: instructor.id,
       });
 

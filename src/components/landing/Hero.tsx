@@ -46,7 +46,7 @@ export function Hero() {
           </div>
 
           {/* Desktop */}
-          <div className="hidden w-full max-w-42 shrink-0 sm:max-w-80 lg:w-full mr-auto relative">
+          <div className="sm:flex hidden w-full max-w-42 shrink-0 sm:max-w-80 lg:w-full mr-auto relative">
             <div className="relative w-full h-85 sm:h-175 lg:h-165">
               <Image
                 src="/phone-img.png"
