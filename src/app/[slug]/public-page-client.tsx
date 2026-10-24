@@ -10,6 +10,11 @@ import {
   Send,
   Video,
   ArrowRight,
+  Link2,
+  Facebook,
+  Linkedin,
+  MessageCircle,
+  X as XLogo,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -22,6 +27,13 @@ import {
   DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 import { EmptyState } from "@/components/EmptyState";
 import { Reveal } from "@/components/landing/primitives";
 import { cn } from "@/lib/utils";
@@ -50,36 +62,223 @@ function trackLinkClick(linkId: string) {
   navigator.sendBeacon?.("/api/links/click", JSON.stringify({ linkId }));
 }
 
-function ShareButton({ instructorName }: { instructorName: string }) {
+// Modeled on Linktree's "Share Linktree" sheet: a branded preview card, a
+// row of share-target shortcuts, then a CTA to get your own page.
+function ShareDialog({
+  open,
+  onOpenChange,
+  instructor,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  instructor: PublicInstructor;
+}) {
   const [copied, setCopied] = useState(false);
+  const [url, setUrl] = useState("");
 
-  const handleShare = async () => {
-    const url = window.location.href;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: `${instructorName} — Book a yoga class`, url });
-      } catch {
-        // user dismissed the native share sheet
-      }
-      return;
-    }
+  useEffect(() => {
+    if (open) setUrl(window.location.href);
+  }, [open]);
+
+  const shareText = `${instructor.name} — Book a yoga class`;
+
+  const handleCopy = async () => {
     await navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
   };
 
+  const targets = [
+    {
+      label: "X",
+      icon: XLogo,
+      className: "bg-black text-white",
+      href: `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(shareText)}`,
+    },
+    {
+      label: "Facebook",
+      icon: Facebook,
+      className: "bg-[#1877F2] text-white",
+      href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+    },
+    {
+      label: "WhatsApp",
+      icon: MessageCircle,
+      className: "bg-[#25D366] text-white",
+      href: `https://wa.me/?text=${encodeURIComponent(`${shareText} ${url}`)}`,
+    },
+    {
+      label: "LinkedIn",
+      icon: Linkedin,
+      className: "bg-[#0A66C2] text-white",
+      href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`,
+    },
+  ];
+
   return (
-    <Button variant="quiet" size="sm" onClick={handleShare}>
-      {copied ? (
-        <>
-          <Check className="size-4" /> Copied
-        </>
-      ) : (
-        <>
-          <Share2 className="size-4" /> Share
-        </>
-      )}
-    </Button>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="bottom"
+        className="mx-auto max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl"
+      >
+        <SheetHeader>
+          <SheetTitle>Share {instructor.name}&apos;s page</SheetTitle>
+          <SheetDescription className="sr-only">
+            Share this booking page or copy its link.
+          </SheetDescription>
+        </SheetHeader>
+
+        <div
+          className="flex flex-col items-center gap-3 rounded-2xl px-6 py-10 text-center"
+          style={{ backgroundColor: instructor.themeColor }}
+        >
+          {instructor.photoUrl ? (
+            <img
+              src={instructor.photoUrl}
+              alt=""
+              className="size-24 rounded-full object-cover ring-2 ring-white/70"
+            />
+          ) : (
+            <div className="grid size-24 place-items-center rounded-full bg-white/15 text-xl font-medium text-white ring-2 ring-white/70">
+              {instructor.name
+                .split(" ")
+                .map((n) => n[0])
+                .join("")}
+            </div>
+          )}
+          <p className="text-lg font-semibold text-white drop-shadow-sm">{instructor.name}</p>
+          <div className="flex items-center gap-1.5 text-sm text-white/85">
+            <img src="/flowboc-favicon.png" alt="" className="size-3.5" />/{instructor.slug}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-5 gap-2 pt-2">
+          <button
+            type="button"
+            onClick={() => void handleCopy()}
+            className="flex flex-col items-center gap-2"
+          >
+            <span className="grid size-13 place-items-center rounded-full bg-muted text-foreground">
+              {copied ? <Check className="size-5" /> : <Link2 className="size-5" />}
+            </span>
+            <span className="text-xs text-muted-foreground">{copied ? "Copied" : "Copy link"}</span>
+          </button>
+          {targets.map((t) => (
+            <a
+              key={t.label}
+              href={t.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex flex-col items-center gap-2"
+            >
+              <span className={cn("grid size-13 place-items-center rounded-full", t.className)}>
+                <t.icon className="size-5" />
+              </span>
+              <span className="text-xs text-muted-foreground">{t.label}</span>
+            </a>
+          ))}
+        </div>
+
+        <div className="mt-2 border-t border-border pt-5">
+          <p className="font-medium">Join {instructor.name} on Flowboc</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Get your own free Flowboc booking page — built for independent instructors.
+          </p>
+          <div className="mt-4 flex gap-2">
+            <Button asChild variant="clay" className="flex-1 rounded-full">
+              <a href="/auth">Sign up free</a>
+            </Button>
+            <Button asChild variant="quiet" className="flex-1 rounded-full">
+              <a href="/">Find out more</a>
+            </Button>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+// Modeled on Linktree's "Join the only link in bio" sheet shown when their
+// logo mark is tapped — Flowboc's own promo, not the instructor's branding.
+function ClaimSheet({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [slug, setSlug] = useState("");
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="bottom"
+        className="mx-auto max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl border-none bg-clay text-clay-foreground"
+      >
+        <SheetHeader className="text-left">
+          <img src="/flowboc-favicon.png" alt="" className="size-8" />
+          <SheetTitle className="mt-2 text-3xl leading-tight text-clay-foreground">
+            The simplest way to book your classes
+          </SheetTitle>
+          <SheetDescription className="text-clay-foreground/80">
+            One link for your classes, bookings and payments — share it anywhere your students are.
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="mt-4 flex items-center gap-1 rounded-xl bg-white px-4 py-3 text-foreground">
+          <span className="text-muted-foreground">flowboc.com/</span>
+          <input
+            value={slug}
+            onChange={(e) => setSlug(e.target.value)}
+            placeholder="yourname"
+            className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground/60"
+          />
+        </div>
+
+        <Button
+          asChild
+          className="mt-4 w-full rounded-full bg-neutral-900 py-6 text-white hover:bg-neutral-900/90"
+        >
+          <a href={slug ? `/auth?slug=${encodeURIComponent(slug)}` : "/auth"}>Claim your Flowboc</a>
+        </Button>
+
+        <div className="mt-4 flex flex-col gap-1">
+          <a href="/" className="text-sm text-clay-foreground underline underline-offset-2">
+            Learn more about Flowboc
+          </a>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+// Fixed corner badges that float over the page, same placement as the
+// "home" + "share" pair Linktree shows on every public profile.
+function CornerBadges({ instructor }: { instructor: PublicInstructor }) {
+  const [shareOpen, setShareOpen] = useState(false);
+  const [claimOpen, setClaimOpen] = useState(false);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setClaimOpen(true)}
+        aria-label="Flowboc"
+        className="fixed left-4 top-4 z-50 grid size-11 place-items-center rounded-full bg-white shadow-md transition-transform hover:scale-105"
+      >
+        <img src="/flowboc-favicon.png" alt="" className="size-5" />
+      </button>
+      <button
+        type="button"
+        onClick={() => setShareOpen(true)}
+        aria-label="Share this page"
+        className="fixed right-4 top-4 z-50 grid size-11 place-items-center rounded-full bg-white shadow-md transition-transform hover:scale-105"
+      >
+        <Share2 className="size-4 text-foreground" />
+      </button>
+      <ShareDialog open={shareOpen} onOpenChange={setShareOpen} instructor={instructor} />
+      <ClaimSheet open={claimOpen} onOpenChange={setClaimOpen} />
+    </>
   );
 }
 
@@ -568,6 +767,7 @@ export function PublicPageClient({
         } as CSSProperties
       }
     >
+      <CornerBadges instructor={instructor} />
       <div
         className={
           instructor.backgroundImageUrl ? "min-h-screen bg-black/20 backdrop-blur-[4px]" : undefined
@@ -661,7 +861,6 @@ export function PublicPageClient({
                 >
                   <div className="flex items-center gap-2">
                     <NewsletterSignupDialog slug={instructor.slug} />
-                    {/* <ShareButton instructorName={instructor.name} /> */}
                   </div>
                   {/* {instructor.location && (
                 <span className="inline-flex items-center gap-1.5">
@@ -768,9 +967,36 @@ export function PublicPageClient({
             }}
           />
 
-          <p className="mt-4 text-center text-xs text-muted-foreground">
-            Booking powered by <span className="display text-foreground">Flowboc</span>
-          </p>
+          <div className="mt-12 flex flex-col items-center gap-5 pb-4">
+            <Button
+              asChild
+              variant="clay"
+              className="rounded-full bg-white text-black px-8 py-5 font-semibold shadow-sm"
+            >
+              <a href="/auth">Get your own Flowboc</a>
+            </Button>
+            <div
+              className={cn(
+                "flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs",
+                heroSecondaryTextClass,
+              )}
+            >
+              <a href="/privacy" className="hover:underline">
+                Privacy
+              </a>
+              <span>·</span>
+              <a href="/terms" className="hover:underline">
+                Terms
+              </a>
+              <span>·</span>
+              <a href="/contact" className="hover:underline">
+                Report
+              </a>
+            </div>
+            <p className="text-center text-xs text-muted-foreground">
+              Booking powered by <span className="display text-foreground">Flowboc</span>
+            </p>
+          </div>
         </div>
       </div>
     </div>

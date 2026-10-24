@@ -33,12 +33,14 @@ async function suggestSlug(seed: string, currentUserId: string): Promise<string>
 export default async function OnboardingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ref?: string; plan?: string }>;
+  searchParams: Promise<{ ref?: string; plan?: string; slug?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.id) {
     redirect("/auth");
   }
+
+  const { ref, plan, slug: slugParam } = await searchParams;
 
   const [initialUser, instructor] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: session.user.id } }),
@@ -63,7 +65,6 @@ export default async function OnboardingPage({
   // handleGoogleSignIn in auth-client.tsx). Only relevant pre-onboarding;
   // harmless no-op once an Instructor already exists.
   if (!instructor) {
-    const { ref, plan } = await searchParams;
     const planTier = plan?.toUpperCase();
     const validPlan: PlanTier | undefined =
       planTier === "STARTER" || planTier === "PRO" || planTier === "PREMIUM" ? planTier : undefined;
@@ -84,7 +85,8 @@ export default async function OnboardingPage({
   }
 
   const defaultSlug =
-    instructor?.slug ?? (await suggestSlug(user.name || user.email, session.user.id));
+    instructor?.slug ??
+    (await suggestSlug(slugParam?.trim() || user.name || user.email, session.user.id));
   const instagram = instructor?.socials.find((s) => s.platform === "INSTAGRAM")?.handle ?? "";
 
   return (
