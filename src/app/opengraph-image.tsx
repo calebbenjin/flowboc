@@ -25,7 +25,7 @@ const FONT_TEXT = Array.from(
 
 export default async function OpengraphImage() {
   const [logoBuffer, frauncesRegular, frauncesSemibold] = await Promise.all([
-    readFile(join(process.cwd(), "src/assets/flowboc-logo.png")),
+    readFile(join(process.cwd(), "public/flowboc-logo.png")),
     loadFrauncesFont(500, FONT_TEXT),
     loadFrauncesFont(600, FONT_TEXT),
   ]);
@@ -45,7 +45,7 @@ export default async function OpengraphImage() {
         fontFamily: "Fraunces",
       }}
     >
-      <img src={logoSrc} width={230} height={40} alt="" style={{ objectFit: "contain" }} />
+      <img src={logoSrc} width={152} height={40} alt="" style={{ objectFit: "contain" }} />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 920 }}>
         <div
