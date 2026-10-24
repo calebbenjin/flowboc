@@ -473,20 +473,25 @@ export function ProfileClient() {
                 placeholder="Leave blank for free"
               />
               <p className="text-xs text-muted-foreground">
-                Leave blank for free. Paid calls show as &quot;Coming soon&quot; until checkout is
-                available.
+                Leave blank for free. A priced call charges through Paystack at booking — stays
+                &quot;Coming soon&quot; on your page until you&apos;ve{" "}
+                <Link href="/dashboard/payouts" className="underline underline-offset-2">
+                  connected a payout account
+                </Link>
+                .
               </p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="vclink">Meeting link</Label>
+              <Label htmlFor="vclink">Scheduling or meeting link</Label>
               <Input
                 id="vclink"
                 name="videoCallLink"
                 defaultValue={instructor.consultationLink ?? ""}
-                placeholder="https://zoom.us/j/… or Google Meet link"
+                placeholder="https://calendly.com/you or https://zoom.us/j/…"
               />
               <p className="text-xs text-muted-foreground">
-                Sent to students by email once they book — and shown to them right away.
+                Sent to students by email once they book — this is where they&apos;ll pick a time
+                with you.
               </p>
             </div>
           </div>

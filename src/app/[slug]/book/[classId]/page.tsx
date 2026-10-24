@@ -103,6 +103,7 @@ export default async function BookingPage({
           startAt: cls.startAt,
           timezone: cls.timezone,
           durationMinutes: cls.durationMinutes,
+          mode: cls.mode,
           location: cls.location,
           price: cls.price,
           originalPrice: cls.originalPrice,

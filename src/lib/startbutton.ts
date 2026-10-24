@@ -3,13 +3,11 @@ import type { CurrencyCode } from "@/generated/prisma/enums";
 
 const STARTBUTTON_BASE = "https://api.startbutton.tech";
 
-// The 4 currencies with a Startbutton wallet actually activated and
-// confirmed working end-to-end (live sandbox test, Oct 2026) — the create
-// plan API itself accepts more currencies than this, but charging silently
-// fails ("no payment partner available") until a matching wallet is turned
-// on in the Startbutton dashboard. XOF's wallet isn't activated yet; add it
-// here once it is.
-export const SUBSCRIPTION_CURRENCIES: CurrencyCode[] = ["NGN", "GHS", "KES", "ZAR"];
+// Flowboc subscriptions bill in USD only, charged by card through
+// Startbutton's USD wallet — independent of whatever currency an instructor
+// charges their own students in (Instructor.currency, used for class
+// bookings/payouts, is unrelated to this).
+export const SUBSCRIPTION_CURRENCIES: CurrencyCode[] = ["USD"];
 
 export class StartbuttonError extends Error {
   constructor(

@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import posthog from "posthog-js";
 import { toast } from "sonner";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supportsAccountResolve, supportsMobileMoney } from "@/lib/payout";
+import { namesLikelyMatch, supportsAccountResolve, supportsMobileMoney } from "@/lib/payout";
 import { cn } from "@/lib/utils";
 import {
   connectPayoutAccount,
@@ -25,10 +26,12 @@ type Method = "bank" | "mobile_money";
 // connection without ever collecting bank details.
 export function PayoutConnectForm({
   currency,
+  instructorName,
   onConnected,
   connectLabel = "Connect",
 }: {
   currency: CurrencyCode;
+  instructorName: string;
   onConnected: () => void;
   connectLabel?: string;
 }) {
@@ -43,12 +46,19 @@ export function PayoutConnectForm({
   const [resolvedName, setResolvedName] = useState<string | null>(null);
   const [resolving, setResolving] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  // Set when connectPayoutAccount itself rejects the account over a name
+  // mismatch — happens for currencies where handleVerify never ran (no
+  // pre-resolve support), so resolvedName alone can't catch this case.
+  const [serverMismatchName, setServerMismatchName] = useState<string | null>(null);
+  const [confirmMismatch, setConfirmMismatch] = useState(false);
 
   useEffect(() => {
     setBanksLoading(true);
     setBankCode("");
     setAccountNumber("");
     setResolvedName(null);
+    setServerMismatchName(null);
+    setConfirmMismatch(false);
     void listPayoutBanks(method).then((result) => {
       setBanksLoading(false);
       if (result.ok) {
@@ -61,11 +71,21 @@ export function PayoutConnectForm({
 
   const bankName = banks.find((b) => b.code === bankCode)?.name ?? "";
   const needsVerify = method === "bank" && canResolve;
-  const canConnect = bankCode && accountNumber && (!needsVerify || resolvedName);
+  const mismatchName =
+    resolvedName && !namesLikelyMatch(instructorName, resolvedName)
+      ? resolvedName
+      : serverMismatchName;
+  const canConnect =
+    bankCode &&
+    accountNumber &&
+    (!needsVerify || resolvedName) &&
+    (!mismatchName || confirmMismatch);
 
   async function handleVerify() {
     setResolving(true);
     setResolvedName(null);
+    setServerMismatchName(null);
+    setConfirmMismatch(false);
     try {
       const result = await resolvePayoutAccount({ bankCode, accountNumber });
       if (result.ok) {
@@ -81,7 +101,13 @@ export function PayoutConnectForm({
   async function handleConnect() {
     setConnecting(true);
     try {
-      const result = await connectPayoutAccount({ method, bankCode, bankName, accountNumber });
+      const result = await connectPayoutAccount({
+        method,
+        bankCode,
+        bankName,
+        accountNumber,
+        confirmNameMismatch: confirmMismatch,
+      });
       if (result.ok) {
         if (
           process.env["NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN"] &&
@@ -91,6 +117,8 @@ export function PayoutConnectForm({
         }
         toast.success("Payout account connected");
         onConnected();
+      } else if (result.mismatchedAccountName) {
+        setServerMismatchName(result.mismatchedAccountName);
       } else {
         toast.error(result.error);
       }
@@ -129,6 +157,8 @@ export function PayoutConnectForm({
           onChange={(e) => {
             setBankCode(e.target.value);
             setResolvedName(null);
+            setServerMismatchName(null);
+            setConfirmMismatch(false);
           }}
           disabled={banksLoading}
           className="h-9 w-full rounded-md border border-input bg-card px-3 text-sm disabled:opacity-60"
@@ -150,6 +180,8 @@ export function PayoutConnectForm({
           onChange={(e) => {
             setAccountNumber(e.target.value);
             setResolvedName(null);
+            setServerMismatchName(null);
+            setConfirmMismatch(false);
           }}
           placeholder={method === "bank" ? "0123456789" : "0551234567"}
         />
@@ -172,7 +204,7 @@ export function PayoutConnectForm({
               "Verify account"
             )}
           </Button>
-          {resolvedName && (
+          {resolvedName && !mismatchName && (
             <p className="flex items-center gap-1.5 text-sm text-success">
               <CheckCircle2 className="size-4" /> {resolvedName}
             </p>
@@ -184,6 +216,29 @@ export function PayoutConnectForm({
           connecting. Paystack validates the account when it settles your first payout.
         </p>
       ) : null}
+
+      {mismatchName && (
+        <div className="space-y-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+          <p className="flex items-start gap-2 text-sm text-destructive">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+            This account is registered to <strong>{mismatchName}</strong>, which doesn&apos;t match
+            your profile name (<strong>{instructorName}</strong>). Payouts can only go to an account
+            in your own name.
+          </p>
+          <div className="flex items-start gap-2">
+            <Checkbox
+              id="pcf-confirm-mismatch"
+              checked={confirmMismatch}
+              onCheckedChange={(checked) => setConfirmMismatch(checked === true)}
+              className="mt-0.5"
+            />
+            <Label htmlFor="pcf-confirm-mismatch" className="font-normal text-sm leading-snug">
+              This account is mine — the name is just formatted differently (e.g. a married name or
+              registered business name).
+            </Label>
+          </div>
+        </div>
+      )}
 
       <Button
         variant="clay"

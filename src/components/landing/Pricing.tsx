@@ -1,17 +1,16 @@
 "use client";
 
-import * as React from "react";
 import Link from "next/link";
-import { Check, MapPin, Star, X } from "lucide-react";
+import { Check, Star, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { money, type CurrencyCode } from "@/lib/demo";
 import { Reveal, Section } from "./primitives";
+import type { BillingInterval, PlanTier } from "@/generated/prisma/enums";
 
 type Feature = string | { label: string; soon: true };
 type PlanTierKey = "STARTER" | "PRO" | "PREMIUM";
-type TierPricing = { annual: number; monthly: number } | null;
-type GeoPricing = { currency: CurrencyCode; tiers: Record<PlanTierKey, TierPricing> } | null;
+type PlanInfo = { price: number; planCode: string } | null;
+type PlansByTier = Record<PlanTier, Record<BillingInterval, PlanInfo>>;
 
 type Tier = {
   name: string;
@@ -92,14 +91,21 @@ const tiers: Tier[] = [
   },
 ];
 
-function PricingCard({ tier, geo }: { tier: Tier; geo: GeoPricing }) {
-  const localPricing = geo?.tiers[tier.tierKey] ?? null;
-  const annualDisplay = localPricing
-    ? money(localPricing.annual, geo!.currency)
-    : `$${tier.annual}`;
-  const monthlyDisplay = localPricing
-    ? money(localPricing.monthly, geo!.currency)
-    : `$${tier.monthly}`;
+function PricingCard({
+  tier,
+  live,
+}: {
+  tier: Tier;
+  live: Record<BillingInterval, PlanInfo> | undefined;
+}) {
+  const monthlyPlan = live?.MONTHLY ?? null;
+  const annualPlan = live?.ANNUAL ?? null;
+
+  // The ANNUAL row's price is already the per-month rate for annual
+  // billing (set directly in the admin pricing panel, independent of the
+  // MONTHLY row) — not a yearly total, so no conversion here.
+  const annualDisplay = annualPlan ? `$${annualPlan.price}` : `$${tier.annual}`;
+  const monthlyDisplay = monthlyPlan ? `$${monthlyPlan.price}` : `$${tier.monthly}`;
 
   return (
     <div className="relative">
@@ -210,38 +216,7 @@ function PricingCard({ tier, geo }: { tier: Tier; geo: GeoPricing }) {
   );
 }
 
-export function Pricing() {
-  const [geo, setGeo] = React.useState<GeoPricing>(null);
-  const [country, setCountry] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    // QA override — visiting the page as ?debugCountry=GH forces that
-    // country through the same lookup the real geo header uses, bypassing
-    // it entirely. Read directly off window.location rather than
-    // useSearchParams so this doesn't force the whole (otherwise static)
-    // landing page into a Suspense boundary just for a debug knob.
-    const debugCountry = new URLSearchParams(window.location.search).get("debugCountry");
-    const url = debugCountry
-      ? `/api/pricing-geo?debugCountry=${encodeURIComponent(debugCountry)}`
-      : "/api/pricing-geo";
-
-    fetch(url)
-      .then((r) => r.json())
-      .then(
-        (data: {
-          country: string | null;
-          currency: CurrencyCode | null;
-          tiers: Record<PlanTierKey, TierPricing> | null;
-        }) => {
-          setCountry(data.country);
-          if (data.currency && data.tiers) setGeo({ currency: data.currency, tiers: data.tiers });
-        },
-      )
-      .catch(() => {
-        // Non-critical — falls back to the static USD pricing shown below.
-      });
-  }, []);
-
+export function Pricing({ plans }: { plans: PlansByTier }) {
   return (
     <Section id="pricing" className="bg-sand/30">
       <div className="mx-auto max-w-2xl text-center">
@@ -251,19 +226,12 @@ export function Pricing() {
         <p className="mt-4 text-lg text-muted-foreground">
           Simple pricing with powerful features, cancel anytime.
         </p>
-        {geo && country && (
-          <p className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1.5 text-xs text-success">
-            <MapPin className="size-3.5" />
-            Showing pricing in {geo.currency} for{" "}
-            {new Intl.DisplayNames(["en"], { type: "region" }).of(country) ?? country}
-          </p>
-        )}
       </div>
 
       <div className="mx-auto mt-14 grid max-w-6xl grid-cols-1 items-start gap-8 lg:grid-cols-3">
         {tiers.map((tier, i) => (
           <Reveal key={tier.name} delay={i * 0.1}>
-            <PricingCard tier={tier} geo={geo} />
+            <PricingCard tier={tier} live={plans[tier.tierKey]} />
           </Reveal>
         ))}
       </div>

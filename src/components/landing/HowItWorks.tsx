@@ -13,6 +13,7 @@ type Panel = {
   bg: string;
   url: string;
   dark?: boolean;
+  frame?: boolean;
   heading: string;
   accent: string;
   body: string;
@@ -21,7 +22,8 @@ type Panel = {
 const panels: Panel[] = [
   {
     bg: "bg-white",
-    url: "/dark-appui.png",
+    url: "/yoga-instructor-img1.png",
+    frame: false,
     heading: "Build and price your",
     accent: "class in minutes.",
     body: "Classes, bookable sessions and payments all live on the same page. Set your schedule, drop in photos, price it your way — no site builder, no developer.",
@@ -30,6 +32,7 @@ const panels: Panel[] = [
     bg: "bg-mint",
     url: "/new-flowboc-ui.png",
     dark: false,
+    frame: true,
     heading: "Linktree for",
     accent: "yoga instructors.",
     body: "Post it on Instagram, WhatsApp or your website. No app, no account needed to book. Same link. Everywhere.",
@@ -37,6 +40,7 @@ const panels: Panel[] = [
   {
     bg: "bg-primary",
     dark: true,
+    frame: true,
     heading: "0% transaction fee.",
     url: "/full-analytics-ui.png",
     accent: "Get paid, automatically.",
@@ -89,8 +93,21 @@ function StickyPanel({ panel, index }: { panel: Panel; index: number }) {
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         >
-          <PhoneFrame className="mx-auto w-full sm:max-w-[335px] max-w-[280px] -rotate-[3deg]">
-            <div className="sm:min-h-[670px] min-h-[530px]">
+          {panel.frame ? (
+            <PhoneFrame className="mx-auto w-full sm:max-w-[335px] max-w-[280px] -rotate-[3deg]">
+              <div className="sm:min-h-[670px] min-h-[530px]">
+                <Image
+                  src={panel.url}
+                  alt="Flowboc booking page showing an instructor's profile, a bookable video call and upcoming classes"
+                  fill
+                  sizes="(min-width: 1024px) 240px, (min-width: 640px) 200px, 170px"
+                  priority
+                  className="object-cover object-top"
+                />
+              </div>
+            </PhoneFrame>
+          ) : (
+            <div className="sm:min-h-[670px] min-h-[600px] relative mx-auto w-full sm:max-w-[420px] max-w-[380px] -rotate-[3deg]">
               <Image
                 src={panel.url}
                 alt="Flowboc booking page showing an instructor's profile, a bookable video call and upcoming classes"
@@ -100,7 +117,7 @@ function StickyPanel({ panel, index }: { panel: Panel; index: number }) {
                 className="object-cover object-top"
               />
             </div>
-          </PhoneFrame>
+          )}
         </motion.div>
 
         <motion.div

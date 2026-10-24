@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/db";
 import { requireInstructor } from "@/lib/require-instructor";
-import { payoutProviderForCurrency } from "@/lib/payout";
+import { namesLikelyMatch, payoutProviderForCurrency } from "@/lib/payout";
 import {
   listBanks,
   resolveAccountNumber,
@@ -13,6 +13,7 @@ import {
 } from "@/lib/paystack";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
+type ConnectResult = { ok: true } | { ok: false; error: string; mismatchedAccountName?: string };
 
 function maskLast4(value: string) {
   const digits = value.replace(/\D/g, "");
@@ -68,7 +69,14 @@ export async function connectPayoutAccount(input: {
   bankCode: string;
   bankName: string;
   accountNumber: string; // phone number, for the mobile_money method
-}): Promise<ActionResult> {
+  // Set once the instructor has seen the mismatch warning (see
+  // PayoutConnectForm) and confirmed the account is theirs anyway — e.g. a
+  // married name or a registered business account. Re-checked here rather
+  // than trusted from the client alone since this is the authoritative gate:
+  // it also catches currencies where the client never got to pre-verify
+  // (see supportsAccountResolve).
+  confirmNameMismatch?: boolean;
+}): Promise<ConnectResult> {
   const instructor = await requireInstructor();
 
   if (payoutProviderForCurrency(instructor.currency) !== "PAYSTACK") {
@@ -81,6 +89,18 @@ export async function connectPayoutAccount(input: {
       settlementBank: input.bankCode,
       accountNumber: input.accountNumber,
     });
+
+    if (
+      accountName &&
+      !namesLikelyMatch(instructor.name, accountName) &&
+      !input.confirmNameMismatch
+    ) {
+      return {
+        ok: false,
+        error: `This account is registered to "${accountName}", which doesn't match your profile name (${instructor.name}).`,
+        mismatchedAccountName: accountName,
+      };
+    }
 
     const last4 = maskLast4(input.accountNumber);
     const label = accountName

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import {
   Instagram,
   Share2,
@@ -25,7 +25,7 @@ import {
 import { EmptyState } from "@/components/EmptyState";
 import { Reveal } from "@/components/landing/primitives";
 import { cn } from "@/lib/utils";
-import { money } from "@/lib/demo";
+import { money, type CurrencyCode } from "@/lib/demo";
 import { useIsBrightImage } from "@/lib/use-image-brightness";
 import { toast } from "sonner";
 import {
@@ -37,7 +37,12 @@ import {
   type PublicInstructor,
   type PublicClass,
 } from "@/lib/public-page-layout";
-import { bookVideoCall, joinWaitlist, subscribeToNewsletter } from "./actions";
+import {
+  bookVideoCall,
+  joinWaitlist,
+  subscribeToNewsletter,
+  verifyVideoCallPayment,
+} from "./actions";
 
 export type { PublicInstructor, PublicClass };
 
@@ -239,22 +244,43 @@ function WaitlistDialog({
   );
 }
 
+type VideoCallVerifyState =
+  | { status: "idle" }
+  | { status: "confirming" }
+  | { status: "done"; meetingLink: string }
+  | { status: "error"; message: string };
+
 function BookCallDialog({
   open,
   onOpenChange,
   slug,
   offerTitle,
+  price,
+  currency,
+  verifyState,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   slug: string;
   offerTitle: string;
+  price: number;
+  currency: CurrencyCode;
+  verifyState: VideoCallVerifyState;
 }) {
+  const isPaid = price > 0;
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [website, setWebsite] = useState(""); // honeypot, kept off-screen
   const [pending, setPending] = useState(false);
-  const [meetingLink, setMeetingLink] = useState<string | null>(null);
+  // From a fresh (same-session, free) booking — separate from verifyState's
+  // "done" meetingLink, which comes from the parent confirming a payment
+  // the student returned from Paystack for.
+  const [bookedMeetingLink, setBookedMeetingLink] = useState<string | null>(null);
+
+  const confirming = verifyState.status === "confirming";
+  const meetingLink = verifyState.status === "done" ? verifyState.meetingLink : bookedMeetingLink;
+  const confirmError = verifyState.status === "error" ? verifyState.message : null;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -262,8 +288,14 @@ function BookCallDialog({
     try {
       const result = await bookVideoCall({ slug, name, email, website });
       if (result.ok) {
-        if ("meetingLink" in result) setMeetingLink(result.meetingLink);
-        toast.success("You're booked!");
+        if ("authorizationUrl" in result) {
+          window.location.href = result.authorizationUrl;
+          return; // leaving the page — keep the pending spinner showing
+        }
+        if ("meetingLink" in result) {
+          setBookedMeetingLink(result.meetingLink);
+          toast.success("You're booked!");
+        }
       } else {
         toast.error(result.error);
       }
@@ -280,23 +312,38 @@ function BookCallDialog({
         if (!next) {
           setName("");
           setEmail("");
-          setMeetingLink(null);
+          setBookedMeetingLink(null);
         }
       }}
     >
       <DialogContent className="sm:max-w-md">
-        {meetingLink ? (
+        {confirming ? (
+          <div className="flex flex-col items-center gap-3 py-8 text-center">
+            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Confirming your payment…</p>
+          </div>
+        ) : meetingLink ? (
           <>
             <DialogHeader>
               <DialogTitle>You&apos;re booked</DialogTitle>
               <DialogDescription>
-                We&apos;ve also sent this to your email — {offerTitle}.
+                We&apos;ve emailed you the details for &quot;{offerTitle}&quot;.
               </DialogDescription>
             </DialogHeader>
             <Button asChild variant="clay" className="w-full">
               <a href={meetingLink} target="_blank" rel="noopener noreferrer">
-                Join the call
+                Pick a time
               </a>
+            </Button>
+          </>
+        ) : confirmError ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>Payment not confirmed</DialogTitle>
+              <DialogDescription>{confirmError}</DialogDescription>
+            </DialogHeader>
+            <Button variant="quiet" className="w-full" onClick={() => onOpenChange(false)}>
+              Close
             </Button>
           </>
         ) : (
@@ -304,7 +351,9 @@ function BookCallDialog({
             <DialogHeader>
               <DialogTitle>Find a time</DialogTitle>
               <DialogDescription>
-                We&apos;ll email you the meeting link for &quot;{offerTitle}&quot; right away.
+                {isPaid
+                  ? `We'll email you a link to pick a time for "${offerTitle}" as soon as your payment of ${money(price, currency)} goes through.`
+                  : `We'll email you a link to pick a time for "${offerTitle}" right away.`}
               </DialogDescription>
             </DialogHeader>
             <form className="space-y-4" onSubmit={(e) => void handleSubmit(e)}>
@@ -342,8 +391,11 @@ function BookCallDialog({
               <Button type="submit" variant="clay" className="w-full" disabled={pending}>
                 {pending ? (
                   <>
-                    <Loader2 className="size-4 animate-spin" /> Booking…
+                    <Loader2 className="size-4 animate-spin" />
+                    {isPaid ? "Redirecting…" : "Booking…"}
                   </>
+                ) : isPaid ? (
+                  `Continue to payment — ${money(price, currency)}`
                 ) : (
                   "Confirm"
                 )}
@@ -358,11 +410,37 @@ function BookCallDialog({
 
 function VideoCallCard({ instructor }: { instructor: PublicInstructor }) {
   const [open, setOpen] = useState(false);
+  const [verifyState, setVerifyState] = useState<VideoCallVerifyState>({ status: "idle" });
+
+  // Paystack appends ?reference= to the callback URL on a completed
+  // checkout — auto-reopen the dialog and verify the payment, rather than
+  // leaving the student back on the page with no feedback. Owned entirely
+  // here (read URL + call verifyVideoCallPayment + hold the result) so
+  // there's a single effect doing it, not split across this component and
+  // the dialog — that split previously raced: the dialog's own mount-effect
+  // ran before this effect had set the reference, so the verify call never
+  // actually fired.
+  useEffect(() => {
+    const reference = new URLSearchParams(window.location.search).get("reference");
+    if (!reference) return;
+    setOpen(true);
+    setVerifyState({ status: "confirming" });
+    void verifyVideoCallPayment(reference).then((result) => {
+      setVerifyState(
+        result.ok
+          ? { status: "done", meetingLink: result.meetingLink }
+          : { status: "error", message: result.error },
+      );
+    });
+    // Only ever check once, on mount.
+  }, []);
 
   if (!instructor.videoCallEnabled || !instructor.consultationLink) return null;
 
   const title = instructor.videoCallTitle || "Book a Video Call with Me";
-  const isPaid = (instructor.videoCallPrice ?? 0) > 0;
+  const price = instructor.videoCallPrice ?? 0;
+  const isPaid = price > 0;
+  const canBook = !isPaid || instructor.payoutConnected;
 
   return (
     <Reveal>
@@ -382,7 +460,7 @@ function VideoCallCard({ instructor }: { instructor: PublicInstructor }) {
                 </p>
               )}
               <p className="mt-1 text-lg font-semibold" style={{ color: "var(--theme)" }}>
-                {isPaid ? money(instructor.videoCallPrice!, instructor.currency) : "FREE"}
+                {isPaid ? money(price, instructor.currency) : "FREE"}
               </p>
             </div>
           </div>
@@ -399,7 +477,7 @@ function VideoCallCard({ instructor }: { instructor: PublicInstructor }) {
                 </p>
               )}
               <p className="mt-1 text-base font-semibold" style={{ color: "var(--theme)" }}>
-                {isPaid ? money(instructor.videoCallPrice!, instructor.currency) : "FREE"}
+                {isPaid ? money(price, instructor.currency) : "FREE"}
               </p>
             </div>
           </div>
@@ -407,18 +485,24 @@ function VideoCallCard({ instructor }: { instructor: PublicInstructor }) {
 
         <div className="mt-4">
           <div className="w-full flex items-end justify-end space-y-2">
-            {isPaid ? (
-              <Button variant="quiet" size="sm" disabled className="shrink-0">
-                Coming soon
-              </Button>
-            ) : (
+            {canBook ? (
               <Button
                 // size="sm"
                 className="relative flex items-center gap-2 py-5 rounded-sm shrink-0 bg-(--theme) text-white hover:bg-(--theme) w-full sm:px-20 px-10"
-                onClick={() => setOpen(true)}
+                onClick={() => {
+                  // A fresh manual click shouldn't inherit a stale
+                  // confirming/error/done state left over from an earlier
+                  // ?reference= check.
+                  setVerifyState({ status: "idle" });
+                  setOpen(true);
+                }}
               >
                 <span className="font-extrabold absolute left-4">FIND A TIME</span>{" "}
                 <ArrowRight className="size-4 absolute right-4" />
+              </Button>
+            ) : (
+              <Button variant="quiet" size="sm" disabled className="shrink-0">
+                Coming soon
               </Button>
             )}
           </div>
@@ -429,6 +513,9 @@ function VideoCallCard({ instructor }: { instructor: PublicInstructor }) {
         onOpenChange={setOpen}
         slug={instructor.slug}
         offerTitle={title}
+        price={price}
+        currency={instructor.currency}
+        verifyState={verifyState}
       />
     </Reveal>
   );

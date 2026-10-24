@@ -23,7 +23,9 @@ model User {
   name  String?
   role  Role    @default(USER)
 
-  hashedPassword String
+  // Null for accounts created via Google sign-in that have never set a
+  // password — see the Google branch of the jwt callback in src/lib/auth.ts.
+  hashedPassword String?
 
   emailVerifiedAt DateTime?
   termsAcceptedAt DateTime?
@@ -555,6 +557,19 @@ model VideoCallBooking {
 
   studentName  String
   studentEmail String
+
+  // Null for both for the (common) free case — kept null rather than 0 so
+  // "was this ever a paid offer" isn't ambiguous. Mirrors Booking's
+  // amount/currency/paystackReference/paystackFee fields and the same
+  // Paystack checkout flow (see initiateVideoCallPayment in
+  // src/app/[slug]/actions.ts).
+  amount        Int?
+  currency      CurrencyCode?
+  // Defaults PAID since every row created before this field existed was a
+  // free call, already confirmed and emailed at creation time.
+  paymentStatus PaymentStatus @default(PAID)
+  paystackReference String?   @unique
+  paystackFee       Float?
 
   createdAt DateTime @default(now())
 

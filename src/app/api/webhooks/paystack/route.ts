@@ -3,6 +3,8 @@ import { getPostHogLogger, loggerProvider, SeverityNumber } from "@/instrumentat
 import { prisma } from "@/lib/db";
 import { recordFirstPaidBookingMilestone } from "@/lib/admin-activity";
 import { verifyWebhookSignature } from "@/lib/paystack";
+import { finalizeVideoCallPayment } from "@/lib/video-call-booking";
+import { finalizeClassBookingPayment } from "@/lib/class-booking";
 
 const posthogLogger = getPostHogLogger();
 
@@ -58,17 +60,30 @@ export async function POST(request: Request): Promise<NextResponse> {
           : null;
 
         if (booking && booking.paymentStatus !== "PAID") {
-          await prisma.booking.update({
-            where: { id: booking.id },
-            data: {
-              paymentStatus: "PAID",
-              paystackFee: event.data.fees != null ? event.data.fees / 100 : null,
-            },
+          await finalizeClassBookingPayment({
+            bookingId: booking.id,
+            paystackFee: event.data.fees != null ? event.data.fees / 100 : null,
           });
           paymentUpdated = true;
           await recordFirstPaidBookingMilestone(booking.instructorId).catch((err: unknown) =>
             console.error("Failed to record first-booking milestone:", err),
           );
+        }
+
+        // Class bookings and video call bookings share one reference
+        // namespace (both come from initializeTransaction), so only one of
+        // these two lookups ever matches a given reference.
+        if (!booking && event.data.reference) {
+          const videoCallBooking = await prisma.videoCallBooking.findUnique({
+            where: { paystackReference: event.data.reference },
+          });
+          if (videoCallBooking && videoCallBooking.paymentStatus !== "PAID") {
+            const result = await finalizeVideoCallPayment({
+              bookingId: videoCallBooking.id,
+              paystackFee: event.data.fees != null ? event.data.fees / 100 : null,
+            });
+            paymentUpdated = result !== null;
+          }
         }
 
         posthogLogger?.emit({

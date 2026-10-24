@@ -69,27 +69,50 @@ export async function getDashboardStats(instructorId: string): Promise<Dashboard
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [revenue, upcomingClasses, totalBookings, students] = await Promise.all([
+  const [
+    classRevenue,
+    videoCallRevenue,
+    upcomingClasses,
+    totalClassBookings,
+    totalVideoCallBookings,
+    classStudents,
+    videoCallStudents,
+  ] = await Promise.all([
     prisma.booking.aggregate({
       where: { instructorId, paymentStatus: "PAID", bookedAt: { gte: startOfMonth } },
+      _sum: { amount: true },
+    }),
+    prisma.videoCallBooking.aggregate({
+      where: { instructorId, paymentStatus: "PAID", createdAt: { gte: startOfMonth } },
       _sum: { amount: true },
     }),
     prisma.yogaClass.count({
       where: { instructorId, status: { in: ["PUBLISHED", "FULL"] }, startAt: { gte: now } },
     }),
     prisma.booking.count({ where: { instructorId, status: "CONFIRMED" } }),
+    prisma.videoCallBooking.count({ where: { instructorId } }),
     prisma.booking.findMany({
       where: { instructorId, status: "CONFIRMED" },
       select: { studentEmail: true },
       distinct: ["studentEmail"],
     }),
+    prisma.videoCallBooking.findMany({
+      where: { instructorId },
+      select: { studentEmail: true },
+      distinct: ["studentEmail"],
+    }),
+  ]);
+
+  const uniqueStudentEmails = new Set([
+    ...classStudents.map((s) => s.studentEmail),
+    ...videoCallStudents.map((s) => s.studentEmail),
   ]);
 
   return {
-    revenueThisMonth: revenue._sum.amount ?? 0,
+    revenueThisMonth: (classRevenue._sum.amount ?? 0) + (videoCallRevenue._sum.amount ?? 0),
     upcomingClasses,
-    totalBookings,
-    totalStudents: students.length,
+    totalBookings: totalClassBookings + totalVideoCallBookings,
+    totalStudents: uniqueStudentEmails.size,
   };
 }
 
@@ -152,19 +175,42 @@ export type RecentBooking = {
 };
 
 export async function getRecentBookings(instructorId: string, limit = 5): Promise<RecentBooking[]> {
-  const bookings = await prisma.booking.findMany({
-    where: { instructorId },
-    include: { class: { select: { name: true } } },
-    orderBy: { bookedAt: "desc" },
-    take: limit,
-  });
+  const [bookings, videoCallBookings] = await Promise.all([
+    prisma.booking.findMany({
+      where: { instructorId },
+      include: { class: { select: { name: true } } },
+      orderBy: { bookedAt: "desc" },
+      take: limit,
+    }),
+    prisma.videoCallBooking.findMany({
+      where: { instructorId },
+      include: { instructor: { select: { videoCallTitle: true } } },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    }),
+  ]);
 
-  return bookings.map((b) => ({
-    id: b.id,
-    studentName: b.studentName,
-    className: b.class.name,
-    bookedAt: b.bookedAt,
-    paymentStatus: b.paymentStatus,
-    amount: b.amount,
-  }));
+  // Each source only contributes its own most-recent `limit` rows, but the
+  // merged+sorted+truncated result is still correctly the overall top
+  // `limit` across both — standard top-N merge.
+  const combined: RecentBooking[] = [
+    ...bookings.map((b) => ({
+      id: b.id,
+      studentName: b.studentName,
+      className: b.class.name,
+      bookedAt: b.bookedAt,
+      paymentStatus: b.paymentStatus,
+      amount: b.amount,
+    })),
+    ...videoCallBookings.map((v) => ({
+      id: v.id,
+      studentName: v.studentName,
+      className: v.instructor.videoCallTitle || "Video call",
+      bookedAt: v.createdAt,
+      paymentStatus: v.paymentStatus,
+      amount: v.amount ?? 0,
+    })),
+  ];
+
+  return combined.sort((a, b) => b.bookedAt.getTime() - a.bookedAt.getTime()).slice(0, limit);
 }

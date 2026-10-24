@@ -17,8 +17,9 @@ export async function getWeeklyMetrics(instructorId: string): Promise<WeeklyMetr
     weekStartsOn: 1,
   });
 
-  const [revenueRows, bookingRows, viewRows] = await Promise.all([
-    prisma.$queryRaw<{ week: Date; revenue: bigint | null }[]>`
+  const [revenueRows, bookingRows, videoCallRevenueRows, videoCallBookingRows, viewRows] =
+    await Promise.all([
+      prisma.$queryRaw<{ week: Date; revenue: bigint | null }[]>`
       SELECT date_trunc('week', "bookedAt") as week, SUM("amount")::bigint as revenue
       FROM "Booking"
       WHERE "instructorId" = ${instructorId}
@@ -26,25 +27,49 @@ export async function getWeeklyMetrics(instructorId: string): Promise<WeeklyMetr
         AND "bookedAt" >= ${earliestWeekStart}
       GROUP BY week
     `,
-    prisma.$queryRaw<{ week: Date; count: bigint }[]>`
+      prisma.$queryRaw<{ week: Date; count: bigint }[]>`
       SELECT date_trunc('week', "bookedAt") as week, COUNT(*)::bigint as count
       FROM "Booking"
       WHERE "instructorId" = ${instructorId}
         AND "bookedAt" >= ${earliestWeekStart}
       GROUP BY week
     `,
-    prisma.$queryRaw<{ week: Date; count: bigint }[]>`
+      prisma.$queryRaw<{ week: Date; revenue: bigint | null }[]>`
+      SELECT date_trunc('week', "createdAt") as week, SUM("amount")::bigint as revenue
+      FROM "VideoCallBooking"
+      WHERE "instructorId" = ${instructorId}
+        AND "paymentStatus" = 'PAID'
+        AND "createdAt" >= ${earliestWeekStart}
+      GROUP BY week
+    `,
+      prisma.$queryRaw<{ week: Date; count: bigint }[]>`
+      SELECT date_trunc('week', "createdAt") as week, COUNT(*)::bigint as count
+      FROM "VideoCallBooking"
+      WHERE "instructorId" = ${instructorId}
+        AND "createdAt" >= ${earliestWeekStart}
+      GROUP BY week
+    `,
+      prisma.$queryRaw<{ week: Date; count: bigint }[]>`
       SELECT date_trunc('week', "createdAt") as week, COUNT(*)::bigint as count
       FROM "PageView"
       WHERE "instructorId" = ${instructorId}
         AND "createdAt" >= ${earliestWeekStart}
       GROUP BY week
     `,
-  ]);
+    ]);
 
   const revenueByWeek = new Map(revenueRows.map((r) => [weekKey(r.week), Number(r.revenue ?? 0)]));
   const bookingsByWeek = new Map(bookingRows.map((r) => [weekKey(r.week), Number(r.count)]));
   const viewsByWeek = new Map(viewRows.map((r) => [weekKey(r.week), Number(r.count)]));
+
+  for (const r of videoCallRevenueRows) {
+    const key = weekKey(r.week);
+    revenueByWeek.set(key, (revenueByWeek.get(key) ?? 0) + Number(r.revenue ?? 0));
+  }
+  for (const r of videoCallBookingRows) {
+    const key = weekKey(r.week);
+    bookingsByWeek.set(key, (bookingsByWeek.get(key) ?? 0) + Number(r.count));
+  }
 
   const weeks: WeeklyMetric[] = [];
   for (let i = WEEKS_OF_HISTORY - 1; i >= 0; i--) {

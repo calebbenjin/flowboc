@@ -59,7 +59,7 @@ function UserMenu({ compact = false }: { compact?: boolean }) {
     ) {
       posthog.reset();
     }
-    void signOut({ callbackUrl: "/auth" });
+    void signOut({ callbackUrl: "/auth?mode=login" });
   }
 
   const initials = instructor.name

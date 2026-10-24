@@ -36,6 +36,10 @@ export type PublicInstructor = {
   videoCallDescription: string | null;
   videoCallImageUrl: string | null;
   videoCallPrice: number | null;
+  // Whether this instructor can actually receive a Paystack charge — a
+  // priced video call stays "Coming soon" on the public page until this is
+  // true, rather than letting a student fill out the form and hit a dead end.
+  payoutConnected: boolean;
   socials: { platform: string; handle: string }[];
   links: { id: string; label: string; url: string }[];
 };

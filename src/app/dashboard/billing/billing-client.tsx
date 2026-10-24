@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, Clock, Loader2, XCircle } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, Clock, Loader2, Star, XCircle } from "lucide-react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { Button } from "@/components/ui/button";
 import { useInstructor } from "@/components/InstructorProvider";
@@ -23,6 +23,16 @@ const TIER_LABEL: Record<PlanTier, string> = {
   STARTER: "Starter",
   PRO: "Pro",
   PREMIUM: "Premium",
+};
+
+// Short, dashboard-sized version of the feature lists on the public pricing
+// page (src/components/landing/Pricing.tsx) — same value props, trimmed to
+// fit a compact card rather than a full marketing section.
+const TIER_RECOMMENDED: Partial<Record<PlanTier, true>> = { PRO: true };
+const TIER_FEATURES: Record<PlanTier, string[]> = {
+  STARTER: ["Personalized booking page", "Unlimited classes", "Online payments"],
+  PRO: ["0% transaction fees", "Sell and earn from classes", "Recurring classes", "Newsletter"],
+  PREMIUM: ["Memberships & subscriptions", "Merchandise & kits", "Priority support"],
 };
 
 // Set in sessionStorage right before redirecting to Startbutton's hosted
@@ -58,6 +68,15 @@ export function BillingClient({
   const selectedPlan = tierPlans[interval];
   const isCurrentPlan =
     isActive && instructor.planTier === tier && instructor.billingInterval === interval;
+
+  // Shown as a "Save X%" badge on the Annual toggle for the selected tier —
+  // purely informational, doesn't affect which plan ends up selected.
+  const annualSavingsPct = (() => {
+    const m = tierPlans.MONTHLY?.price;
+    const a = tierPlans.ANNUAL?.price;
+    if (!m || !a || a >= m) return null;
+    return Math.round((1 - a / m) * 100);
+  })();
 
   // Poll briefly for the Startbutton webhook to land rather than leave the
   // page showing a stale state after a checkout redirect back. Compares
@@ -163,54 +182,97 @@ export function BillingClient({
             instructor.compedUntil !== null &&
             instructor.compedUntil.getTime() < Date.now())) && (
           <div className="mt-6 border-t border-border pt-6">
-            {isActive && <p className="mb-3 text-sm font-medium">Change plan</p>}
-            <div className="flex gap-2">
-              {TIERS.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setTier(t)}
-                  className={cn(
-                    "flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
-                    tier === t
-                      ? "border-clay bg-clay/5 text-clay"
-                      : "border-border text-muted-foreground hover:bg-accent",
-                  )}
-                >
-                  {TIER_LABEL[t]}
-                </button>
-              ))}
+            {isActive && <p className="mb-4 text-sm font-medium">Change plan</p>}
+
+            <div className="flex justify-center">
+              <div className="inline-flex rounded-lg border border-border bg-secondary/40 p-1">
+                {(["MONTHLY", "ANNUAL"] as const).map((i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setInterval(i)}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
+                      interval === i
+                        ? "bg-clay text-clay-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {i === "MONTHLY" ? "Monthly" : "Annual"}
+                    {i === "ANNUAL" && annualSavingsPct ? (
+                      <span
+                        className={cn(
+                          "rounded-full px-1.5 py-0.5 text-[0.65rem] font-semibold",
+                          interval === "ANNUAL"
+                            ? "bg-white/20 text-clay-foreground"
+                            : "bg-success/15 text-success",
+                        )}
+                      >
+                        Save {annualSavingsPct}%
+                      </span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-4 sm:grid-cols-3">
+              {TIERS.map((t) => {
+                const plan = plans[t][interval];
+                const selected = tier === t;
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setTier(t)}
+                    className={cn(
+                      "relative flex flex-col rounded-xl border p-5 text-left transition-colors",
+                      selected
+                        ? "border-2 border-clay bg-clay/5"
+                        : "border-border hover:border-clay/40",
+                    )}
+                  >
+                    {TIER_RECOMMENDED[t] && (
+                      <span className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full border border-clay bg-card px-2.5 py-0.5 text-[0.65rem] font-bold text-clay shadow-sm">
+                        <Star className="size-3 fill-current" /> Recommended
+                      </span>
+                    )}
+                    <p className="font-semibold">{TIER_LABEL[t]}</p>
+                    <p className="mt-2">
+                      {plan ? (
+                        <>
+                          <span className="text-2xl font-extrabold">
+                            {money(plan.price, "USD")}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            /{interval === "MONTHLY" ? "mo" : "yr"}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Unavailable</span>
+                      )}
+                    </p>
+                    <ul className="mt-3 space-y-1.5">
+                      {TIER_FEATURES[t].map((f) => (
+                        <li
+                          key={f}
+                          className="flex items-start gap-1.5 text-xs text-muted-foreground"
+                        >
+                          <Check className="mt-0.5 size-3 shrink-0 text-clay" />
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+                  </button>
+                );
+              })}
             </div>
 
             {tierPlans.MONTHLY || tierPlans.ANNUAL ? (
               <>
-                <div className="mt-3 flex gap-2">
-                  {(["MONTHLY", "ANNUAL"] as const).map((i) => {
-                    const plan = tierPlans[i];
-                    return (
-                      <button
-                        key={i}
-                        type="button"
-                        disabled={!plan}
-                        onClick={() => setInterval(i)}
-                        className={cn(
-                          "flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
-                          interval === i
-                            ? "border-clay bg-clay/5 text-clay"
-                            : "border-border text-muted-foreground hover:bg-accent",
-                        )}
-                      >
-                        {plan
-                          ? `${i === "MONTHLY" ? "Monthly" : "Annual"} — ${money(plan.price, instructor.currency)}/${i === "MONTHLY" ? "mo" : "yr"}`
-                          : `${i === "MONTHLY" ? "Monthly" : "Annual"} — unavailable`}
-                      </button>
-                    );
-                  })}
-                </div>
-
                 <Button
                   variant="clay"
-                  className="mt-4 w-full sm:w-auto"
+                  className="mt-6 w-full sm:w-auto"
                   disabled={!selectedPlan || starting || isCurrentPlan}
                   onClick={() => void handleSubscribe()}
                 >
@@ -235,8 +297,8 @@ export function BillingClient({
                 </p>
               </>
             ) : (
-              <p className="mt-3 text-sm text-muted-foreground">
-                {TIER_LABEL[tier]} isn&apos;t available in {instructor.currency} yet.
+              <p className="mt-6 text-sm text-muted-foreground">
+                {TIER_LABEL[tier]} isn&apos;t available yet.
               </p>
             )}
           </div>

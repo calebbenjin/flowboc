@@ -26,7 +26,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
     ) {
       posthog.reset();
     }
-    void signOut({ callbackUrl: "/auth" });
+    void signOut({ callbackUrl: "/auth?mode=login" });
   }
 
   return (
