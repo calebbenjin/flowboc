@@ -44,6 +44,10 @@ export function AuthClient() {
   const refParam = searchParams.get("ref");
   const resetToken = searchParams.get("token");
   const modeParam = searchParams.get("mode");
+  // Typed into the "claim your Flowboc" sheet on a public booking page (see
+  // ClaimSheet in [slug]/public-page-client.tsx) — carried through signup
+  // the same way ref/plan are, then used as onboarding's suggested slug.
+  const slugParam = searchParams.get("slug");
   // Pricing-page CTAs link here as ?plan=starter|pro|premium so the tier
   // picked on the marketing site carries through to the Instructor row
   // onboarding creates (see pendingPlanTier on User).
@@ -131,6 +135,7 @@ export function AuthClient() {
     const onboardingParams = new URLSearchParams();
     if (referralCode.trim()) onboardingParams.set("ref", referralCode.trim());
     if (validPlan) onboardingParams.set("plan", validPlan);
+    if (slugParam?.trim()) onboardingParams.set("slug", slugParam.trim());
     const query = onboardingParams.toString();
 
     setGooglePending(true);
@@ -161,7 +166,12 @@ export function AuthClient() {
       return;
     }
     if (!signInOutcome.value?.error) markDeviceAuthed();
-    router.push(signInOutcome.value?.error ? "/auth" : "/onboarding");
+    if (signInOutcome.value?.error) {
+      router.push("/auth");
+    } else {
+      const query = slugParam?.trim() ? `?slug=${encodeURIComponent(slugParam.trim())}` : "";
+      router.push(`/onboarding${query}`);
+    }
   }
 
   async function handleResend() {
