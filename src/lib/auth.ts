@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import type { Role } from "@/generated/prisma/enums";
@@ -21,7 +22,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const user = await prisma.user.findUnique({
           where: { email: email.trim().toLowerCase() },
         });
-        if (!user || !user.emailVerifiedAt) return null;
+        // No hashedPassword means this account was created via Google
+        // sign-in and never set a password.
+        if (!user || !user.emailVerifiedAt || !user.hashedPassword) return null;
 
         const passwordMatches = await bcrypt.compare(password, user.hashedPassword);
         if (!passwordMatches) return null;
@@ -29,9 +32,39 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return { id: user.id, email: user.email, name: user.name, role: user.role };
       },
     }),
+    Google,
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
+      // Google already verifies the email, so this skips the OTP flow
+      // entirely — find-or-create the User row directly rather than going
+      // through src/app/auth/actions.ts's signUp/verifyOtp pair.
+      if (account?.provider === "google") {
+        const email = user?.email?.trim().toLowerCase();
+        if (!email) return token;
+
+        const existing = await prisma.user.findUnique({ where: { email } });
+        const dbUser = existing
+          ? existing.emailVerifiedAt
+            ? existing
+            : await prisma.user.update({
+                where: { id: existing.id },
+                data: { emailVerifiedAt: new Date() },
+              })
+          : await prisma.user.create({
+              data: {
+                email,
+                name: user?.name ?? email,
+                emailVerifiedAt: new Date(),
+                termsAcceptedAt: new Date(),
+              },
+            });
+
+        token["userId"] = dbUser.id;
+        token["role"] = dbUser.role;
+        return token;
+      }
+
       if (user?.id) token["userId"] = user.id;
       if (user && "role" in user) token["role"] = user.role;
       return token;

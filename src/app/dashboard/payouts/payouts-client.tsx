@@ -41,7 +41,11 @@ function ConnectDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <PayoutConnectForm currency={instructor.currency} onConnected={onConnected} />
+        <PayoutConnectForm
+          currency={instructor.currency}
+          instructorName={instructor.name}
+          onConnected={onConnected}
+        />
       </DialogContent>
     </Dialog>
   );

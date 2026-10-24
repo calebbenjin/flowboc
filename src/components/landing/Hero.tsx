@@ -10,7 +10,7 @@ export function Hero() {
   return (
     <section
       id="top"
-      className="relative overflow-hidden px-5 pb-12 pt-14 sm:px-8 lg:pb-30 lg:pt-6 bg-primary"
+      className="relative overflow-hidden px-5 pb-12 pt-14 sm:px-8 lg:pb-30 lg:pt-26 bg-primary"
     >
       <div className="mx-auto w-full">
         <div className="relative mx-auto max-w-6xl flex flex-col items-center justify-between lg:justify-between gap-10 lg:flex-row lg:items-center lg:gap-12">
@@ -46,25 +46,15 @@ export function Hero() {
           </div>
 
           {/* Desktop */}
-          <div className="sm:flex hidden w-full max-w-42 shrink-0 sm:max-w-80 lg:w-full mr-auto relative">
-            <div className="relative w-full h-85 sm:h-175 lg:h-165">
-              <Image
-                src="/phone-img.png"
-                alt="Flowboc booking page shown on a phone, with upcoming classes and a book class button"
-                width={693}
-                height={1451}
-                priority
-                className="h-auto w-full drop-shadow-2xl absolute top-1 lg:left-20 left-30"
-              />
-              <Image
-                src="/phone-img.png"
-                alt="Flowboc booking page shown on a phone, with upcoming classes and a book class button"
-                width={693}
-                height={1451}
-                priority
-                className="h-auto w-full drop-shadow-2xl absolute top-1/12 lg:-left-12 left-20"
-              />
-            </div>
+          <div className=" w-full max-w-sm shrink-0 sm:max-w-md lg:max-w-lg lg:w-full mr-auto relative justify-end">
+            <Image
+              src="/yoga-instructor-img2.png"
+              alt="Flowboc booking page shown on a phone, with upcoming classes and a book class button"
+              width={693}
+              height={1451}
+              priority
+              className="h-auto w-full drop-shadow-2xl"
+            />
           </div>
         </div>
       </div>

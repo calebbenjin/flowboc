@@ -53,6 +53,7 @@ export function OnboardingClient({ defaults }: { defaults: Defaults }) {
   }>({ checking: false, message: null, ok: true });
   const [currency, setCurrency] = useState<CurrencyCode>(defaults.currency);
   const [picked, setPicked] = useState<string[]>(defaults.specialties);
+  const [instructorName, setInstructorName] = useState(defaults.name);
   const [profilePending, setProfilePending] = useState(false);
   const [skipPending, setSkipPending] = useState(false);
 
@@ -77,11 +78,12 @@ export function OnboardingClient({ defaults }: { defaults: Defaults }) {
   async function handleProfileSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    const name = String(formData.get("name") ?? "");
 
     setProfilePending(true);
     try {
       const result = await saveProfile({
-        name: String(formData.get("name") ?? ""),
+        name,
         location: String(formData.get("location") ?? ""),
         bio: String(formData.get("bio") ?? ""),
         phone: String(formData.get("phone") ?? ""),
@@ -92,6 +94,7 @@ export function OnboardingClient({ defaults }: { defaults: Defaults }) {
       });
       if (result.ok) {
         toast.success("Profile saved");
+        setInstructorName(name);
         setStep("payout");
       } else {
         toast.error(result.error);
@@ -190,6 +193,7 @@ export function OnboardingClient({ defaults }: { defaults: Defaults }) {
             {provider === "PAYSTACK" ? (
               <PayoutConnectForm
                 currency={currency}
+                instructorName={instructorName}
                 connectLabel={`Connect with ${providerInfo.name}`}
                 onConnected={() => void finishOnboarding()}
               />

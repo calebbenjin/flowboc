@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { slugify } from "@/lib/slug";
+import { referralCodeExists } from "@/lib/referral-code";
 import { OnboardingClient } from "./onboarding-client";
+import type { PlanTier } from "@/generated/prisma/enums";
 
 export const metadata: Metadata = {
   title: "Set up your instructor profile — Flowboc",
@@ -28,19 +30,58 @@ async function suggestSlug(seed: string, currentUserId: string): Promise<string>
   }
 }
 
-export default async function OnboardingPage() {
+export default async function OnboardingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ref?: string; plan?: string }>;
+}) {
   const session = await auth();
   if (!session?.user?.id) {
     redirect("/auth");
   }
 
-  const [user, instructor] = await Promise.all([
+  const [initialUser, instructor] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: session.user.id } }),
     prisma.instructor.findUnique({
       where: { userId: session.user.id },
       include: { socials: true },
     }),
   ]);
+  let user = initialUser;
+
+  // Already finished onboarding — don't re-show step 1. Needed because
+  // Google sign-in's redirectTo always points here (see handleGoogleSignIn
+  // in auth-client.tsx), since it can't tell in advance whether this will
+  // be a brand-new signup or a returning user signing back in.
+  if (instructor?.onboardingCompletedAt) {
+    redirect("/dashboard");
+  }
+
+  // Google sign-in has no equivalent of the credentials signUp() call to
+  // attach these to — it lands here directly instead, so pick them up from
+  // the query string signIn("google", { redirectTo }) carried through (see
+  // handleGoogleSignIn in auth-client.tsx). Only relevant pre-onboarding;
+  // harmless no-op once an Instructor already exists.
+  if (!instructor) {
+    const { ref, plan } = await searchParams;
+    const planTier = plan?.toUpperCase();
+    const validPlan: PlanTier | undefined =
+      planTier === "STARTER" || planTier === "PRO" || planTier === "PREMIUM" ? planTier : undefined;
+    const referralCode = ref?.trim() || null;
+    const validReferral = referralCode && (await referralCodeExists(referralCode));
+
+    if ((validReferral && !user.pendingReferralCode) || (validPlan && !user.pendingPlanTier)) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          ...(validReferral && !user.pendingReferralCode
+            ? { pendingReferralCode: referralCode }
+            : {}),
+          ...(validPlan && !user.pendingPlanTier ? { pendingPlanTier: validPlan } : {}),
+        },
+      });
+    }
+  }
 
   const defaultSlug =
     instructor?.slug ?? (await suggestSlug(user.name || user.email, session.user.id));

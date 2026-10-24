@@ -25,7 +25,11 @@ export async function GET(
     include: { class: { include: { instructor: { select: { name: true } } } } },
   });
 
-  if (!booking || booking.status !== "CONFIRMED") {
+  // paymentStatus, not just status — a PENDING (unpaid) booking is already
+  // CONFIRMED at reservation time (see createBookingIntent), and its
+  // LOCATION line below is the real meeting link for an online class.
+  // Serving that before payment clears defeats the point of gating it.
+  if (!booking || booking.status !== "CONFIRMED" || booking.paymentStatus !== "PAID") {
     return NextResponse.json({ error: "Booking not found" }, { status: 404 });
   }
 

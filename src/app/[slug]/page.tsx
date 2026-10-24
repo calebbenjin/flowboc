@@ -95,6 +95,7 @@ export default async function PublicPage({ params }: { params: Promise<{ slug: s
           videoCallDescription: instructor.videoCallDescription,
           videoCallImageUrl: instructor.videoCallImageUrl,
           videoCallPrice: instructor.videoCallPrice,
+          payoutConnected: instructor.payoutStatus === "CONNECTED" && !!instructor.payoutAccountId,
           socials: instructor.socials.map((s) => ({
             platform: s.platform.toLowerCase(),
             handle: s.handle,

@@ -8,7 +8,6 @@ import { getSession, signIn } from "next-auth/react";
 import { toast } from "sonner";
 import { Check, Eye, EyeOff, Loader2, MailCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
@@ -61,7 +60,7 @@ export function AuthClient() {
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [referralCode, setReferralCode] = useState(refParam ?? "");
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [googlePending, setGooglePending] = useState(false);
   const action = usePendingAction();
   const resendAction = usePendingAction();
 
@@ -78,11 +77,6 @@ export function AuthClient() {
     setEmail(emailValue);
     setPassword(passwordValue);
 
-    if (mode === "signup" && !acceptedTerms) {
-      toast.error("Please accept the Terms of Service and Privacy Policy.");
-      return;
-    }
-
     if (mode === "signup") {
       const nameValue = String(formData.get("name") ?? "");
       const referralValue = String(formData.get("referralCode") ?? "");
@@ -91,7 +85,9 @@ export function AuthClient() {
           name: nameValue,
           email: emailValue,
           password: passwordValue,
-          acceptedTerms,
+          // Consent is now implicit — see the "By continuing..." disclaimer
+          // above the signup form instead of a checkbox.
+          acceptedTerms: true,
           referralCode: referralValue,
           ...(validPlan ? { planTier: validPlan } : {}),
         }),
@@ -124,6 +120,22 @@ export function AuthClient() {
       const session = await getSession();
       router.push(session?.user?.role === "ADMIN" ? "/admin" : "/dashboard");
     }
+  }
+
+  async function handleGoogleSignIn() {
+    // Google already verifies the email, so there's no OTP step to land on
+    // — go straight to onboarding, carrying the referral code / pricing-page
+    // plan tier through the redirect the same way the credentials signup
+    // form carries them via signUp()'s arguments (see onboarding/page.tsx,
+    // which reads these and attaches them to the User row before render).
+    const onboardingParams = new URLSearchParams();
+    if (referralCode.trim()) onboardingParams.set("ref", referralCode.trim());
+    if (validPlan) onboardingParams.set("plan", validPlan);
+    const query = onboardingParams.toString();
+
+    setGooglePending(true);
+    markDeviceAuthed();
+    await signIn("google", { redirectTo: `/onboarding${query ? `?${query}` : ""}` });
   }
 
   async function handleVerify(e: FormEvent<HTMLFormElement>) {
@@ -421,6 +433,42 @@ export function AuthClient() {
                 </p>
               ) : null}
 
+              {mode === "signup" && (
+                <p className="mt-4 text-xs text-muted-foreground">
+                  By continuing, you agree to Flowboc&apos;s{" "}
+                  <Link href="/terms" target="_blank" className="underline underline-offset-4">
+                    Terms of Service
+                  </Link>{" "}
+                  and{" "}
+                  <Link href="/privacy" target="_blank" className="underline underline-offset-4">
+                    Privacy Policy
+                  </Link>
+                  , including how your bookings and payouts are handled.
+                </p>
+              )}
+
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                className="mt-6 w-full"
+                disabled={googlePending}
+                onClick={() => void handleGoogleSignIn()}
+              >
+                {googlePending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Image src="/google-logo.svg" width={18} height={18} alt="" />
+                )}
+                Continue with Google
+              </Button>
+
+              <div className="mt-6 flex items-center gap-3">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-xs text-muted-foreground">or</span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+
               <form className="mt-6 space-y-4" onSubmit={handleAuthSubmit}>
                 {mode === "signup" && (
                   <div className="space-y-2">
@@ -456,37 +504,12 @@ export function AuthClient() {
                     />
                   </div>
                 )}
-                {mode === "signup" && (
-                  <div className="flex items-start gap-2">
-                    <Checkbox
-                      id="acceptedTerms"
-                      checked={acceptedTerms}
-                      onCheckedChange={(checked) => setAcceptedTerms(checked === true)}
-                      className="mt-0.5"
-                    />
-                    <Label htmlFor="acceptedTerms" className="font-normal text-sm leading-snug">
-                      I agree to Flowboc&apos;s{" "}
-                      <Link href="/terms" target="_blank" className="underline underline-offset-4">
-                        Terms of Service
-                      </Link>{" "}
-                      and{" "}
-                      <Link
-                        href="/privacy"
-                        target="_blank"
-                        className="underline underline-offset-4"
-                      >
-                        Privacy Policy
-                      </Link>
-                      , including how my bookings and payouts are handled.
-                    </Label>
-                  </div>
-                )}
                 <Button
                   type="submit"
                   variant="clay"
                   size="lg"
                   className="w-full"
-                  disabled={action.isPending || (mode === "signup" && !acceptedTerms)}
+                  disabled={action.isPending}
                 >
                   {action.isPending ? (
                     <>

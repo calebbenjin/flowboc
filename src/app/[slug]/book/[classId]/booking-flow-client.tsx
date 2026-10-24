@@ -37,6 +37,7 @@ export type BookableClass = {
   startAt: Date;
   timezone: string;
   durationMinutes: number;
+  mode: "IN_PERSON" | "ONLINE";
   location: string | null;
   price: number;
   originalPrice: number | null;
@@ -270,7 +271,10 @@ export function BookingFlowClient({
               <h1 className="text-xl">{cls.name}</h1>
               <p className="text-sm text-muted-foreground">
                 {formatClassDate(cls)} · {formatClassTime(cls)} {timezoneLabel(cls.timezone)} ·{" "}
-                {cls.durationMinutes} min · {cls.location ?? "Location TBC"}
+                {cls.durationMinutes} min ·{" "}
+                {cls.mode === "ONLINE"
+                  ? "Online — link shared once you're booked"
+                  : (cls.location ?? "Location TBC")}
               </p>
             </div>
           </div>

@@ -29,9 +29,11 @@ export async function startSubscription(
 ): Promise<{ ok: true; authorizationUrl: string } | { ok: false; error: string }> {
   const instructor = await requireInstructor();
 
-  const plan = await getActivePlan(instructor.currency, interval, tier);
+  // Subscriptions always bill in USD, regardless of the currency the
+  // instructor charges their own students in (instructor.currency).
+  const plan = await getActivePlan("USD", interval, tier);
   if (!plan) {
-    return { ok: false, error: "That plan isn't available in your currency yet." };
+    return { ok: false, error: "That plan isn't available right now." };
   }
 
   if (

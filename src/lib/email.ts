@@ -2,6 +2,25 @@ import { Resend } from "resend";
 import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
 import { supportEmail } from "@/lib/site";
 import { emailButton, emailLayout, newsletterLayout } from "@/lib/email-layout";
+import type { CurrencyCode } from "@/generated/prisma/enums";
+
+// Same symbols as src/lib/demo.ts's `money` — duplicated rather than
+// imported since that module pulls in demo image assets not meant for a
+// server-only context like this one.
+const CURRENCY_SYMBOLS: Record<CurrencyCode, string> = {
+  NGN: "₦",
+  USD: "$",
+  GBP: "£",
+  EUR: "€",
+  ZAR: "R",
+  KES: "KSh",
+  GHS: "₵",
+  XOF: "CFA",
+};
+
+function money(amount: number, currency: CurrencyCode): string {
+  return `${CURRENCY_SYMBOLS[currency]}${amount.toLocaleString("en-US")}`;
+}
 
 const resend = new Resend(process.env["RESEND_API_KEY"]);
 
@@ -267,15 +286,24 @@ export async function sendVideoCallBookingEmail(input: {
   to: string;
   studentName: string;
   instructorName: string;
+  instructorEmail: string;
   offerTitle: string;
   meetingLink: string;
+  // Null for a free call — paid rows always carry both or neither.
+  amount: number | null;
+  currency: CurrencyCode | null;
 }) {
+  const paidLine =
+    input.amount && input.currency
+      ? `We've received your payment of ${money(input.amount, input.currency)}.`
+      : "This is a free call — no payment needed.";
+
   await sendBrandedEmail({
     to: input.to,
     subject: `You're booked: ${input.offerTitle}`,
     heading: "You're booked!",
-    text: `Hi ${input.studentName},\n\nYou're booked for "${input.offerTitle}" with ${input.instructorName}.\n\nJoin here: ${input.meetingLink}`,
-    bodyHtml: `<p>Hi ${input.studentName},</p><p>You're booked for <strong>${input.offerTitle}</strong> with ${input.instructorName}.</p><p>${emailButton("Join the call", input.meetingLink)}</p>`,
+    text: `Hi ${input.studentName},\n\nYou're confirmed for "${input.offerTitle}", a 1:1 video call with ${input.instructorName}. ${paidLine}\n\nThis link isn't a live meeting room yet — it's where you'll pick a time that works for both of you. ${input.instructorName} will confirm the exact time with you directly.\n\nPick a time: ${input.meetingLink}\n\nQuestions about your booking? Reach ${input.instructorName} directly at ${input.instructorEmail}.`,
+    bodyHtml: `<p>Hi ${input.studentName},</p><p>You're confirmed for <strong>${input.offerTitle}</strong>, a 1:1 video call with ${input.instructorName}. ${paidLine}</p><p>This link isn't a live meeting room yet — it's where you'll pick a time that works for both of you. ${input.instructorName} will confirm the exact time with you directly.</p><p>${emailButton("Pick a time", input.meetingLink)}</p><p style="font-size:13px;color:#8a8171;">Questions about your booking? Reach ${input.instructorName} directly at <a href="mailto:${input.instructorEmail}" style="color:#8a8171;">${input.instructorEmail}</a>.</p>`,
   });
 }
 
@@ -284,13 +312,18 @@ export async function sendInstructorNewVideoCallBookingEmail(input: {
   studentName: string;
   studentEmail: string;
   offerTitle: string;
+  amount: number | null;
+  currency: CurrencyCode | null;
 }) {
+  const paidLine =
+    input.amount && input.currency ? `and paid ${money(input.amount, input.currency)}` : "(free)";
+
   await sendBrandedEmail({
     to: input.to,
     subject: `New video call booking: ${input.studentName}`,
     heading: "New booking",
-    text: `${input.studentName} (${input.studentEmail}) just booked "${input.offerTitle}".`,
-    bodyHtml: `<p><strong>${input.studentName}</strong> (${input.studentEmail}) just booked <strong>${input.offerTitle}</strong>.</p>`,
+    text: `${input.studentName} (${input.studentEmail}) just booked "${input.offerTitle}" ${paidLine}.\n\nReach out to ${input.studentEmail} to confirm a time that works for both of you.`,
+    bodyHtml: `<p><strong>${input.studentName}</strong> (<a href="mailto:${input.studentEmail}" style="color:#2e2a24;">${input.studentEmail}</a>) just booked <strong>${input.offerTitle}</strong> ${paidLine}.</p><p>Reach out to them directly to confirm a time that works for both of you.</p>`,
   });
 }
 

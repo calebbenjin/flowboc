@@ -10,6 +10,7 @@ import { FeatureGrid } from "@/components/landing/FeatureGrid";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { BuildAndPrice } from "@/components/landing/BuildAndPrice";
 import { TeachYourWay } from "@/components/landing/TeachYourWay";
+import { BuildWithEase } from "@/components/landing/BuildWithEase";
 import { GetStarted } from "@/components/landing/GetStarted";
 import { OneLink } from "@/components/landing/OneLink";
 import { InstructorExperience } from "@/components/landing/InstructorExperience";
@@ -18,6 +19,7 @@ import { Pricing } from "@/components/landing/Pricing";
 import { FAQ } from "@/components/landing/FAQ";
 import { FinalCTA } from "@/components/landing/FinalCTA";
 import { Footer } from "@/components/landing/Footer";
+import { getActivePlansForCurrency } from "@/lib/subscription-plans";
 
 const title = "Flowboc — Booking software for independent yoga instructors";
 const description =
@@ -42,7 +44,10 @@ export const metadata: Metadata = {
   },
 };
 
-export default function Landing() {
+export default async function Landing() {
+  // Subscriptions bill in USD only — see src/lib/startbutton.ts.
+  const plans = await getActivePlansForCurrency("USD");
+
   return (
     <div className="min-h-screen overflow-x-clip bg-background">
       <Navbar />
@@ -51,8 +56,9 @@ export default function Landing() {
         <MarqueeStrip />
         <HowItWorks />
         <TeachYourWay />
+        <BuildWithEase />
         <OneLink />
-        <Pricing />
+        <Pricing plans={plans} />
         <FAQ />
         <FinalCTA />
       </main>

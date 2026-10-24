@@ -22,7 +22,9 @@ const EMPTY_PLANS = {
 
 export default async function BillingPage() {
   const instructor = await getCurrentInstructor();
-  const plans = instructor ? await getActivePlansForCurrency(instructor.currency) : EMPTY_PLANS;
+  // Subscriptions always bill in USD, regardless of the currency the
+  // instructor charges their own students in.
+  const plans = instructor ? await getActivePlansForCurrency("USD") : EMPTY_PLANS;
 
   return <BillingClient plans={plans} />;
 }

@@ -7,6 +7,7 @@ import {
   sendCapacityReachedEmail,
   sendInstructorNewBookingEmail,
 } from "@/lib/email";
+import { finalizeClassBookingPayment } from "@/lib/class-booking";
 import { accessBlockedReason } from "@/lib/trial";
 import { payoutProviderForCurrency } from "@/lib/payout";
 import { initializeTransaction, verifyTransaction, PaystackError } from "@/lib/paystack";
@@ -126,29 +127,45 @@ export async function createBookingIntent(input: {
 
     const { bookingId, cls, justFilled, isFree } = result;
 
-    // Fired after the transaction commits — email delivery is slow and
-    // external, and shouldn't hold the advisory lock or booking row open.
-    // Each send is independently caught: one recipient's address bouncing
-    // (e.g. Resend's sandbox rejecting a non-whitelisted "to") shouldn't
-    // skip the others.
-    await sendBookingConfirmationEmail({
-      to: email,
-      studentName: name,
-      className: cls.name,
-      startAt: cls.startAt,
-      timezone: cls.timezone,
-      location: cls.location,
-      instructorName: cls.instructor.name,
-    }).catch((err: unknown) => console.error("Failed to send student booking confirmation:", err));
+    // Free classes are already PAID at this point — confirm immediately.
+    // Paid classes are only CONFIRMED-but-PENDING here: sending the
+    // confirmation now would hand out the class location (the real meeting
+    // link, for an online class) before payment ever clears. That email
+    // fires later instead, once finalizeClassBookingPayment sees the charge
+    // actually succeed (see verifyPayment below and the Paystack webhook).
+    if (isFree) {
+      await sendBookingConfirmationEmail({
+        to: email,
+        studentName: name,
+        className: cls.name,
+        startAt: cls.startAt,
+        timezone: cls.timezone,
+        location: cls.location,
+        instructorName: cls.instructor.name,
+      }).catch((err: unknown) =>
+        console.error("Failed to send student booking confirmation:", err),
+      );
 
-    await sendInstructorNewBookingEmail({
-      to: cls.instructor.email,
-      studentName: name,
-      className: cls.name,
-      startAt: cls.startAt,
-      timezone: cls.timezone,
-    }).catch((err: unknown) => console.error("Failed to send instructor new-booking notice:", err));
+      await sendInstructorNewBookingEmail({
+        to: cls.instructor.email,
+        studentName: name,
+        className: cls.name,
+        startAt: cls.startAt,
+        timezone: cls.timezone,
+      }).catch((err: unknown) =>
+        console.error("Failed to send instructor new-booking notice:", err),
+      );
 
+      await recordFirstPaidBookingMilestone(cls.instructorId).catch((err: unknown) =>
+        console.error("Failed to record first-booking milestone:", err),
+      );
+    }
+
+    // Capacity is consumed by PENDING bookings too (see confirmedCount
+    // above), so this fires regardless of payment status — a paid booking
+    // that never completes still gets freed up by the expired-reservation
+    // cron, but the instructor should know the class looked full in the
+    // meantime.
     if (justFilled) {
       await sendCapacityReachedEmail({
         to: cls.instructor.email,
@@ -157,15 +174,6 @@ export async function createBookingIntent(input: {
         timezone: cls.timezone,
         capacity: cls.capacity,
       }).catch((err: unknown) => console.error("Failed to send capacity-reached notice:", err));
-    }
-
-    // Free classes land on PAID immediately above — paid classes only hit
-    // PAID later, via the Paystack webhook (see that route for the same
-    // call).
-    if (isFree) {
-      await recordFirstPaidBookingMilestone(cls.instructorId).catch((err: unknown) =>
-        console.error("Failed to record first-booking milestone:", err),
-      );
     }
 
     return { ok: true, bookingId, isFree };
@@ -305,12 +313,9 @@ export async function verifyPayment(reference: string): Promise<VerifyResult> {
     try {
       const result = await verifyTransaction(reference);
       if (result.status === "success") {
-        await prisma.booking.update({
-          where: { id: booking.id },
-          data: {
-            paymentStatus: "PAID",
-            paystackFee: result.fees !== null ? result.fees / 100 : null,
-          },
+        await finalizeClassBookingPayment({
+          bookingId: booking.id,
+          paystackFee: result.fees !== null ? result.fees / 100 : null,
         });
       }
     } catch {
@@ -327,12 +332,9 @@ export async function verifyPayment(reference: string): Promise<VerifyResult> {
   try {
     const result = await verifyTransaction(reference);
     if (result.status === "success") {
-      await prisma.booking.update({
-        where: { id: booking.id },
-        data: {
-          paymentStatus: "PAID",
-          paystackFee: result.fees !== null ? result.fees / 100 : null,
-        },
+      await finalizeClassBookingPayment({
+        bookingId: booking.id,
+        paystackFee: result.fees !== null ? result.fees / 100 : null,
       });
       return { ok: true, bookingId: booking.id };
     }

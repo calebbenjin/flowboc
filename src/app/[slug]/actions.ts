@@ -5,6 +5,10 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { sendVideoCallBookingEmail, sendInstructorNewVideoCallBookingEmail } from "@/lib/email";
+import { finalizeVideoCallPayment } from "@/lib/video-call-booking";
+import { payoutProviderForCurrency } from "@/lib/payout";
+import { initializeTransaction, verifyTransaction, PaystackError } from "@/lib/paystack";
+import { siteUrl } from "@/lib/site";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -119,7 +123,8 @@ const videoCallSchema = z.object({
 const VIDEO_CALL_RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
 const VIDEO_CALL_RATE_LIMIT_MAX_PER_WINDOW = 3;
 
-type BookVideoCallResult = ActionResult | { ok: true; meetingLink: string };
+type BookVideoCallResult =
+  ActionResult | { ok: true; meetingLink: string } | { ok: true; authorizationUrl: string };
 
 export async function bookVideoCall(input: {
   slug: string;
@@ -142,21 +147,22 @@ export async function bookVideoCall(input: {
     where: { slug: parsed.data.slug },
     select: {
       id: true,
+      slug: true,
       name: true,
       email: true,
       videoCallEnabled: true,
       videoCallTitle: true,
       videoCallPrice: true,
       consultationLink: true,
+      currency: true,
+      payoutStatus: true,
+      payoutAccountId: true,
     },
   });
   if (!instructor) return { ok: false, error: "This page could not be found." };
 
-  // Server-side enforcement that paid offers can never be booked — the UI
-  // already disables this, but the real guard lives here since there's no
-  // payment processing to actually charge for a priced offer yet.
   const meetingLink = instructor.consultationLink;
-  if (!instructor.videoCallEnabled || !meetingLink || (instructor.videoCallPrice ?? 0) > 0) {
+  if (!instructor.videoCallEnabled || !meetingLink) {
     return { ok: false, error: "This video call isn't available to book right now." };
   }
 
@@ -168,26 +174,133 @@ export async function bookVideoCall(input: {
     return { ok: false, error: "You've already requested this — check your email." };
   }
 
-  await prisma.videoCallBooking.create({
-    data: { instructorId: instructor.id, studentName: name, studentEmail: email },
-  });
-
+  const price = instructor.videoCallPrice ?? 0;
   const offerTitle = instructor.videoCallTitle || "Video Call";
 
-  await sendVideoCallBookingEmail({
-    to: email,
-    studentName: name,
-    instructorName: instructor.name,
-    offerTitle,
-    meetingLink,
-  }).catch((err) => console.error("Failed to send student video call email:", err));
+  // Free — book and notify immediately, same as before.
+  if (price === 0) {
+    await prisma.videoCallBooking.create({
+      data: {
+        instructorId: instructor.id,
+        studentName: name,
+        studentEmail: email,
+        paymentStatus: "PAID",
+      },
+    });
 
-  await sendInstructorNewVideoCallBookingEmail({
-    to: instructor.email,
-    studentName: name,
-    studentEmail: email,
-    offerTitle,
-  }).catch((err) => console.error("Failed to send instructor video call notification:", err));
+    await sendVideoCallBookingEmail({
+      to: email,
+      studentName: name,
+      instructorName: instructor.name,
+      instructorEmail: instructor.email,
+      offerTitle,
+      meetingLink,
+      amount: null,
+      currency: null,
+    }).catch((err: unknown) => console.error("Failed to send student video call email:", err));
 
-  return { ok: true, meetingLink };
+    await sendInstructorNewVideoCallBookingEmail({
+      to: instructor.email,
+      studentName: name,
+      studentEmail: email,
+      offerTitle,
+      amount: null,
+      currency: null,
+    }).catch((err: unknown) =>
+      console.error("Failed to send instructor video call notification:", err),
+    );
+
+    return { ok: true, meetingLink };
+  }
+
+  // Paid — hold the booking as PENDING and send the student to Paystack
+  // checkout. It's only confirmed (and the student/instructor emailed) once
+  // payment actually clears — see finalizeVideoCallPayment, called from
+  // verifyVideoCallPayment below and from the Paystack webhook.
+  if (payoutProviderForCurrency(instructor.currency) !== "PAYSTACK") {
+    return { ok: false, error: "Payments for this instructor's currency aren't available yet." };
+  }
+  if (instructor.payoutStatus !== "CONNECTED" || !instructor.payoutAccountId) {
+    return { ok: false, error: "This instructor hasn't finished setting up payments yet." };
+  }
+
+  const booking = await prisma.videoCallBooking.create({
+    data: {
+      instructorId: instructor.id,
+      studentName: name,
+      studentEmail: email,
+      amount: price,
+      currency: instructor.currency,
+      paymentStatus: "PENDING",
+    },
+  });
+
+  try {
+    const { authorizationUrl, reference } = await initializeTransaction({
+      email,
+      amount: price,
+      currency: instructor.currency,
+      subaccount: instructor.payoutAccountId,
+      callbackUrl: `${siteUrl}/${instructor.slug}`,
+      metadata: { videoCallBookingId: booking.id },
+    });
+
+    await prisma.videoCallBooking.update({
+      where: { id: booking.id },
+      data: { paystackReference: reference },
+    });
+
+    return { ok: true, authorizationUrl };
+  } catch (err) {
+    return {
+      ok: false,
+      error:
+        err instanceof PaystackError ? err.message : "Couldn't start payment. Please try again.",
+    };
+  }
+}
+
+type VerifyVideoCallResult =
+  { ok: true; meetingLink: string; offerTitle: string } | { ok: false; error: string };
+
+// Mirrors verifyPayment in src/app/[slug]/book/[classId]/actions.ts — gives
+// the student's browser instant feedback on return from Paystack checkout,
+// while the webhook (src/app/api/webhooks/paystack/route.ts) remains the
+// authoritative confirmation that doesn't depend on them making it back.
+export async function verifyVideoCallPayment(reference: string): Promise<VerifyVideoCallResult> {
+  const booking = await prisma.videoCallBooking.findUnique({
+    where: { paystackReference: reference },
+  });
+  if (!booking) return { ok: false, error: "This payment could not be found." };
+
+  if (booking.paymentStatus === "PAID") {
+    const result = await finalizeVideoCallPayment({ bookingId: booking.id, paystackFee: null });
+    return result
+      ? { ok: true, meetingLink: result.meetingLink, offerTitle: result.offerTitle }
+      : { ok: false, error: "This booking could not be found." };
+  }
+
+  try {
+    const verified = await verifyTransaction(reference);
+    if (verified.status !== "success") {
+      await prisma.videoCallBooking.update({
+        where: { id: booking.id },
+        data: { paymentStatus: "FAILED" },
+      });
+      return { ok: false, error: "Payment wasn't completed. You can try again." };
+    }
+
+    const result = await finalizeVideoCallPayment({
+      bookingId: booking.id,
+      paystackFee: verified.fees !== null ? verified.fees / 100 : null,
+    });
+    return result
+      ? { ok: true, meetingLink: result.meetingLink, offerTitle: result.offerTitle }
+      : { ok: false, error: "This booking could not be found." };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof PaystackError ? err.message : "Couldn't confirm payment.",
+    };
+  }
 }
