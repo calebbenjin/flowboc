@@ -40,12 +40,12 @@ const nav = [
   { to: "/dashboard/analytics", label: "Analytics", icon: LineChart, mobile: true },
   { to: "/dashboard/students", label: "Students", icon: Users, mobile: true },
   { to: "/dashboard/links", label: "Links", icon: Link2, mobile: false },
-  { to: "/dashboard/design", label: "Design", icon: Palette, mobile: false },
+  { to: "/dashboard/design", label: "Design", icon: Palette, mobile: true },
   { to: "/dashboard/newsletter", label: "Newsletter", icon: Mail, mobile: false },
   { to: "/dashboard/referrals", label: "Referrals", icon: Gift, mobile: false },
   { to: "/dashboard/payouts", label: "Payouts", icon: Landmark, mobile: false },
   { to: "/dashboard/billing", label: "Billing", icon: CreditCard, mobile: false },
-  { to: "/dashboard/profile", label: "Profile", icon: UserRound, mobile: true },
+  { to: "/dashboard/profile", label: "Profile", icon: UserRound, mobile: false },
 ];
 
 const mobileNav = nav.filter((item) => item.mobile);
@@ -97,6 +97,24 @@ function UserMenu({ compact = false }: { compact?: boolean }) {
       <DropdownMenuContent align={compact ? "end" : "start"} className="w-48">
         <DropdownMenuItem asChild>
           <Link href="/dashboard/profile">Profile</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/dashboard/links">Links</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/dashboard/design">Design</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/dashboard/newsletter">Newsletter</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/dashboard/referrals">Referrals</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/dashboard/payouts">Payouts</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/dashboard/billing">Billing</Link>
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={handleLogout}
