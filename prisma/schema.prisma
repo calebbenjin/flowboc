@@ -289,6 +289,7 @@ model Instructor {
   newsletterCampaigns    NewsletterCampaign[]
   videoCallBookings      VideoCallBooking[]
   ebookPurchases         EbookPurchase[]
+  feedback               Feedback[]
   activityEvents         AdminActivityEvent[]
 
   createdAt DateTime @default(now())
@@ -546,6 +547,23 @@ model ContactMessage {
   @@index([ip, createdAt])
 }
 
+// Sticky in-dashboard feedback widget (feature suggestions / bug reports) —
+// deliberately separate from ContactMessage: authenticated and scoped to
+// the instructor, one free-text field only, no admin viewer page (same as
+// ContactMessage — surfaced via the AdminActivityEvent feed and an email
+// notification, not a dedicated inbox).
+model Feedback {
+  id           String     @id @default(cuid())
+  instructorId String
+  instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+
+  message String
+
+  createdAt DateTime @default(now())
+
+  @@index([instructorId, createdAt])
+}
+
 // Link-in-bio entries rendered on the public /{slug} page. clickCount is a
 // raw counter (no per-event log table) — same "don't pre-aggregate what you
 // don't need yet" reasoning as PageView; add a log table later only if a
@@ -698,6 +716,7 @@ enum AdminEventType {
   REFERRAL_PAYOUT_REQUESTED
   REFERRAL_PAYOUT_APPROVED
   REFERRAL_PAYOUT_REJECTED
+  FEEDBACK_SUBMITTED
 }
 
 // Insert-only platform activity feed for /admin/overview. message is a

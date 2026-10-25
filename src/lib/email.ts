@@ -113,6 +113,19 @@ export async function sendContactNotificationEmail(input: {
   });
 }
 
+export async function sendFeedbackNotificationEmail(input: {
+  instructorName: string;
+  instructorEmail: string;
+  message: string;
+}) {
+  await sendEmail({
+    to: supportEmail,
+    subject: `Dashboard feedback: ${input.instructorName}`,
+    text: `From: ${input.instructorName} <${input.instructorEmail}>\n\n${input.message}`,
+    html: `<p>From: ${input.instructorName} &lt;${input.instructorEmail}&gt;</p><p>${input.message.replace(/\n/g, "<br>")}</p>`,
+  });
+}
+
 // Sent when a booking is created — payments aren't wired up yet (a later
 // batch), so this confirms the reservation rather than a completed
 // payment.

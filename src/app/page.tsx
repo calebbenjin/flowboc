@@ -19,6 +19,7 @@ import { Pricing } from "@/components/landing/Pricing";
 import { FAQ } from "@/components/landing/FAQ";
 import { FinalCTA } from "@/components/landing/FinalCTA";
 import { Footer } from "@/components/landing/Footer";
+import { TawkToWidget } from "@/components/landing/TawkToWidget";
 import { getActivePlansForCurrency } from "@/lib/subscription-plans";
 
 const title = "Flowboc — Booking software for independent yoga instructors";
@@ -63,6 +64,7 @@ export default async function Landing() {
         <FinalCTA />
       </main>
       <Footer />
+      <TawkToWidget />
     </div>
   );
 }

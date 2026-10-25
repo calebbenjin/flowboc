@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useInstructor } from "@/components/InstructorProvider";
 import { TrialBanner } from "@/components/TrialBanner";
+import { FeedbackWidget } from "@/components/FeedbackWidget";
 import { siteHost } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -227,6 +228,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           })}
         </div>
       </nav>
+
+      <FeedbackWidget />
     </div>
   );
 }
