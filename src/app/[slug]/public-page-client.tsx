@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties, type Dispatch, type SetStateAction } from "react";
 import {
   Instagram,
   Share2,
@@ -15,6 +15,7 @@ import {
   Linkedin,
   MessageCircle,
   X as XLogo,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -39,6 +40,12 @@ import { Reveal } from "@/components/landing/primitives";
 import { cn } from "@/lib/utils";
 import { money, type CurrencyCode } from "@/lib/demo";
 import { useIsBrightImage } from "@/lib/use-image-brightness";
+import {
+  backgroundColorValue,
+  backgroundImageValue,
+  hasActiveBackground,
+  isFlatBackgroundBright,
+} from "@/lib/public-page-background";
 import { toast } from "sonner";
 import {
   socialIcons,
@@ -51,8 +58,10 @@ import {
 } from "@/lib/public-page-layout";
 import {
   bookVideoCall,
+  buyEbook,
   joinWaitlist,
   subscribeToNewsletter,
+  verifyEbookPurchase,
   verifyVideoCallPayment,
 } from "./actions";
 
@@ -259,7 +268,7 @@ function CornerBadges({ instructor }: { instructor: PublicInstructor }) {
   const [claimOpen, setClaimOpen] = useState(false);
 
   return (
-    <>
+    <div className="max-w-3xl mx-auto">
       <button
         type="button"
         onClick={() => setClaimOpen(true)}
@@ -278,7 +287,7 @@ function CornerBadges({ instructor }: { instructor: PublicInstructor }) {
       </button>
       <ShareDialog open={shareOpen} onOpenChange={setShareOpen} instructor={instructor} />
       <ClaimSheet open={claimOpen} onOpenChange={setClaimOpen} />
-    </>
+    </div>
   );
 }
 
@@ -643,7 +652,7 @@ function VideoCallCard({ instructor }: { instructor: PublicInstructor }) {
 
   return (
     <Reveal>
-      <article className="surface mb-6 items-center gap-4 p-4 sm:p-5">
+      <article className="surface mb-2 items-center gap-4 p-4 sm:p-5">
         {instructor.videoCallImageUrl ? (
           <div className="w-full flex gap-x-4 mb-2">
             <img
@@ -720,26 +729,375 @@ function VideoCallCard({ instructor }: { instructor: PublicInstructor }) {
   );
 }
 
+type EbookVerifyState =
+  | { status: "idle" }
+  | { status: "confirming" }
+  | { status: "done"; downloadUrl: string }
+  | { status: "error"; message: string };
+
+function BuyEbookDialog({
+  open,
+  onOpenChange,
+  slug,
+  offerTitle,
+  price,
+  currency,
+  verifyState,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  slug: string;
+  offerTitle: string;
+  price: number;
+  currency: CurrencyCode;
+  verifyState: EbookVerifyState;
+}) {
+  const isPaid = price > 0;
+
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [website, setWebsite] = useState(""); // honeypot, kept off-screen
+  const [pending, setPending] = useState(false);
+  // From a fresh (same-session, free) purchase — separate from verifyState's
+  // "done" downloadUrl, which comes from the parent confirming a payment
+  // the buyer returned from Paystack for.
+  const [unlockedDownloadUrl, setUnlockedDownloadUrl] = useState<string | null>(null);
+
+  const confirming = verifyState.status === "confirming";
+  const downloadUrl = verifyState.status === "done" ? verifyState.downloadUrl : unlockedDownloadUrl;
+  const confirmError = verifyState.status === "error" ? verifyState.message : null;
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setPending(true);
+    try {
+      const result = await buyEbook({ slug, name, email, website });
+      if (result.ok) {
+        if ("authorizationUrl" in result) {
+          window.location.href = result.authorizationUrl;
+          return; // leaving the page — keep the pending spinner showing
+        }
+        if ("downloadUrl" in result) {
+          setUnlockedDownloadUrl(result.downloadUrl);
+          toast.success("It's yours!");
+        }
+      } else {
+        toast.error(result.error);
+      }
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        onOpenChange(next);
+        if (!next) {
+          setName("");
+          setEmail("");
+          setUnlockedDownloadUrl(null);
+        }
+      }}
+    >
+      <DialogContent className="sm:max-w-md">
+        {confirming ? (
+          <div className="flex flex-col items-center gap-3 py-8 text-center">
+            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Confirming your payment…</p>
+          </div>
+        ) : downloadUrl ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>It&apos;s yours</DialogTitle>
+              <DialogDescription>
+                We&apos;ve emailed you the download link for &quot;{offerTitle}&quot;.
+              </DialogDescription>
+            </DialogHeader>
+            <Button asChild variant="clay" className="w-full">
+              <a href={downloadUrl}>Download now</a>
+            </Button>
+          </>
+        ) : confirmError ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>Payment not confirmed</DialogTitle>
+              <DialogDescription>{confirmError}</DialogDescription>
+            </DialogHeader>
+            <Button variant="quiet" className="w-full" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
+          </>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle>Get &quot;{offerTitle}&quot;</DialogTitle>
+              <DialogDescription>
+                {isPaid
+                  ? `We'll email you the download link as soon as your payment of ${money(price, currency)} goes through.`
+                  : `We'll email you the download link right away.`}
+              </DialogDescription>
+            </DialogHeader>
+            <form className="space-y-4" onSubmit={(e) => void handleSubmit(e)}>
+              <div className="space-y-2">
+                <Label htmlFor="ebname">Full name</Label>
+                <Input
+                  id="ebname"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Sarah Johnson"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ebemail">Email</Label>
+                <Input
+                  id="ebemail"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="sarah@mail.com"
+                />
+              </div>
+              <div className="sr-only" aria-hidden="true">
+                <Label htmlFor="ebwebsite">Website</Label>
+                <Input
+                  id="ebwebsite"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                />
+              </div>
+              <Button type="submit" variant="clay" className="w-full" disabled={pending}>
+                {pending ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    {isPaid ? "Redirecting…" : "Unlocking…"}
+                  </>
+                ) : isPaid ? (
+                  `Continue to payment — ${money(price, currency)}`
+                ) : (
+                  "Get it free"
+                )}
+              </Button>
+            </form>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EbookCard({ instructor }: { instructor: PublicInstructor }) {
+  const [open, setOpen] = useState(false);
+  const [verifyState, setVerifyState] = useState<EbookVerifyState>({ status: "idle" });
+
+  // Mirrors VideoCallCard's handling of Paystack's ?reference= return —
+  // owned entirely here so there's a single effect doing it.
+  useEffect(() => {
+    const reference = new URLSearchParams(window.location.search).get("reference");
+    if (!reference) return;
+    setOpen(true);
+    setVerifyState({ status: "confirming" });
+    void verifyEbookPurchase(reference).then((result) => {
+      setVerifyState(
+        result.ok
+          ? { status: "done", downloadUrl: result.downloadUrl }
+          : { status: "error", message: result.error },
+      );
+    });
+    // Only ever check once, on mount.
+  }, []);
+
+  if (!instructor.ebookEnabled) return null;
+
+  const title = instructor.ebookTitle || "My Ebook";
+  const price = instructor.ebookPrice ?? 0;
+  const isPaid = price > 0;
+  const canBuy = !isPaid || instructor.payoutConnected;
+
+  return (
+    <Reveal>
+      <article className="surface mb-6 items-center gap-4 p-4 sm:p-5">
+        {instructor.ebookCoverUrl ? (
+          <div className="w-full flex gap-x-4 mb-2">
+            <img
+              src={instructor.ebookCoverUrl}
+              alt=""
+              className="size-18 shrink-0 rounded-lg object-cover sm:size-20"
+            />
+            <div>
+              <h2 className="text-sm font-medium sm:text-lg uppercase">{title}</h2>
+              {instructor.ebookDescription && (
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {instructor.ebookDescription}
+                </p>
+              )}
+              <p className="mt-1 text-lg font-semibold" style={{ color: "var(--theme)" }}>
+                {isPaid ? money(price, instructor.currency) : "FREE"}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="min-w-0 flex gap-x-4 mb-2">
+            <div className="grid size-16 shrink-0 place-items-center rounded-xl bg-(--theme)/12 text-(--theme) sm:size-20">
+              <Download className="size-6" />
+            </div>
+            <div>
+              <h2 className="text-base font-medium sm:text-lg uppercase">{title}</h2>
+              {instructor.ebookDescription && (
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {instructor.ebookDescription}
+                </p>
+              )}
+              <p className="mt-1 text-base font-semibold" style={{ color: "var(--theme)" }}>
+                {isPaid ? money(price, instructor.currency) : "FREE"}
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-4">
+          <div className="w-full flex items-end justify-end space-y-2">
+            {canBuy ? (
+              <Button
+                className="relative flex items-center gap-2 py-5 rounded-sm shrink-0 bg-(--theme) text-white hover:bg-(--theme) w-full sm:px-20 px-10"
+                onClick={() => {
+                  setVerifyState({ status: "idle" });
+                  setOpen(true);
+                }}
+              >
+                <span className="font-extrabold absolute left-4">GET IT</span>{" "}
+                <ArrowRight className="size-4 absolute right-4" />
+              </Button>
+            ) : (
+              <Button variant="quiet" size="sm" disabled className="shrink-0">
+                Coming soon
+              </Button>
+            )}
+          </div>
+        </div>
+      </article>
+      <BuyEbookDialog
+        open={open}
+        onOpenChange={setOpen}
+        slug={instructor.slug}
+        offerTitle={title}
+        price={price}
+        currency={instructor.currency}
+        verifyState={verifyState}
+      />
+    </Reveal>
+  );
+}
+
+// Extracted so the "classes" content can be slotted into the reorderable
+// block loop in PublicPageClient alongside the video-call/ebook cards and
+// custom links — props are all already computed once in PublicPageClient
+// and just passed through, not recomputed here.
+function ClassesSection({
+  classes,
+  groups,
+  instructor,
+  joinedWaitlist,
+  setWaitlistOpenFor,
+  selectedOccurrence,
+  setSelectedOccurrence,
+}: {
+  classes: PublicClass[];
+  groups: ReturnType<typeof groupPublicClasses>;
+  instructor: PublicInstructor;
+  joinedWaitlist: Set<string>;
+  setWaitlistOpenFor: Dispatch<SetStateAction<string | null>>;
+  selectedOccurrence: Record<string, string>;
+  setSelectedOccurrence: Dispatch<SetStateAction<Record<string, string>>>;
+}) {
+  const ClassCard = classCardByLayout[instructor.pageLayout];
+
+  if (classes.length === 0) {
+    return (
+      <EmptyState
+        className="my-3"
+        icon={CalendarX2}
+        title="No upcoming classes right now"
+        body="Check back soon, or follow along on social for the next drop."
+      />
+    );
+  }
+
+  return (
+    <div className={`sm:mt-12 mt-2 ${layoutListClassName[instructor.pageLayout]}`}>
+      {groups.map((group, i) => {
+        const delay = Math.min(i, 6) * 0.08;
+
+        if (group.type === "single") {
+          return (
+            <Reveal key={group.cls.id} delay={delay}>
+              <ClassCard
+                c={group.cls}
+                slug={instructor.slug}
+                currency={instructor.currency}
+                onWaitlist={joinedWaitlist.has(group.cls.id)}
+                onJoinWaitlist={() => setWaitlistOpenFor(group.cls.id)}
+              />
+            </Reveal>
+          );
+        }
+
+        const selectedId = selectedOccurrence[group.seriesId] ?? group.occurrences[0]!.id;
+        const selected =
+          group.occurrences.find((o) => o.id === selectedId) ?? group.occurrences[0]!;
+
+        return (
+          <Reveal key={group.seriesId} delay={delay}>
+            <ClassCard
+              c={selected}
+              slug={instructor.slug}
+              currency={instructor.currency}
+              onWaitlist={joinedWaitlist.has(selected.id)}
+              onJoinWaitlist={() => setWaitlistOpenFor(selected.id)}
+              dateChips={{
+                occurrences: group.occurrences,
+                selectedId: selected.id,
+                onSelect: (id) =>
+                  setSelectedOccurrence((prev) => ({ ...prev, [group.seriesId]: id })),
+              }}
+            />
+          </Reveal>
+        );
+      })}
+    </div>
+  );
+}
+
 export function PublicPageClient({
   instructor,
   classes,
+  blockOrder,
 }: {
   instructor: PublicInstructor;
   classes: PublicClass[];
+  blockOrder: string[];
 }) {
   const [waitlistOpenFor, setWaitlistOpenFor] = useState<string | null>(null);
   const [joinedWaitlist, setJoinedWaitlist] = useState<Set<string>>(new Set());
   const [selectedOccurrence, setSelectedOccurrence] = useState<Record<string, string>>({});
 
   const groups = groupPublicClasses(classes);
-  const ClassCard = classCardByLayout[instructor.pageLayout];
+  const isImageBg = instructor.backgroundType === "IMAGE";
+  const hasBg = hasActiveBackground(instructor);
   // A photo background can be any brightness, so the header (sitting
   // directly over it, outside the cards' own bg-card surfaces) switches to
   // white text + a shadow for guaranteed contrast, same treatment as
   // captions over a photo anywhere else — unless the photo itself is light,
-  // in which case white text disappears, so it falls back to dark text.
-  const hasBg = Boolean(instructor.backgroundImageUrl);
-  const bgIsBright = useIsBrightImage(instructor.backgroundImageUrl);
+  // in which case white text disappears, so it falls back to dark text. A
+  // flat color/gradient background has no pixels to sample, so its
+  // brightness is read straight from the stored hex value(s) instead.
+  const imageIsBright = useIsBrightImage(isImageBg ? instructor.backgroundImageUrl : null);
+  const bgIsBright = isImageBg ? imageIsBright : isFlatBackgroundBright(instructor);
   // Over a background image, pick white or black outright based on measured
   // brightness (no soft "muted" shades) and bump the weight to font-medium —
   // the extra contrast and heft are what keep the header legible over an
@@ -761,21 +1119,22 @@ export function PublicPageClient({
       style={
         {
           "--theme": instructor.themeColor,
-          ...(instructor.backgroundImageUrl
-            ? { backgroundImage: `url(${instructor.backgroundImageUrl})` }
+          ...(backgroundColorValue(instructor)
+            ? { backgroundColor: backgroundColorValue(instructor)! }
+            : {}),
+          ...(backgroundImageValue(instructor)
+            ? { backgroundImage: backgroundImageValue(instructor)! }
             : {}),
         } as CSSProperties
       }
     >
       <CornerBadges instructor={instructor} />
       <div
-        className={
-          instructor.backgroundImageUrl ? "min-h-screen bg-black/20 backdrop-blur-[4px]" : undefined
-        }
+        className={hasBg && isImageBg ? "min-h-screen bg-black/20 backdrop-blur-[4px]" : undefined}
       >
         <div className="mx-auto max-w-3xl px-4 pt-14 pb-6 lg:px-0">
           <Reveal>
-            <header className="flex flex-col gap-4 px-2 sm:flex-row items-center">
+            <header className="flex flex-col gap-4 px-2 sm:flex-row items-center sm:mb-8 mb-6">
               {instructor.photoUrl ? (
                 <img
                   src={instructor.photoUrl}
@@ -880,81 +1239,58 @@ export function PublicPageClient({
             </header>
           </Reveal>
 
-          <div className="mt-2">
-            <VideoCallCard instructor={instructor} />
-          </div>
-
-          {/* {instructor.links.length > 0 && (
-          <div className="mt-6 flex flex-col gap-3">
-            {instructor.links.map((l) => (
-              <a
-                key={l.id}
-                href={l.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => trackLinkClick(l.id)}
-                className="surface block px-6 py-4 text-center font-medium transition-colors hover:bg-accent"
-              >
-                {l.label}
-              </a>
-            ))}
-          </div>
-        )} */}
-
-          {/* <h2 className="mt-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-          Upcoming classes
-        </h2> */}
-
-          {classes.length === 0 ? (
-            <EmptyState
-              className="mt-4"
-              icon={CalendarX2}
-              title="No upcoming classes right now"
-              body="Check back soon, or follow along on social for the next drop."
-            />
-          ) : (
-            <div className={`sm:mt-12 mt-2 ${layoutListClassName[instructor.pageLayout]}`}>
-              {groups.map((group, i) => {
-                const delay = Math.min(i, 6) * 0.08;
-
-                if (group.type === "single") {
-                  return (
-                    <Reveal key={group.cls.id} delay={delay}>
-                      <ClassCard
-                        c={group.cls}
-                        slug={instructor.slug}
-                        currency={instructor.currency}
-                        onWaitlist={joinedWaitlist.has(group.cls.id)}
-                        onJoinWaitlist={() => setWaitlistOpenFor(group.cls.id)}
-                      />
-                    </Reveal>
-                  );
-                }
-
-                const selectedId = selectedOccurrence[group.seriesId] ?? group.occurrences[0]!.id;
-                const selected =
-                  group.occurrences.find((o) => o.id === selectedId) ?? group.occurrences[0]!;
-
+          <div className="my-2">
+            {blockOrder.map((token) => {
+              if (token === "VIDEO_CALL") {
+                return <VideoCallCard key={token} instructor={instructor} />;
+              }
+              if (token === "EBOOK") {
+                return <EbookCard key={token} instructor={instructor} />;
+              }
+              if (token === "CLASSES") {
                 return (
-                  <Reveal key={group.seriesId} delay={delay}>
-                    <ClassCard
-                      c={selected}
-                      slug={instructor.slug}
-                      currency={instructor.currency}
-                      onWaitlist={joinedWaitlist.has(selected.id)}
-                      onJoinWaitlist={() => setWaitlistOpenFor(selected.id)}
-                      dateChips={{
-                        occurrences: group.occurrences,
-                        selectedId: selected.id,
-                        onSelect: (id) =>
-                          setSelectedOccurrence((prev) => ({ ...prev, [group.seriesId]: id })),
-                      }}
-                    />
-                  </Reveal>
+                  <ClassesSection
+                    key={token}
+                    classes={classes}
+                    groups={groups}
+                    instructor={instructor}
+                    joinedWaitlist={joinedWaitlist}
+                    setWaitlistOpenFor={setWaitlistOpenFor}
+                    selectedOccurrence={selectedOccurrence}
+                    setSelectedOccurrence={setSelectedOccurrence}
+                  />
                 );
-              })}
-            </div>
-          )}
+              }
+              const link = instructor.links.find((l) => l.id === token.slice("LINK:".length));
+              if (!link) return null;
+              return (
+                <a
+                  key={token}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => trackLinkClick(link.id)}
+                  className={cn(
+                    "surface mb-6 block font-medium transition-colors hover:bg-accent",
+                    link.imageUrl ? "flex items-center gap-3 p-3" : "px-6 py-4 text-center",
+                  )}
+                >
+                  {link.imageUrl && (
+                    <img
+                      src={link.imageUrl}
+                      alt=""
+                      className="size-12 shrink-0 rounded-lg object-cover"
+                    />
+                  )}
+                  <span
+                    className={link.imageUrl ? "min-w-0 flex-1 truncate text-center" : undefined}
+                  >
+                    {link.label}
+                  </span>
+                </a>
+              );
+            })}
+          </div>
 
           <WaitlistDialog
             slug={instructor.slug}

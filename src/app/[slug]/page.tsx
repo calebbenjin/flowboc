@@ -4,6 +4,7 @@ import { after } from "next/server";
 import { JsonLd } from "@/components/JsonLd";
 import { prisma } from "@/lib/db";
 import { siteUrl } from "@/lib/site";
+import { resolveBlockOrder } from "@/lib/public-page-blocks";
 import { PublicPageClient } from "./public-page-client";
 
 export async function generateMetadata({
@@ -42,6 +43,14 @@ export default async function PublicPage({ params }: { params: Promise<{ slug: s
   if (!instructor || !instructor.onboardingCompletedAt) notFound();
 
   after(() => prisma.pageView.create({ data: { instructorId: instructor.id, path: `/${slug}` } }));
+
+  // Resolved against only the active links being rendered — an inactive
+  // link's token is naturally dropped here without losing its stored
+  // position (resolveBlockOrder is fed ALL links on the dashboard side).
+  const blockOrder = resolveBlockOrder(
+    instructor.publicPageBlockOrder,
+    instructor.links.map((l) => l.id),
+  );
 
   const classes = await prisma.yogaClass.findMany({
     where: {
@@ -88,19 +97,33 @@ export default async function PublicPage({ params }: { params: Promise<{ slug: s
           specialties: instructor.specialties,
           currency: instructor.currency,
           themeColor: instructor.themeColor,
+          backgroundType: instructor.backgroundType,
           backgroundImageUrl: instructor.backgroundImageUrl,
+          backgroundColor: instructor.backgroundColor,
+          backgroundGradientFrom: instructor.backgroundGradientFrom,
+          backgroundGradientTo: instructor.backgroundGradientTo,
           pageLayout: instructor.pageLayout,
           videoCallEnabled: instructor.videoCallEnabled,
           videoCallTitle: instructor.videoCallTitle,
           videoCallDescription: instructor.videoCallDescription,
           videoCallImageUrl: instructor.videoCallImageUrl,
           videoCallPrice: instructor.videoCallPrice,
+          ebookEnabled: instructor.ebookEnabled,
+          ebookTitle: instructor.ebookTitle,
+          ebookDescription: instructor.ebookDescription,
+          ebookCoverUrl: instructor.ebookCoverUrl,
+          ebookPrice: instructor.ebookPrice,
           payoutConnected: instructor.payoutStatus === "CONNECTED" && !!instructor.payoutAccountId,
           socials: instructor.socials.map((s) => ({
             platform: s.platform.toLowerCase(),
             handle: s.handle,
           })),
-          links: instructor.links.map((l) => ({ id: l.id, label: l.label, url: l.url })),
+          links: instructor.links.map((l) => ({
+            id: l.id,
+            label: l.label,
+            url: l.url,
+            imageUrl: l.imageUrl,
+          })),
         }}
         classes={classes.map((c) => ({
           id: c.id,
@@ -119,6 +142,7 @@ export default async function PublicPage({ params }: { params: Promise<{ slug: s
           capacity: c.capacity,
           spots: Math.max(0, c.capacity - c._count.bookings),
         }))}
+        blockOrder={blockOrder}
       />
     </>
   );

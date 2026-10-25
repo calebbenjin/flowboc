@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/db";
 import { requireInstructor } from "@/lib/require-instructor";
+import { FIXED_BLOCK_TOKENS, linkIdFromToken } from "@/lib/public-page-blocks";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -16,7 +17,11 @@ function validateLinkInput(input: { label: string; url: string }): string | null
   return null;
 }
 
-export async function createLink(input: { label: string; url: string }): Promise<ActionResult> {
+export async function createLink(input: {
+  label: string;
+  url: string;
+  imageUrl?: string | null;
+}): Promise<ActionResult> {
   const instructor = await requireInstructor();
 
   const error = validateLinkInput(input);
@@ -32,6 +37,7 @@ export async function createLink(input: { label: string; url: string }): Promise
       instructorId: instructor.id,
       label: input.label.trim(),
       url: input.url.trim(),
+      imageUrl: input.imageUrl || null,
       order: (maxOrder._max.order ?? -1) + 1,
     },
   });
@@ -41,7 +47,7 @@ export async function createLink(input: { label: string; url: string }): Promise
 
 export async function updateLink(
   id: string,
-  input: { label: string; url: string },
+  input: { label: string; url: string; imageUrl?: string | null },
 ): Promise<ActionResult> {
   const instructor = await requireInstructor();
 
@@ -50,7 +56,11 @@ export async function updateLink(
 
   const result = await prisma.instructorLink.updateMany({
     where: { id, instructorId: instructor.id },
-    data: { label: input.label.trim(), url: input.url.trim() },
+    data: {
+      label: input.label.trim(),
+      url: input.url.trim(),
+      imageUrl: input.imageUrl || null,
+    },
   });
   if (result.count === 0) return { ok: false, error: "Link not found." };
 
@@ -80,24 +90,34 @@ export async function deleteLink(id: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-export async function reorderLinks(orderedIds: string[]): Promise<ActionResult> {
+export async function reorderPageBlocks(tokens: string[]): Promise<ActionResult> {
   const instructor = await requireInstructor();
 
+  const linkIds: string[] = [];
+  const seen = new Set<string>();
+  for (const token of tokens) {
+    if (seen.has(token)) return { ok: false, error: "That order couldn't be saved." };
+    seen.add(token);
+
+    const linkId = linkIdFromToken(token);
+    if (linkId) {
+      linkIds.push(linkId);
+    } else if (!(FIXED_BLOCK_TOKENS as readonly string[]).includes(token)) {
+      return { ok: false, error: "That order couldn't be saved." };
+    }
+  }
+
   const owned = await prisma.instructorLink.count({
-    where: { id: { in: orderedIds }, instructorId: instructor.id },
+    where: { id: { in: linkIds }, instructorId: instructor.id },
   });
-  if (owned !== orderedIds.length) {
+  if (owned !== linkIds.length) {
     return { ok: false, error: "Some links could not be reordered." };
   }
 
-  await prisma.$transaction(
-    orderedIds.map((id, index) =>
-      prisma.instructorLink.updateMany({
-        where: { id, instructorId: instructor.id },
-        data: { order: index },
-      }),
-    ),
-  );
+  await prisma.instructor.update({
+    where: { id: instructor.id },
+    data: { publicPageBlockOrder: tokens },
+  });
 
   return { ok: true };
 }

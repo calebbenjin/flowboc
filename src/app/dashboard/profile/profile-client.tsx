@@ -8,7 +8,7 @@ import posthog from "posthog-js";
 import { upload } from "@vercel/blob/client";
 import { toast } from "sonner";
 import { compressImage } from "@/lib/compress-image";
-import { ArrowUpRight, Gift, ImagePlus, Landmark, Loader2, X } from "lucide-react";
+import { ArrowUpRight, FileText, Gift, ImagePlus, Landmark, Loader2, X } from "lucide-react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { useInstructor } from "@/components/InstructorProvider";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import type { CurrencyCode, SocialPlatform } from "@/generated/prisma/enums";
 import {
   deleteAccount,
+  updateEbookOffer,
   updatePhoto,
   updateProfile,
   updateSocials,
@@ -133,6 +134,89 @@ function VideoCallImageUpload({
   );
 }
 
+function EbookFileUpload({
+  value,
+  onChange,
+}: {
+  value: string | null;
+  onChange: (url: string | null) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [fileName, setFileName] = useState<string | null>(null);
+
+  async function handleFile(file: File) {
+    if (!["application/pdf", "application/epub+zip"].includes(file.type)) {
+      toast.error("Please choose a PDF or EPUB file.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const blob = await upload(file.name, file, {
+        access: "public",
+        handleUploadUrl: "/api/ebooks/upload",
+      });
+      setFileName(file.name);
+      onChange(blob.url);
+    } catch {
+      toast.error("Couldn't upload file. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => fileInputRef.current?.click()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click();
+      }}
+      className="relative flex h-16 cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg border border-dashed border-border px-3 text-sm text-muted-foreground transition-colors hover:bg-primary/10"
+    >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="application/pdf,application/epub+zip"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) void handleFile(file);
+        }}
+      />
+      {uploading ? (
+        <Loader2 className="size-5 animate-spin" />
+      ) : value ? (
+        <>
+          <FileText className="size-4 shrink-0" />
+          <span className="truncate">{fileName ?? "File uploaded — click to replace"}</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label="Remove file"
+            className="absolute right-1 top-1/2 -translate-y-1/2"
+            onClick={(e) => {
+              e.stopPropagation();
+              setFileName(null);
+              onChange(null);
+            }}
+          >
+            <X className="size-4" />
+          </Button>
+        </>
+      ) : (
+        <span className="flex items-center gap-2">
+          <FileText className="size-4" />
+          Click to upload a PDF or EPUB (max 50MB)
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function ProfileClient() {
   const router = useRouter();
   const instructor = useInstructor();
@@ -167,6 +251,11 @@ export function ProfileClient() {
     instructor.videoCallImageUrl,
   );
   const [videoCallPending, setVideoCallPending] = useState(false);
+
+  const [ebookEnabled, setEbookEnabled] = useState(instructor.ebookEnabled);
+  const [ebookCoverUrl, setEbookCoverUrl] = useState<string | null>(instructor.ebookCoverUrl);
+  const [ebookFileUrl, setEbookFileUrl] = useState<string | null>(instructor.ebookFileUrl);
+  const [ebookPending, setEbookPending] = useState(false);
 
   async function handleProfileSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -267,6 +356,32 @@ export function ProfileClient() {
       }
     } finally {
       setVideoCallPending(false);
+    }
+  }
+
+  async function handleEbookSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const price = String(formData.get("ebookPrice") ?? "").trim();
+
+    setEbookPending(true);
+    try {
+      const result = await updateEbookOffer({
+        enabled: ebookEnabled,
+        title: String(formData.get("ebookTitle") ?? ""),
+        description: String(formData.get("ebookDescription") ?? ""),
+        coverUrl: ebookCoverUrl,
+        fileUrl: ebookFileUrl,
+        price: price ? Number(price) : null,
+      });
+      if (result.ok) {
+        toast.success("Ebook offer updated");
+        router.refresh();
+      } else {
+        toast.error(result.error);
+      }
+    } finally {
+      setEbookPending(false);
     }
   }
 
@@ -498,6 +613,76 @@ export function ProfileClient() {
           <div className="flex justify-end">
             <Button type="submit" variant="clay" disabled={videoCallPending}>
               {videoCallPending ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" /> Saving…
+                </>
+              ) : (
+                "Save changes"
+              )}
+            </Button>
+          </div>
+        </form>
+
+        <form className="surface mt-6 space-y-4 p-6" onSubmit={(e) => void handleEbookSubmit(e)}>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-sm font-medium">Ebook</h2>
+              <p className="text-xs text-muted-foreground">
+                Sell a digital download — a PDF or EPUB — as a card on your public page.
+              </p>
+            </div>
+            <Switch checked={ebookEnabled} onCheckedChange={setEbookEnabled} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="ebtitle">Title</Label>
+            <Input
+              id="ebtitle"
+              name="ebookTitle"
+              defaultValue={instructor.ebookTitle ?? ""}
+              placeholder="My Ebook"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="ebdesc">Description</Label>
+            <Textarea
+              id="ebdesc"
+              name="ebookDescription"
+              rows={2}
+              defaultValue={instructor.ebookDescription ?? ""}
+              placeholder="What's inside, and who it's for."
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Cover image</Label>
+              <VideoCallImageUpload value={ebookCoverUrl} onChange={setEbookCoverUrl} />
+            </div>
+            <div className="space-y-2">
+              <Label>File</Label>
+              <EbookFileUpload value={ebookFileUrl} onChange={setEbookFileUrl} />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="ebprice">Price (optional)</Label>
+            <Input
+              id="ebprice"
+              name="ebookPrice"
+              type="number"
+              defaultValue={instructor.ebookPrice ?? ""}
+              placeholder="Leave blank for free"
+            />
+            <p className="text-xs text-muted-foreground">
+              Leave blank for a free download. A priced ebook charges through Paystack at checkout —
+              stays &quot;Coming soon&quot; on your page until you&apos;ve{" "}
+              <Link href="/dashboard/payouts" className="underline underline-offset-2">
+                connected a payout account
+              </Link>
+              .
+            </p>
+          </div>
+          <div className="flex justify-end">
+            <Button type="submit" variant="clay" disabled={ebookPending}>
+              {ebookPending ? (
                 <>
                   <Loader2 className="size-4 animate-spin" /> Saving…
                 </>

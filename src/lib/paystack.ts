@@ -144,6 +144,52 @@ export async function createSubaccount(input: {
   return { subaccountCode: data.subaccount_code, accountName: data.account_name };
 }
 
+// Moves money into an existing subaccount outside of a student charge (e.g.
+// a referral commission payout) — there's no "pay into subaccount" endpoint,
+// so this goes through the Transfer Recipient API with type "subaccount",
+// which settles straight into that subaccount's configured bank account,
+// same place class/video-call payments already land.
+export async function createTransferRecipient(input: {
+  subaccountCode: string;
+  currency: CurrencyCode;
+}): Promise<{ recipientCode: string }> {
+  const data = await paystackFetch<{ recipient_code: string }>("/transferrecipient", {
+    method: "POST",
+    body: JSON.stringify({
+      type: "subaccount",
+      subaccount: input.subaccountCode,
+      currency: input.currency,
+    }),
+  });
+
+  return { recipientCode: data.recipient_code };
+}
+
+export async function initiateTransfer(input: {
+  recipientCode: string;
+  // Major-unit amount (e.g. 5000 for ₦5,000) — converted to minor units
+  // below, same convention as initializeTransaction.
+  amount: number;
+  reason: string;
+  // Caller-supplied idempotency key (e.g. the ReferralPayoutRequest id) —
+  // lets the transfer.success/transfer.failed webhook resolve back to the
+  // record that requested it.
+  reference: string;
+}): Promise<{ transferCode: string; status: string }> {
+  const data = await paystackFetch<{ transfer_code: string; status: string }>("/transfer", {
+    method: "POST",
+    body: JSON.stringify({
+      source: "balance",
+      amount: input.amount * 100,
+      recipient: input.recipientCode,
+      reason: input.reason,
+      reference: input.reference,
+    }),
+  });
+
+  return { transferCode: data.transfer_code, status: data.status };
+}
+
 export async function initializeTransaction(input: {
   email: string;
   // Always the major-unit price (e.g. 5000 for ₦5,000) — Paystack wants the

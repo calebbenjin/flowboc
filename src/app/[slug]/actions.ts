@@ -6,6 +6,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { sendVideoCallBookingEmail, sendInstructorNewVideoCallBookingEmail } from "@/lib/email";
 import { finalizeVideoCallPayment } from "@/lib/video-call-booking";
+import { finalizeEbookPurchase } from "@/lib/ebook-purchase";
 import { payoutProviderForCurrency } from "@/lib/payout";
 import { initializeTransaction, verifyTransaction, PaystackError } from "@/lib/paystack";
 import { siteUrl } from "@/lib/site";
@@ -297,6 +298,178 @@ export async function verifyVideoCallPayment(reference: string): Promise<VerifyV
     return result
       ? { ok: true, meetingLink: result.meetingLink, offerTitle: result.offerTitle }
       : { ok: false, error: "This booking could not be found." };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof PaystackError ? err.message : "Couldn't confirm payment.",
+    };
+  }
+}
+
+const ebookSchema = z.object({
+  slug: z.string().trim().min(1),
+  name: z.string().trim().min(1, "Please enter your name.").max(200),
+  email: z.string().trim().email("Please enter a valid email."),
+  website: z.string().optional(), // honeypot — real users never fill this
+});
+
+const EBOOK_RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
+const EBOOK_RATE_LIMIT_MAX_PER_WINDOW = 3;
+
+type BuyEbookResult =
+  ActionResult | { ok: true; downloadUrl: string } | { ok: true; authorizationUrl: string };
+
+export async function buyEbook(input: {
+  slug: string;
+  name: string;
+  email: string;
+  website?: string;
+}): Promise<BuyEbookResult> {
+  const parsed = ebookSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Please check your details." };
+  }
+
+  // Honeypot tripped — pretend success so bots don't learn to avoid it.
+  if (parsed.data.website) return { ok: true };
+
+  const name = parsed.data.name;
+  const email = parsed.data.email.toLowerCase();
+
+  const instructor = await prisma.instructor.findUnique({
+    where: { slug: parsed.data.slug },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      email: true,
+      ebookEnabled: true,
+      ebookTitle: true,
+      ebookPrice: true,
+      ebookFileUrl: true,
+      currency: true,
+      payoutStatus: true,
+      payoutAccountId: true,
+    },
+  });
+  if (!instructor) return { ok: false, error: "This page could not be found." };
+
+  if (!instructor.ebookEnabled || !instructor.ebookFileUrl) {
+    return { ok: false, error: "This ebook isn't available right now." };
+  }
+
+  const since = new Date(Date.now() - EBOOK_RATE_LIMIT_WINDOW_MS);
+  const recentCount = await prisma.ebookPurchase.count({
+    where: { instructorId: instructor.id, buyerEmail: email, createdAt: { gte: since } },
+  });
+  if (recentCount >= EBOOK_RATE_LIMIT_MAX_PER_WINDOW) {
+    return { ok: false, error: "You've already requested this — check your email." };
+  }
+
+  const price = instructor.ebookPrice ?? 0;
+  const title = instructor.ebookTitle || "Ebook";
+
+  // Free — unlock and notify immediately. Created PENDING (not PAID) so the
+  // single finalizeEbookPurchase transition below is what actually fires
+  // the "send emails" step — same idempotency guard the paid path relies
+  // on, rather than duplicating email-sending here.
+  if (price === 0) {
+    const purchase = await prisma.ebookPurchase.create({
+      data: {
+        instructorId: instructor.id,
+        buyerName: name,
+        buyerEmail: email,
+        amount: 0,
+        currency: instructor.currency,
+        paymentStatus: "PENDING",
+      },
+    });
+
+    const result = await finalizeEbookPurchase({ purchaseId: purchase.id, paystackFee: null });
+    return result
+      ? { ok: true, downloadUrl: result.downloadUrl }
+      : { ok: false, error: "Couldn't unlock this ebook." };
+  }
+
+  // Paid — hold the purchase as PENDING and send the buyer to Paystack
+  // checkout. Only unlocked once payment actually clears — see
+  // finalizeEbookPurchase, called from verifyEbookPurchase below and from
+  // the Paystack webhook.
+  if (payoutProviderForCurrency(instructor.currency) !== "PAYSTACK") {
+    return { ok: false, error: "Payments for this instructor's currency aren't available yet." };
+  }
+  if (instructor.payoutStatus !== "CONNECTED" || !instructor.payoutAccountId) {
+    return { ok: false, error: "This instructor hasn't finished setting up payments yet." };
+  }
+
+  const purchase = await prisma.ebookPurchase.create({
+    data: {
+      instructorId: instructor.id,
+      buyerName: name,
+      buyerEmail: email,
+      amount: price,
+      currency: instructor.currency,
+      paymentStatus: "PENDING",
+    },
+  });
+
+  try {
+    const { authorizationUrl, reference } = await initializeTransaction({
+      email,
+      amount: price,
+      currency: instructor.currency,
+      subaccount: instructor.payoutAccountId,
+      callbackUrl: `${siteUrl}/${instructor.slug}`,
+      metadata: { ebookPurchaseId: purchase.id },
+    });
+
+    await prisma.ebookPurchase.update({
+      where: { id: purchase.id },
+      data: { paystackReference: reference },
+    });
+
+    return { ok: true, authorizationUrl };
+  } catch (err) {
+    return {
+      ok: false,
+      error:
+        err instanceof PaystackError ? err.message : "Couldn't start payment. Please try again.",
+    };
+  }
+}
+
+type VerifyEbookResult = { ok: true; downloadUrl: string } | { ok: false; error: string };
+
+export async function verifyEbookPurchase(reference: string): Promise<VerifyEbookResult> {
+  const purchase = await prisma.ebookPurchase.findUnique({
+    where: { paystackReference: reference },
+  });
+  if (!purchase) return { ok: false, error: "This payment could not be found." };
+
+  if (purchase.paymentStatus === "PAID") {
+    const result = await finalizeEbookPurchase({ purchaseId: purchase.id, paystackFee: null });
+    return result
+      ? { ok: true, downloadUrl: result.downloadUrl }
+      : { ok: false, error: "This purchase could not be found." };
+  }
+
+  try {
+    const verified = await verifyTransaction(reference);
+    if (verified.status !== "success") {
+      await prisma.ebookPurchase.update({
+        where: { id: purchase.id },
+        data: { paymentStatus: "FAILED" },
+      });
+      return { ok: false, error: "Payment wasn't completed. You can try again." };
+    }
+
+    const result = await finalizeEbookPurchase({
+      purchaseId: purchase.id,
+      paystackFee: verified.fees !== null ? verified.fees / 100 : null,
+    });
+    return result
+      ? { ok: true, downloadUrl: result.downloadUrl }
+      : { ok: false, error: "This purchase could not be found." };
   } catch (err) {
     return {
       ok: false,

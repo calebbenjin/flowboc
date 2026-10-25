@@ -2,15 +2,18 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, Copy } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { Check, Copy, Loader2 } from "lucide-react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { useInstructor } from "@/components/InstructorProvider";
 import { StatusPill } from "@/components/StatusPill";
 import { Button } from "@/components/ui/button";
 import { money } from "@/lib/demo";
 import { siteUrl } from "@/lib/site";
-import type { ReferralStatus } from "@/generated/prisma/enums";
-import type { ReferralRow } from "./queries";
+import type { ReferralPayoutStatus, ReferralStatus } from "@/generated/prisma/enums";
+import { requestReferralPayout } from "./actions";
+import type { PayoutRequestRow, ReferralRow } from "./queries";
 
 function statusTone(status: ReferralStatus) {
   if (status === "ACTIVE") return "good" as const;
@@ -18,21 +21,62 @@ function statusTone(status: ReferralStatus) {
   return "neutral" as const;
 }
 
+function payoutStatusTone(status: ReferralPayoutStatus) {
+  if (status === "PAID") return "good" as const;
+  if (status === "PENDING" || status === "APPROVED") return "warn" as const;
+  if (status === "REJECTED" || status === "FAILED") return "bad" as const;
+  return "neutral" as const;
+}
+
+function payoutStatusLabel(status: ReferralPayoutStatus) {
+  if (status === "PENDING") return "pending review";
+  if (status === "APPROVED") return "approved · sending";
+  return status.toLowerCase();
+}
+
 export function ReferralsClient({
   referrals,
   stats,
+  availableBalance,
+  payoutRequests,
 }: {
   referrals: ReferralRow[];
   stats: { totalReferred: number; activeReferrals: number; totalCommission: number };
+  availableBalance: number;
+  payoutRequests: PayoutRequestRow[];
 }) {
   const instructor = useInstructor();
+  const router = useRouter();
   const [copied, setCopied] = useState(false);
+  const [requesting, setRequesting] = useState(false);
   const referralUrl = `${siteUrl}/r/${instructor.referralCode}`;
+
+  const hasRequestInFlight = payoutRequests.some(
+    (r) => r.status === "PENDING" || r.status === "APPROVED",
+  );
+  const payoutConnected = instructor.payoutStatus === "CONNECTED" && !!instructor.payoutAccountId;
 
   async function handleCopy() {
     await navigator.clipboard.writeText(referralUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handleRequestPayout() {
+    setRequesting(true);
+    try {
+      const result = await requestReferralPayout();
+      if (result.ok) {
+        toast.success("Payout requested — we'll review it shortly.");
+        router.refresh();
+      } else {
+        toast.error(result.error);
+      }
+    } catch {
+      toast.error("Couldn't request a payout. Please try again.");
+    } finally {
+      setRequesting(false);
+    }
   }
 
   return (
@@ -80,6 +124,58 @@ export function ReferralsClient({
           </div>
         ))}
       </div>
+
+      <div className="surface mt-6 flex flex-wrap items-center justify-between gap-4 p-5">
+        <div>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">
+            Available to withdraw
+          </p>
+          <p className="display mt-2 text-3xl">{money(availableBalance, instructor.currency)}</p>
+          {!payoutConnected && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              <Link href="/dashboard/payouts" className="underline">
+                Connect your payout account
+              </Link>{" "}
+              to request a payout.
+            </p>
+          )}
+        </div>
+        {hasRequestInFlight ? (
+          <StatusPill tone="warn">Payout request in progress</StatusPill>
+        ) : (
+          <Button
+            variant="clay"
+            disabled={!payoutConnected || availableBalance <= 0 || requesting}
+            onClick={() => void handleRequestPayout()}
+          >
+            {requesting ? <Loader2 className="size-4 animate-spin" /> : "Request payout"}
+          </Button>
+        )}
+      </div>
+
+      {payoutRequests.length > 0 && (
+        <>
+          <h2 className="mt-8 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+            Payout requests
+          </h2>
+          <div className="surface mt-3 divide-y divide-border">
+            {payoutRequests.map((r) => (
+              <div key={r.id} className="flex flex-wrap items-center gap-4 p-4">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">{money(r.amount, instructor.currency)}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Requested {r.requestedAt.toLocaleDateString()}
+                    {r.status === "FAILED" && r.failureReason ? ` · ${r.failureReason}` : ""}
+                  </p>
+                </div>
+                <StatusPill tone={payoutStatusTone(r.status)}>
+                  {payoutStatusLabel(r.status)}
+                </StatusPill>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       <h2 className="mt-8 text-xs uppercase tracking-[0.18em] text-muted-foreground">
         Your referrals

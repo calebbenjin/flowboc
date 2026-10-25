@@ -43,12 +43,19 @@ export default async function OnboardingPage({
   const { ref, plan, slug: slugParam } = await searchParams;
 
   const [initialUser, instructor] = await Promise.all([
-    prisma.user.findUniqueOrThrow({ where: { id: session.user.id } }),
+    prisma.user.findUnique({ where: { id: session.user.id } }),
     prisma.instructor.findUnique({
       where: { userId: session.user.id },
       include: { socials: true },
     }),
   ]);
+
+  // The JWT session can outlive the User row it points to (e.g. a stale
+  // cookie from before a dev DB reset, or a deleted account). Treat that
+  // the same as "not signed in" rather than crashing.
+  if (!initialUser) {
+    redirect("/auth");
+  }
   let user = initialUser;
 
   // Already finished onboarding — don't re-show step 1. Needed because

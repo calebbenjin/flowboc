@@ -108,6 +108,12 @@ enum PageLayout {
   COVER_GRID
 }
 
+enum BackgroundType {
+  IMAGE
+  COLOR
+  GRADIENT
+}
+
 // STARTER is the base tier (every instructor starts here). PRO and PREMIUM
 // unlock gated features — see src/components/ProGate.tsx for the UI side of
 // that check. Mirrors the three cards on the public pricing page.
@@ -164,9 +170,30 @@ model Instructor {
   onboardingCompletedAt DateTime?
 
   // Public booking-page customization.
-  themeColor          String     @default("#6355ff")
-  backgroundImageUrl  String?
-  pageLayout          PageLayout @default(CLASSIC)
+  themeColor String     @default("#6355ff")
+  pageLayout PageLayout @default(CLASSIC)
+
+  // Which of the three background fields below is actually in effect.
+  // IMAGE is the default so existing instructors (all pre-dating this
+  // field) keep rendering exactly as before, including the common case of
+  // no image at all — see hasActiveBackground in
+  // src/lib/public-page-background.ts, the single place that decides
+  // whether a background is actually showing right now.
+  backgroundType         BackgroundType @default(IMAGE)
+  backgroundImageUrl     String?
+  backgroundColor        String?
+  backgroundGradientFrom String?
+  backgroundGradientTo   String?
+
+  // Order of every content block on the public page — a mix of fixed
+  // tokens ("VIDEO_CALL", "EBOOK", "CLASSES") and link references
+  // ("LINK:<InstructorLink.id>"). Resolved against what's actually
+  // available via resolveBlockOrder in src/lib/public-page-blocks.ts rather
+  // than trusted verbatim — a disabled offer or deactivated link keeps its
+  // stored slot, a deleted link's token just drops out, and anything never
+  // seen before (a brand-new link, or an empty array before first use)
+  // appends to the end.
+  publicPageBlockOrder String[] @default([])
 
   // "Book a video call" offer card — free only for now (no real payment
   // processing exists yet; see VideoCallBooking). consultationLink doubles
@@ -176,6 +203,17 @@ model Instructor {
   videoCallDescription String?
   videoCallImageUrl    String?
   videoCallPrice       Int?
+
+  // "Sell an ebook" offer card — one digital product per instructor, paid
+  // via Paystack subaccount checkout like a booking (see EbookPurchase).
+  // ebookFileUrl is deliberately never sent to the client — buyers only
+  // ever reach the file through the gated /api/ebooks/download route.
+  ebookEnabled     Boolean @default(false)
+  ebookTitle       String?
+  ebookDescription String?
+  ebookCoverUrl    String?
+  ebookFileUrl     String?
+  ebookPrice       Int?
 
   // planStatus/trialEndsAt back a no-card 14-day trial: trialEndsAt is set
   // once at signup rather than derived from createdAt, so a support-granted
@@ -206,10 +244,10 @@ model Instructor {
   // Populated once an instructor subscribes (see src/app/dashboard/billing).
   // subscriptionProviderId is Startbutton's subscriber id, required to call
   // the cancel-subscriber endpoint.
-  billingInterval         BillingInterval?
-  subscriptionProviderId  String?
-  subscriptionPlanCode    String?
-  subscriptionRenewsAt    DateTime?
+  billingInterval        BillingInterval?
+  subscriptionProviderId String?
+  subscriptionPlanCode   String?
+  subscriptionRenewsAt   DateTime?
 
   // Set by startSubscription when an already-ACTIVE instructor switches
   // tier/interval — holds the OLD subscriptionProviderId so the Startbutton
@@ -226,6 +264,11 @@ model Instructor {
   payoutAccountId String?
   payoutBankLabel String?
 
+  // Paystack transfer-recipient (type: "subaccount") for payoutAccountId,
+  // created lazily on first referral payout approval and reused afterward
+  // instead of re-creating one with Paystack on every payout.
+  paystackTransferRecipientCode String?
+
   // Dashboard "get set up" checklist — null while visible, set once the
   // instructor dismisses it. Not reset if they later un-complete a step
   // (e.g. cancel their only class); dismissal is a one-way door.
@@ -235,16 +278,18 @@ model Instructor {
   commissionRate     Int    @default(20)
   referralClickCount Int    @default(0)
 
-  socials               InstructorSocial[]
-  classes               YogaClass[]
-  pageViews             PageView[]
-  referralsMade         Referral[]             @relation("ReferralsMade")
-  referredBy            Referral?              @relation("ReferredBy")
-  links                 InstructorLink[]
-  newsletterSubscribers NewsletterSubscriber[]
-  newsletterCampaigns   NewsletterCampaign[]
-  videoCallBookings     VideoCallBooking[]
-  activityEvents        AdminActivityEvent[]
+  socials                InstructorSocial[]
+  classes                YogaClass[]
+  pageViews              PageView[]
+  referralsMade          Referral[]              @relation("ReferralsMade")
+  referredBy             Referral?               @relation("ReferredBy")
+  referralPayoutRequests ReferralPayoutRequest[]
+  links                  InstructorLink[]
+  newsletterSubscribers  NewsletterSubscriber[]
+  newsletterCampaigns    NewsletterCampaign[]
+  videoCallBookings      VideoCallBooking[]
+  ebookPurchases         EbookPurchase[]
+  activityEvents         AdminActivityEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -440,9 +485,49 @@ model Referral {
   plan             String?
   commissionEarned Int            @default(0)
 
+  // Set the instant a payout request is created to "lock" this referral's
+  // earned commission against being claimed by a second, concurrent
+  // request; cleared back to null if the request is rejected.
+  payoutRequestId String?
+  payoutRequest   ReferralPayoutRequest? @relation(fields: [payoutRequestId], references: [id])
+
   joinedAt DateTime @default(now())
 
   @@index([referrerInstructorId])
+}
+
+enum ReferralPayoutStatus {
+  PENDING // requested, awaiting admin review
+  APPROVED // admin approved, transfer initiated, awaiting Paystack confirmation
+  REJECTED // admin rejected; linked referrals unlocked
+  PAID // Paystack confirmed transfer.success
+  FAILED // Paystack confirmed transfer.failed/reversed
+}
+
+// An instructor's request to withdraw their accrued referral commission.
+// Money moves via Paystack's Transfer API into the same subaccount
+// (Instructor.payoutAccountId) that class/video-call payments already
+// settle into — see src/lib/paystack.ts's createTransferRecipient/
+// initiateTransfer and the transfer.success/transfer.failed webhook cases.
+model ReferralPayoutRequest {
+  id           String     @id @default(cuid())
+  instructorId String
+  instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+
+  amount Int // whole-currency units, same unit as Referral.commissionEarned
+  status ReferralPayoutStatus @default(PENDING)
+
+  referrals Referral[]
+
+  requestedAt DateTime  @default(now())
+  reviewedAt  DateTime?
+  reviewNote  String?
+
+  paystackTransferCode      String?
+  paystackTransferReference String? @unique
+  failureReason             String?
+
+  @@index([instructorId])
 }
 
 // Public, unauthenticated form — no instructorId, this isn't scoped to a
@@ -472,6 +557,7 @@ model InstructorLink {
 
   label      String
   url        String
+  imageUrl   String?
   order      Int     @default(0)
   isActive   Boolean @default(true)
   clickCount Int     @default(0)
@@ -563,13 +649,38 @@ model VideoCallBooking {
   // amount/currency/paystackReference/paystackFee fields and the same
   // Paystack checkout flow (see initiateVideoCallPayment in
   // src/app/[slug]/actions.ts).
-  amount        Int?
-  currency      CurrencyCode?
+  amount            Int?
+  currency          CurrencyCode?
   // Defaults PAID since every row created before this field existed was a
   // free call, already confirmed and emailed at creation time.
-  paymentStatus PaymentStatus @default(PAID)
-  paystackReference String?   @unique
+  paymentStatus     PaymentStatus @default(PAID)
+  paystackReference String?       @unique
   paystackFee       Float?
+
+  createdAt DateTime @default(now())
+
+  @@index([instructorId])
+}
+
+// A purchase of the instructor's ebook offer card — same Paystack subaccount
+// checkout flow as VideoCallBooking. downloadToken is a second unguessable
+// value (distinct from id) checked by /api/ebooks/download alongside
+// paymentStatus, so a leaked purchase id alone can't unlock the file.
+model EbookPurchase {
+  id           String     @id @default(cuid())
+  instructorId String
+  instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+
+  buyerName  String
+  buyerEmail String
+
+  amount   Int
+  currency CurrencyCode
+
+  paymentStatus     PaymentStatus @default(PENDING)
+  paystackReference String?       @unique
+  paystackFee       Float?
+  downloadToken     String        @unique @default(cuid())
 
   createdAt DateTime @default(now())
 
@@ -584,6 +695,9 @@ enum AdminEventType {
   TRIAL_EXTENDED
   COMP_GRANTED
   CONTACT_MESSAGE
+  REFERRAL_PAYOUT_REQUESTED
+  REFERRAL_PAYOUT_APPROVED
+  REFERRAL_PAYOUT_REJECTED
 }
 
 // Insert-only platform activity feed for /admin/overview. message is a
