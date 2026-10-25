@@ -4,7 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { signOut, useSession } from "next-auth/react";
-import { Banknote, CreditCard, LayoutDashboard, LogOut, Share2, Tag } from "lucide-react";
+import {
+  Banknote,
+  CreditCard,
+  LayoutDashboard,
+  LogOut,
+  MessageCircleHeart,
+  Share2,
+  Tag,
+} from "lucide-react";
 import posthog from "posthog-js";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +21,7 @@ const nav = [
   { to: "/admin/billing", label: "Billing", icon: CreditCard },
   { to: "/admin/referrals", label: "Referrals", icon: Share2 },
   { to: "/admin/referral-payouts", label: "Referral payouts", icon: Banknote },
+  { to: "/admin/feedback", label: "Feedback", icon: MessageCircleHeart },
   { to: "/admin/pricing", label: "Pricing", icon: Tag },
 ];
 
