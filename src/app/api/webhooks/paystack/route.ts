@@ -5,6 +5,7 @@ import { recordFirstPaidBookingMilestone } from "@/lib/admin-activity";
 import { verifyWebhookSignature } from "@/lib/paystack";
 import { finalizeVideoCallPayment } from "@/lib/video-call-booking";
 import { finalizeClassBookingPayment } from "@/lib/class-booking";
+import { finalizeEbookPurchase } from "@/lib/ebook-purchase";
 
 const posthogLogger = getPostHogLogger();
 
@@ -13,6 +14,7 @@ type PaystackEvent = {
   data: {
     reference?: string;
     fees?: number | null;
+    reason?: string | null;
   };
 };
 
@@ -70,19 +72,32 @@ export async function POST(request: Request): Promise<NextResponse> {
           );
         }
 
-        // Class bookings and video call bookings share one reference
-        // namespace (both come from initializeTransaction), so only one of
-        // these two lookups ever matches a given reference.
+        // Class bookings, video call bookings, and ebook purchases all share
+        // one reference namespace (all three come from initializeTransaction),
+        // so only one of these lookups ever matches a given reference.
         if (!booking && event.data.reference) {
           const videoCallBooking = await prisma.videoCallBooking.findUnique({
             where: { paystackReference: event.data.reference },
           });
-          if (videoCallBooking && videoCallBooking.paymentStatus !== "PAID") {
-            const result = await finalizeVideoCallPayment({
-              bookingId: videoCallBooking.id,
-              paystackFee: event.data.fees != null ? event.data.fees / 100 : null,
+          if (videoCallBooking) {
+            if (videoCallBooking.paymentStatus !== "PAID") {
+              const result = await finalizeVideoCallPayment({
+                bookingId: videoCallBooking.id,
+                paystackFee: event.data.fees != null ? event.data.fees / 100 : null,
+              });
+              paymentUpdated = result !== null;
+            }
+          } else {
+            const ebookPurchase = await prisma.ebookPurchase.findUnique({
+              where: { paystackReference: event.data.reference },
             });
-            paymentUpdated = result !== null;
+            if (ebookPurchase && ebookPurchase.paymentStatus !== "PAID") {
+              const result = await finalizeEbookPurchase({
+                purchaseId: ebookPurchase.id,
+                paystackFee: event.data.fees != null ? event.data.fees / 100 : null,
+              });
+              paymentUpdated = result !== null;
+            }
           }
         }
 
@@ -90,6 +105,42 @@ export async function POST(request: Request): Promise<NextResponse> {
           body: "booking_payment_confirmed",
           severityNumber: SeverityNumber.INFO,
           attributes: { provider: "paystack", payment_updated: paymentUpdated },
+        });
+        break;
+      }
+
+      // Resolves a referral payout request from APPROVED (transfer
+      // initiated by an admin, see src/app/admin/referral-payouts/actions.ts)
+      // to its final PAID/FAILED state — transfers aren't guaranteed to
+      // settle synchronously, so this is the authoritative confirmation.
+      case "transfer.success":
+      case "transfer.failed":
+      case "transfer.reversed": {
+        const request = event.data.reference
+          ? await prisma.referralPayoutRequest.findUnique({
+              where: { paystackTransferReference: event.data.reference },
+            })
+          : null;
+
+        if (request && request.status === "APPROVED") {
+          await prisma.referralPayoutRequest.update({
+            where: { id: request.id },
+            data:
+              event.event === "transfer.success"
+                ? { status: "PAID" }
+                : { status: "FAILED", failureReason: event.data.reason ?? null },
+          });
+          paymentUpdated = true;
+        }
+
+        posthogLogger?.emit({
+          body: "referral_payout_transfer_resolved",
+          severityNumber: SeverityNumber.INFO,
+          attributes: {
+            provider: "paystack",
+            transfer_event: event.event,
+            resolved: paymentUpdated,
+          },
         });
         break;
       }

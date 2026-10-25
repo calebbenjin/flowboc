@@ -38,7 +38,7 @@ const nav = [
   { to: "/dashboard/classes", label: "Classes", icon: CalendarDays, mobile: true },
   { to: "/dashboard/analytics", label: "Analytics", icon: LineChart, mobile: true },
   { to: "/dashboard/students", label: "Students", icon: Users, mobile: true },
-  // { to: "/dashboard/links", label: "Links", icon: Link2, mobile: false },
+  { to: "/dashboard/links", label: "Links", icon: Link2, mobile: false },
   { to: "/dashboard/design", label: "Design", icon: Palette, mobile: false },
   { to: "/dashboard/newsletter", label: "Newsletter", icon: Mail, mobile: false },
   { to: "/dashboard/referrals", label: "Referrals", icon: Gift, mobile: false },

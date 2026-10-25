@@ -327,6 +327,50 @@ export async function sendInstructorNewVideoCallBookingEmail(input: {
   });
 }
 
+export async function sendEbookPurchaseEmail(input: {
+  to: string;
+  buyerName: string;
+  instructorName: string;
+  instructorEmail: string;
+  offerTitle: string;
+  downloadUrl: string;
+  // 0 for a free ebook — paid rows always carry a positive amount.
+  amount: number;
+  currency: CurrencyCode;
+}) {
+  const paidLine =
+    input.amount > 0
+      ? `We've received your payment of ${money(input.amount, input.currency)}.`
+      : "This one's free — no payment needed.";
+
+  await sendBrandedEmail({
+    to: input.to,
+    subject: `Your download: ${input.offerTitle}`,
+    heading: "It's yours!",
+    text: `Hi ${input.buyerName},\n\nThanks for getting "${input.offerTitle}" from ${input.instructorName}. ${paidLine}\n\nDownload it here: ${input.downloadUrl}\n\nQuestions? Reach ${input.instructorName} directly at ${input.instructorEmail}.`,
+    bodyHtml: `<p>Hi ${input.buyerName},</p><p>Thanks for getting <strong>${input.offerTitle}</strong> from ${input.instructorName}. ${paidLine}</p><p>${emailButton("Download now", input.downloadUrl)}</p><p style="font-size:13px;color:#8a8171;">Questions? Reach ${input.instructorName} directly at <a href="mailto:${input.instructorEmail}" style="color:#8a8171;">${input.instructorEmail}</a>.</p>`,
+  });
+}
+
+export async function sendInstructorNewEbookSaleEmail(input: {
+  to: string;
+  buyerName: string;
+  buyerEmail: string;
+  offerTitle: string;
+  amount: number;
+  currency: CurrencyCode;
+}) {
+  const paidLine = input.amount > 0 ? `and paid ${money(input.amount, input.currency)}` : "(free)";
+
+  await sendBrandedEmail({
+    to: input.to,
+    subject: `New ebook sale: ${input.buyerName}`,
+    heading: "New sale",
+    text: `${input.buyerName} (${input.buyerEmail}) just got "${input.offerTitle}" ${paidLine}.`,
+    bodyHtml: `<p><strong>${input.buyerName}</strong> (<a href="mailto:${input.buyerEmail}" style="color:#2e2a24;">${input.buyerEmail}</a>) just got <strong>${input.offerTitle}</strong> ${paidLine}.</p>`,
+  });
+}
+
 export async function sendClassReminderEmail(
   input: {
     to: string;

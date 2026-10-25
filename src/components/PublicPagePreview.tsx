@@ -12,12 +12,23 @@ import {
 } from "@/lib/demo";
 import { cn } from "@/lib/utils";
 import { useIsBrightImage } from "@/lib/use-image-brightness";
+import {
+  backgroundColorValue,
+  backgroundImageValue,
+  hasActiveBackground,
+  isFlatBackgroundBright,
+  type BackgroundType,
+} from "@/lib/public-page-background";
 
 export type PreviewInstructor = {
   name: string;
   photoUrl: string | null;
   themeColor: string;
+  backgroundType?: BackgroundType;
   backgroundImageUrl?: string | null;
+  backgroundColor?: string | null;
+  backgroundGradientFrom?: string | null;
+  backgroundGradientTo?: string | null;
   pageLayout: PageLayout;
   bio?: string | null;
   socials?: { platform: string; handle: string }[];
@@ -220,12 +231,22 @@ export function PublicPagePreview({
 
   const frameWidth = size === "md" ? "w-72" : "w-56";
   const screenHeight = size === "md" ? "h-[576px]" : "h-[448px]";
+  const background = {
+    backgroundType: instructor.backgroundType ?? "IMAGE",
+    backgroundImageUrl: instructor.backgroundImageUrl ?? null,
+    backgroundColor: instructor.backgroundColor ?? null,
+    backgroundGradientFrom: instructor.backgroundGradientFrom ?? null,
+    backgroundGradientTo: instructor.backgroundGradientTo ?? null,
+  };
+  const isImageBg = background.backgroundType === "IMAGE";
+  const hasBg = hasActiveBackground(background);
   // Over a background image, pick white or black outright based on measured
   // brightness (no soft "muted" shades) and bump the weight to font-medium —
   // the extra contrast and heft are what keep the header legible over an
-  // arbitrary photo.
-  const hasBg = Boolean(instructor.backgroundImageUrl);
-  const bgIsBright = useIsBrightImage(instructor.backgroundImageUrl);
+  // arbitrary photo. A flat color/gradient background has no pixels to
+  // sample, so its brightness is read straight from the stored hex value(s).
+  const imageIsBright = useIsBrightImage(isImageBg ? background.backgroundImageUrl : null);
+  const bgIsBright = isImageBg ? imageIsBright : isFlatBackgroundBright(background);
   const heroTextClass = hasBg
     ? bgIsBright
       ? "text-black font-medium"
@@ -244,13 +265,16 @@ export function PublicPagePreview({
           className={cn(
             "relative overflow-hidden rounded-[1.5rem] bg-background",
             screenHeight,
-            instructor.backgroundImageUrl ? "bg-cover bg-center" : undefined,
+            hasBg && isImageBg ? "bg-cover bg-center" : undefined,
           )}
           style={
             {
               "--theme": instructor.themeColor,
-              ...(instructor.backgroundImageUrl
-                ? { backgroundImage: `url(${instructor.backgroundImageUrl})` }
+              ...(backgroundColorValue(background)
+                ? { backgroundColor: backgroundColorValue(background)! }
+                : {}),
+              ...(backgroundImageValue(background)
+                ? { backgroundImage: backgroundImageValue(background)! }
                 : {}),
             } as CSSProperties
           }
@@ -258,7 +282,7 @@ export function PublicPagePreview({
           <div
             className={cn(
               "h-full overflow-y-auto",
-              instructor.backgroundImageUrl ? "bg-background/40 backdrop-blur-[1px]" : undefined,
+              hasBg && isImageBg ? "bg-background/40 backdrop-blur-[1px]" : undefined,
             )}
           >
             <div

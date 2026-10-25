@@ -16,6 +16,7 @@ import { timezoneLabel, type CurrencyCode, type SocialPlatform } from "@/lib/dem
 import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
 
 export type PageLayout = "CLASSIC" | "COMPACT" | "COVER_GRID";
+export type BackgroundType = "IMAGE" | "COLOR" | "GRADIENT";
 
 export type PublicInstructor = {
   name: string;
@@ -29,19 +30,29 @@ export type PublicInstructor = {
   specialties: string[];
   currency: CurrencyCode;
   themeColor: string;
+  backgroundType: BackgroundType;
   backgroundImageUrl: string | null;
+  backgroundColor: string | null;
+  backgroundGradientFrom: string | null;
+  backgroundGradientTo: string | null;
   pageLayout: PageLayout;
   videoCallEnabled: boolean;
   videoCallTitle: string | null;
   videoCallDescription: string | null;
   videoCallImageUrl: string | null;
   videoCallPrice: number | null;
+  ebookEnabled: boolean;
+  ebookTitle: string | null;
+  ebookDescription: string | null;
+  ebookCoverUrl: string | null;
+  ebookPrice: number | null;
   // Whether this instructor can actually receive a Paystack charge — a
-  // priced video call stays "Coming soon" on the public page until this is
-  // true, rather than letting a student fill out the form and hit a dead end.
+  // priced video call (or ebook) stays "Coming soon" on the public page
+  // until this is true, rather than letting a student fill out the form and
+  // hit a dead end.
   payoutConnected: boolean;
   socials: { platform: string; handle: string }[];
-  links: { id: string; label: string; url: string }[];
+  links: { id: string; label: string; url: string; imageUrl: string | null }[];
 };
 
 export type PublicClass = {

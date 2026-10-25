@@ -127,6 +127,36 @@ export async function updateVideoCallOffer(input: {
   return { ok: true };
 }
 
+export async function updateEbookOffer(input: {
+  enabled: boolean;
+  title?: string;
+  description?: string;
+  coverUrl?: string | null;
+  fileUrl?: string | null;
+  price?: number | null;
+}): Promise<ActionResult> {
+  const instructor = await requireInstructor();
+  const fileUrl = input.fileUrl?.trim() || null;
+
+  if (input.enabled && !fileUrl) {
+    return { ok: false, error: "Upload an ebook file before enabling the ebook card." };
+  }
+
+  await prisma.instructor.update({
+    where: { id: instructor.id },
+    data: {
+      ebookEnabled: input.enabled,
+      ebookTitle: input.title?.trim() || null,
+      ebookDescription: input.description?.trim() || null,
+      ebookCoverUrl: input.coverUrl || null,
+      ebookFileUrl: fileUrl,
+      ebookPrice: input.price ?? null,
+    },
+  });
+
+  return { ok: true };
+}
+
 export async function deleteAccount(): Promise<ActionResult> {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not authenticated");
