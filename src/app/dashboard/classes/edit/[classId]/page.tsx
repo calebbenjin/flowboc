@@ -24,5 +24,16 @@ export default async function EditClassPage({ params }: { params: Promise<{ clas
   const cls = await prisma.yogaClass.findUnique({ where: { id: classId } });
   if (!cls || cls.instructorId !== instructor.id) notFound();
 
-  return <EditClassClient cls={cls} />;
+  const futureCount =
+    cls.seriesId && cls.startAt >= new Date() && !["CANCELLED", "COMPLETED"].includes(cls.status)
+      ? await prisma.yogaClass.count({
+          where: {
+            instructorId: instructor.id,
+            seriesId: cls.seriesId,
+            startAt: { gte: cls.startAt },
+            status: { in: ["DRAFT", "PUBLISHED", "FULL"] },
+          },
+        })
+      : 0;
+  return <EditClassClient cls={cls} futureCount={futureCount} />;
 }

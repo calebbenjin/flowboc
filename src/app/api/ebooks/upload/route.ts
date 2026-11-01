@@ -1,3 +1,5 @@
+import { requireInstructor } from "@/lib/require-instructor";
+import { canUseProOffers } from "@/lib/offer-access";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
@@ -18,11 +20,16 @@ export async function POST(request: Request): Promise<NextResponse> {
     const jsonResponse = await handleUpload({
       body,
       request,
-      onBeforeGenerateToken: async () => ({
-        allowedContentTypes: ["application/pdf", "application/epub+zip"],
-        maximumSizeInBytes: 50 * 1024 * 1024,
-        addRandomSuffix: true,
-      }),
+      onBeforeGenerateToken: async () => {
+        const instructor = await requireInstructor();
+        if (!canUseProOffers(instructor))
+          throw new Error("An active Pro plan is required to upload ebooks.");
+        return {
+          allowedContentTypes: ["application/pdf", "application/epub+zip"],
+          maximumSizeInBytes: 50 * 1024 * 1024,
+          addRandomSuffix: true,
+        };
+      },
       onUploadCompleted: async () => {
         // Nothing to persist here — updateEbookOffer writes the resulting
         // blob URL to Instructor.ebookFileUrl once the client confirms.

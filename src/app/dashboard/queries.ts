@@ -1,15 +1,23 @@
+import type { CurrencyCode } from "@/lib/demo";
 import { prisma } from "@/lib/db";
 import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
+import { zonedDateTimeToUtc } from "@/lib/timezone";
 import { slugify } from "@/lib/slug";
 
-export type AttentionItem = { id: string; kind: string; detail: string };
+export type AttentionItem = {
+  id: string;
+  kind: string;
+  detail: string;
+  href: string;
+  action: string;
+};
 
 const NEAR_CAPACITY_THRESHOLD = 2;
 
 export async function getAttentionItems(instructorId: string): Promise<AttentionItem[]> {
   const [publishedClasses, failedPayments, draftClasses] = await Promise.all([
     prisma.yogaClass.findMany({
-      where: { instructorId, status: "PUBLISHED" },
+      where: { instructorId, status: "PUBLISHED", startAt: { gte: new Date() } },
       include: { _count: { select: { bookings: { where: { status: "CONFIRMED" } } } } },
       orderBy: { startAt: "asc" },
     }),
@@ -34,6 +42,8 @@ export async function getAttentionItems(instructorId: string): Promise<Attention
       items.push({
         id: `almost-full-${c.id}`,
         kind: "Almost full",
+        href: `/dashboard/classes/${c.id}`,
+        action: "View bookings",
         detail: `${c.name} · ${formatClassDate(c)} ${formatClassTime(c)} has ${spotsLeft} spot${spotsLeft === 1 ? "" : "s"} left`,
       });
     }
@@ -43,6 +53,8 @@ export async function getAttentionItems(instructorId: string): Promise<Attention
     items.push({
       id: `failed-payment-${b.id}`,
       kind: "Failed payment",
+      href: `/dashboard/classes/${b.classId}`,
+      action: "Review booking",
       detail: `${b.studentName}'s payment for ${b.class.name} failed`,
     });
   }
@@ -51,6 +63,8 @@ export async function getAttentionItems(instructorId: string): Promise<Attention
     items.push({
       id: `draft-${c.id}`,
       kind: "Draft class",
+      href: `/dashboard/classes/edit/${c.id}`,
+      action: "Continue editing",
       detail: `${c.name} is still unpublished`,
     });
   }
@@ -65,13 +79,24 @@ export type DashboardStats = {
   totalStudents: number;
 };
 
-export async function getDashboardStats(instructorId: string): Promise<DashboardStats> {
+export async function getDashboardStats(
+  instructorId: string,
+  timezone = "Africa/Lagos",
+  currency: CurrencyCode = "NGN",
+): Promise<DashboardStats> {
   const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(now);
+  const part = (type: string) => parts.find((item) => item.type === type)!.value;
+  const startOfMonth = zonedDateTimeToUtc(`${part("year")}-${part("month")}-01`, "00:00", timezone);
 
   const [
     classRevenue,
     videoCallRevenue,
+    ebookRevenue,
     upcomingClasses,
     totalClassBookings,
     totalVideoCallBookings,
@@ -79,11 +104,30 @@ export async function getDashboardStats(instructorId: string): Promise<Dashboard
     videoCallStudents,
   ] = await Promise.all([
     prisma.booking.aggregate({
-      where: { instructorId, paymentStatus: "PAID", bookedAt: { gte: startOfMonth } },
+      where: {
+        instructorId,
+        currency,
+        paymentStatus: "PAID",
+        bookedAt: { gte: startOfMonth },
+      },
       _sum: { amount: true },
     }),
     prisma.videoCallBooking.aggregate({
-      where: { instructorId, paymentStatus: "PAID", createdAt: { gte: startOfMonth } },
+      where: {
+        instructorId,
+        currency,
+        paymentStatus: "PAID",
+        createdAt: { gte: startOfMonth },
+      },
+      _sum: { amount: true },
+    }),
+    prisma.ebookPurchase.aggregate({
+      where: {
+        instructorId,
+        currency,
+        paymentStatus: "PAID",
+        createdAt: { gte: startOfMonth },
+      },
       _sum: { amount: true },
     }),
     prisma.yogaClass.count({
@@ -109,7 +153,10 @@ export async function getDashboardStats(instructorId: string): Promise<Dashboard
   ]);
 
   return {
-    revenueThisMonth: (classRevenue._sum.amount ?? 0) + (videoCallRevenue._sum.amount ?? 0),
+    revenueThisMonth:
+      (classRevenue._sum.amount ?? 0) +
+      (videoCallRevenue._sum.amount ?? 0) +
+      (ebookRevenue._sum.amount ?? 0),
     upcomingClasses,
     totalBookings: totalClassBookings + totalVideoCallBookings,
     totalStudents: uniqueStudentEmails.size,
@@ -130,14 +177,14 @@ export async function getOnboardingChecklist(instructor: {
   payoutStatus: string;
 }): Promise<ChecklistItem[]> {
   const [classCount, bookingCount] = await Promise.all([
-    prisma.yogaClass.count({ where: { instructorId: instructor.id } }),
+    prisma.yogaClass.count({ where: { instructorId: instructor.id, publishedAt: { not: null } } }),
     prisma.booking.count({ where: { instructorId: instructor.id, status: "CONFIRMED" } }),
   ]);
 
   return [
     {
       key: "create-class",
-      label: "Create your first class",
+      label: "Publish your first class",
       done: classCount > 0,
       href: "/dashboard/classes/new",
     },

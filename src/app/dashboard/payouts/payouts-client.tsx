@@ -3,7 +3,18 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Building2, CheckCircle2, Loader2, ShieldCheck, Smartphone } from "lucide-react";
+import {
+  Building2,
+  CheckCircle2,
+  Loader2,
+  ShieldCheck,
+  Smartphone,
+  Flower2,
+  ArrowRight,
+  CreditCard,
+  CalendarDays,
+  ArrowUpRight,
+} from "lucide-react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +28,8 @@ import { useInstructor } from "@/components/InstructorProvider";
 import { PayoutConnectForm } from "@/components/PayoutConnectForm";
 import { payoutProviderForCurrency } from "@/lib/payout";
 import { disconnectPayoutAccount } from "./actions";
+import Link from "next/link";
+import styles from "./payouts.module.css";
 
 function ConnectDialog({
   open,
@@ -77,102 +90,181 @@ export function PayoutsClient() {
 
   return (
     <DashboardShell>
-      <div>
-        <h1 className="text-3xl">Payouts</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Get paid directly for every class you teach — Flowboc never holds your funds.
-        </p>
-      </div>
-
-      {!connected && provider === "PAYSTACK" ? (
-        <div className="surface mt-6 flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center">
-          <span className="grid size-12 shrink-0 place-items-center rounded-full bg-clay/12 text-clay">
-            <Building2 className="size-5" />
-          </span>
-          <div className="flex-1">
-            <p className="font-medium">No payout account connected</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Connect a payout account so students can pay you directly when they book a class.
+      <div className={styles["page"]}>
+        <header className={styles["header"]}>
+          <div>
+            <p className={styles["eyebrow"]}>Make room for the work you love</p>
+            <h1>Payouts</h1>
+          </div>
+          <Link href="/dashboard/analytics#transactions">
+            View transactions <ArrowUpRight size={16} />
+          </Link>
+        </header>
+        <section className={styles["hero"]} aria-labelledby="payout-heading">
+          <div className={styles["intro"]}>
+            <Flower2 size={32} strokeWidth={1.2} aria-hidden="true" />
+            <h2 id="payout-heading">
+              Your teaching.
+              <br />
+              <em>Your earnings.</em>
+            </h2>
+            <p>
+              A space to teach, and a clear path to getting paid. Connect your account so students
+              can pay when they book.
+            </p>
+            <div className={styles["fee"]}>
+              <strong>
+                0<span>%</span>
+              </strong>
+              <div>
+                Flowboc transaction fee
+                <small>
+                  Your subscription covers Flowboc.
+                  <br />
+                  Paystack processing fees still apply.
+                </small>
+              </div>
+            </div>
+          </div>
+          <div className={styles["account"]}>
+            <div className={styles["accountTop"]}>
+              <span className={styles["bankIcon"]}>
+                {connected ? (
+                  <CheckCircle2 size={24} strokeWidth={1.5} />
+                ) : provider === "PAYSTACK" ? (
+                  <Building2 size={24} strokeWidth={1.5} />
+                ) : (
+                  <Smartphone size={24} strokeWidth={1.5} />
+                )}
+              </span>
+              <span className={styles["status"]}>
+                {connected
+                  ? "Connected"
+                  : provider === "PAYSTACK"
+                    ? "Ready to connect"
+                    : "Not yet supported"}
+              </span>
+            </div>
+            <h3>
+              {connected
+                ? "A home for your earnings"
+                : provider === "PAYSTACK"
+                  ? "Let your practice pay off"
+                  : "More currencies, in time"}
+            </h3>
+            {connected ? (
+              <>
+                <p>
+                  Your payout account is connected. Manage the destination for your class payments
+                  here.
+                </p>
+                <dl className={styles["details"]}>
+                  <div>
+                    <dt>Payout account</dt>
+                    <dd>{instructor.payoutBankLabel || "Connected account"}</dd>
+                  </div>
+                  <div>
+                    <dt>Provider</dt>
+                    <dd>Paystack</dd>
+                  </div>
+                  <div>
+                    <dt>Currency</dt>
+                    <dd>{instructor.currency}</dd>
+                  </div>
+                </dl>
+                <Button
+                  variant="ghost"
+                  className={styles["disconnect"]}
+                  disabled={disconnecting}
+                  onClick={() => void handleDisconnect()}
+                >
+                  {disconnecting ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" /> Disconnecting…
+                    </>
+                  ) : (
+                    "Disconnect account"
+                  )}
+                </Button>
+              </>
+            ) : provider === "PAYSTACK" ? (
+              <>
+                <p>
+                  Add your payout account to start accepting paid bookings. We’ll guide you through
+                  the details.
+                </p>
+                <div className={styles["currency"]}>
+                  <span>Payout currency</span>
+                  <strong>{instructor.currency}</strong>
+                </div>
+                <button className={styles["connect"]} onClick={() => setDialogOpen(true)}>
+                  Connect my payout account <ArrowRight size={17} />
+                </button>
+                <span className={styles["private"]}>
+                  <ShieldCheck size={14} /> Account setup through Paystack
+                </span>
+              </>
+            ) : (
+              <>
+                <p>
+                  Payouts aren’t available yet for {instructor.currency}. Direct payouts currently
+                  support NGN, GHS, ZAR, KES and XOF.
+                </p>
+                <div className={styles["currency"]}>
+                  <span>Your currency</span>
+                  <strong>{instructor.currency}</strong>
+                </div>
+                <p className={styles["small"]}>
+                  You can still prepare your classes while you wait for payout support.
+                </p>
+              </>
+            )}
+          </div>
+        </section>
+        <section className={styles["journey"]} aria-labelledby="payment-journey">
+          <h2 id="payment-journey">From their booking to your account</h2>
+          <ol>
+            {[
+              {
+                Icon: CreditCard,
+                title: "A student books",
+                body: "They pay for your class through your public page.",
+              },
+              {
+                Icon: ShieldCheck,
+                title: "Paystack processes it",
+                body: "Paystack deducts its standard processing fee. Flowboc takes no transaction fee.",
+              },
+              {
+                Icon: CalendarDays,
+                title: "Your earnings settle",
+                body: "Payments settle the next business day. First payouts may take longer for verification.",
+              },
+            ].map(({ Icon, title, body }, index) => (
+              <li key={title}>
+                <span className={styles["stepIcon"]}>
+                  <Icon size={20} strokeWidth={1.5} />
+                </span>
+                <div>
+                  <span className={styles["number"]}>0{index + 1}</span>
+                  <h3>{title}</h3>
+                  <p>{body}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+        <aside className={styles["note"]}>
+          <ShieldCheck size={22} strokeWidth={1.4} aria-hidden="true" />
+          <div>
+            <h2>A little clarity on your payouts</h2>
+            <p>
+              Paystack’s processing fees appear on your Paystack receipts. A newly connected or
+              changed account may need a one-time verification, so the first payout can take longer.
+              Flowboc never holds your funds.
             </p>
           </div>
-          <Button variant="clay" onClick={() => setDialogOpen(true)}>
-            Connect payout account
-          </Button>
-        </div>
-      ) : null}
-
-      {!connected && provider !== "PAYSTACK" ? (
-        <div className="surface mt-6 flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center">
-          <span className="grid size-12 shrink-0 place-items-center rounded-full bg-secondary text-muted-foreground">
-            <Smartphone className="size-5" />
-          </span>
-          <div className="flex-1">
-            <p className="font-medium">
-              Payouts aren&apos;t available yet for {instructor.currency}
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Flowboc currently supports direct payouts for NGN, GHS, ZAR, KES and XOF. Support for{" "}
-              {instructor.currency} is on the way.
-            </p>
-          </div>
-        </div>
-      ) : null}
-
-      {connected ? (
-        <div className="surface mt-6 p-6">
-          <div className="flex flex-wrap items-center gap-4">
-            <span className="grid size-12 shrink-0 place-items-center rounded-full bg-success/15 text-success">
-              <CheckCircle2 className="size-5" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="font-medium">Payout account connected</p>
-              <p className="mt-1 truncate text-sm text-muted-foreground">
-                {instructor.payoutBankLabel}
-              </p>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-destructive hover:text-destructive"
-              disabled={disconnecting}
-              onClick={() => void handleDisconnect()}
-            >
-              {disconnecting ? <Loader2 className="size-4 animate-spin" /> : "Disconnect"}
-            </Button>
-          </div>
-          <div className="mt-6 grid gap-4 border-t border-border pt-6 sm:grid-cols-3">
-            <div>
-              <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                Payout provider
-              </p>
-              <p className="mt-1 text-sm font-medium">Paystack</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                Flowboc&apos;s cut
-              </p>
-              <p className="mt-1 text-sm font-medium">0% — Flowboc is subscription-only</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                Settlement time
-              </p>
-              <p className="mt-1 text-sm font-medium">Next business day</p>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      <div className="surface mt-6 flex items-start gap-3 p-5">
-        <ShieldCheck className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">
-          Flowboc takes 0% of every payment — class payments go straight to your account. Paystack
-          still deducts its own standard processing fee per transaction (visible on your Paystack
-          receipts); that fee is Paystack&apos;s, not Flowboc&apos;s. Payments settle to your
-          account the next business day. Your very first payout may take a little longer — Paystack
-          briefly holds it for a one-time account verification whenever a payout account is newly
-          connected or changed.
-        </p>
+        </aside>
       </div>
 
       <ConnectDialog

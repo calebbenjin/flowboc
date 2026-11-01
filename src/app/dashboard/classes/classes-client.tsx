@@ -1,5 +1,7 @@
 "use client";
 
+import { dashboardIcons } from "@/components/dashboard-icons";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -18,6 +20,7 @@ import { DashboardShell } from "@/components/DashboardShell";
 import { EmptyState } from "@/components/EmptyState";
 import { StatusPill } from "@/components/StatusPill";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { PriceTag } from "@/components/PriceTag";
 import { useInstructor } from "@/components/InstructorProvider";
 import {
@@ -39,6 +42,9 @@ import { timezoneLabel } from "@/lib/demo";
 import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
 import type { YogaClass } from "@/generated/prisma/client";
 import { cancelClass, deleteClass, duplicateClass } from "./actions";
+import { ClassesEmpty } from "./ClassesEmpty";
+import { ClassCalendar } from "./class-calendar";
+import { classFilters, matchesClassFilter, type ClassFilter } from "./class-filters";
 
 type ClassWithBookingCount = YogaClass & { _count: { bookings: number } };
 
@@ -89,13 +95,21 @@ function groupClasses(classes: ClassWithBookingCount[]): ClassGroup[] {
 
 export function ClassesClient({ classes }: { classes: ClassWithBookingCount[] }) {
   const router = useRouter();
+  const instructor = useInstructor();
+  const [view, setView] = useState<"list" | "calendar">("list");
   const [confirmTarget, setConfirmTarget] = useState<ConfirmTarget | null>(null);
   const [confirmPending, setConfirmPending] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [expandedSeries, setExpandedSeries] = useState<Set<string>>(new Set());
 
+  const [compact, setCompact] = useState(true);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<ClassFilter>("upcoming");
+  const now = new Date();
+  const filteredClasses = classes.filter((cls) => matchesClassFilter(cls, filter, search, now));
+
   const seriesCount = new Set(classes.filter((c) => c.seriesId).map((c) => c.seriesId)).size;
-  const groups = groupClasses(classes);
+  const groups = groupClasses(filteredClasses);
 
   function toggleSeries(seriesId: string) {
     setExpandedSeries((prev) => {
@@ -145,33 +159,107 @@ export function ClassesClient({ classes }: { classes: ClassWithBookingCount[] })
         <div>
           <h1 className="text-3xl">Classes</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {classes.length} classes · {seriesCount} recurring series
+            {classes.length
+              ? `${classes.length} classes · ${seriesCount} recurring series`
+              : "A space for the practice you love to teach."}
           </p>
         </div>
-        <Button asChild variant="clay">
-          <Link href="/dashboard/classes/new">Create class</Link>
-        </Button>
+        {classes.length > 0 && (
+          <Button asChild variant="clay">
+            <Link href="/dashboard/classes/new">Create class</Link>
+          </Button>
+        )}
       </div>
 
+      {classes.length > 0 ? (
+        <div className="mt-6 space-y-3">
+          <label className="block max-w-sm text-sm font-medium">
+            Search classes
+            <Input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by class name"
+              className="mt-1"
+            />
+          </label>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Filter classes">
+            {classFilters.map(({ value, label }) => (
+              <Button
+                key={value}
+                size="sm"
+                variant={filter === value ? "clay" : "quiet"}
+                aria-pressed={filter === value}
+                onClick={() => setFilter(value)}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Class view">
+            <Button
+              size="sm"
+              variant={view === "list" ? "clay" : "quiet"}
+              aria-pressed={view === "list"}
+              onClick={() => setView("list")}
+            >
+              List
+            </Button>
+            <Button
+              size="sm"
+              variant={view === "calendar" ? "clay" : "quiet"}
+              aria-pressed={view === "calendar"}
+              onClick={() => setView("calendar")}
+            >
+              Calendar
+            </Button>
+          </div>
+          {view === "list" ? (
+            <Button
+              size="sm"
+              variant="quiet"
+              aria-pressed={compact}
+              onClick={() => setCompact((value) => !value)}
+            >
+              {compact ? "Switch to card view" : "Switch to compact view"}
+            </Button>
+          ) : null}
+          <p className="text-sm text-muted-foreground" role="status">
+            {filteredClasses.length} matching {filteredClasses.length === 1 ? "class" : "classes"}
+          </p>
+        </div>
+      ) : null}
+
       {classes.length === 0 ? (
+        <ClassesEmpty />
+      ) : view === "calendar" ? (
+        <ClassCalendar classes={filteredClasses} timezone={instructor.timezone} />
+      ) : filteredClasses.length === 0 ? (
         <EmptyState
           className="mt-6"
-          icon={CalendarDays}
-          title="No classes yet"
-          body="Create your first class to start taking bookings."
+          icon={dashboardIcons.classes}
+          title="No matching classes"
+          body="Try another status or clear your search."
           action={
-            <Button asChild variant="clay" size="sm">
-              <Link href="/dashboard/classes/new">Create class</Link>
+            <Button
+              variant="quiet"
+              onClick={() => {
+                setSearch("");
+                setFilter("all");
+              }}
+            >
+              Show all classes
             </Button>
           }
         />
       ) : (
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <div className={compact ? "mt-6 space-y-3" : "mt-6 grid gap-4 md:grid-cols-2"}>
           {groups.map((group) =>
             group.type === "single" ? (
               <ClassCard
                 key={group.cls.id}
                 cls={group.cls}
+                compact={compact}
                 duplicatingId={duplicatingId}
                 onDuplicate={handleDuplicate}
                 onCancel={(id) => setConfirmTarget({ id, action: "cancel" })}
@@ -181,6 +269,7 @@ export function ClassesClient({ classes }: { classes: ClassWithBookingCount[] })
               <SeriesCard
                 key={group.seriesId}
                 occurrences={group.occurrences}
+                compact={compact}
                 expanded={expandedSeries.has(group.seriesId)}
                 onToggle={() => toggleSeries(group.seriesId)}
                 duplicatingId={duplicatingId}
@@ -204,7 +293,7 @@ export function ClassesClient({ classes }: { classes: ClassWithBookingCount[] })
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmTarget?.action === "cancel"
-                ? "Booked students (once bookings exist) will be notified and refunded."
+                ? "Booked students will be notified. Any paid bookings require a manual refund through your payment provider."
                 : "This draft class will be permanently deleted. This can't be undone."}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -234,6 +323,7 @@ export function ClassesClient({ classes }: { classes: ClassWithBookingCount[] })
 
 type ClassActionsProps = {
   cls: ClassWithBookingCount;
+  compact?: boolean;
   duplicatingId: string | null;
   onDuplicate: (cls: ClassWithBookingCount) => void;
   onCancel: (id: string) => void;
@@ -279,11 +369,18 @@ function ClassMenu({ cls, duplicatingId, onDuplicate, onCancel, onDelete }: Clas
   );
 }
 
-function ClassCard({ cls: c, duplicatingId, onDuplicate, onCancel, onDelete }: ClassActionsProps) {
+function ClassCard({
+  cls: c,
+  compact = false,
+  duplicatingId,
+  onDuplicate,
+  onCancel,
+  onDelete,
+}: ClassActionsProps) {
   const instructor = useInstructor();
   return (
     <div className="surface overflow-hidden">
-      {c.coverUrl ? (
+      {compact ? null : c.coverUrl ? (
         <img
           src={c.coverUrl}
           alt={c.name}
@@ -334,7 +431,7 @@ function ClassCard({ cls: c, duplicatingId, onDuplicate, onCancel, onDelete }: C
           />
         </div>
 
-        <div className="mt-5 flex gap-2">
+        <div className="mt-5 flex flex-wrap gap-2">
           <Button asChild size="sm" variant="quiet">
             <Link href={`/dashboard/classes/${c.id}`}>Manage</Link>
           </Button>
@@ -381,6 +478,7 @@ function OccurrenceRow({
 }
 
 type SeriesCardProps = {
+  compact: boolean;
   occurrences: ClassWithBookingCount[];
   expanded: boolean;
   onToggle: () => void;
@@ -391,6 +489,7 @@ type SeriesCardProps = {
 };
 
 function SeriesCard({
+  compact,
   occurrences,
   expanded,
   onToggle,
@@ -408,7 +507,7 @@ function SeriesCard({
 
   return (
     <div className="surface overflow-hidden">
-      {next.coverUrl ? (
+      {compact ? null : next.coverUrl ? (
         <img
           src={next.coverUrl}
           alt={next.name}

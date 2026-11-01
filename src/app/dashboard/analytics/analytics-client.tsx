@@ -1,276 +1,277 @@
 "use client";
 
-import { useMemo, useState, type ComponentType } from "react";
+import Link from "next/link";
+import { useMemo, useState, type ReactNode } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import { Wallet, Eye, TrendingUp, Users } from "lucide-react";
+import { ArrowRight, Flower2, LockKeyhole } from "lucide-react";
 import { DashboardShell } from "@/components/DashboardShell";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
   type ChartConfig,
 } from "@/components/ui/chart";
 import { useInstructor } from "@/components/InstructorProvider";
 import { money, type CurrencyCode } from "@/lib/demo";
+import { currencySeries, type AnalyticsData } from "@/lib/analytics/metrics";
 import { cn } from "@/lib/utils";
-import type { TopClass, WeeklyMetric } from "./queries";
+import styles from "./analytics.module.css";
 
-const periods = [
-  { label: "4 weeks", count: 4 },
-  { label: "8 weeks", count: 8 },
-];
+const revenueConfig = {
+  classRevenue: { label: "Classes", color: "#6355ff" },
+  sessionRevenue: { label: "1:1 sessions", color: "#b28a54" },
+  ebookRevenue: { label: "Ebooks", color: "#3f8b78" },
+} satisfies ChartConfig;
+const ordersConfig = {
+  classBookings: { label: "Class bookings", color: "#6355ff" },
+  sessionBookings: { label: "1:1 sessions", color: "#b28a54" },
+  ebookSales: { label: "Ebook sales", color: "#3f8b78" },
+} satisfies ChartConfig;
+const audienceConfig = {
+  signups: { label: "Opt-ins", color: "#6355ff" },
+  unsubscribes: { label: "Unsubscribes", color: "#b56d77" },
+} satisfies ChartConfig;
+const viewsConfig = { views: { label: "Page visits", color: "#a596ff" } } satisfies ChartConfig;
 
-function pctDelta(current: number, previous: number) {
-  if (!previous) return null;
-  return ((current - previous) / previous) * 100;
-}
-
-function sum(rows: WeeklyMetric[], key: "revenue" | "views" | "bookings") {
-  return rows.reduce((s, r) => s + r[key], 0);
-}
-
-function compactMoney(amount: number, currency: CurrencyCode) {
-  return amount >= 1000
-    ? money(Math.round(amount / 1000), currency).concat("k")
-    : money(amount, currency);
-}
-
-function StatCard({
-  label,
-  value,
-  delta,
-  icon: Icon,
+function TrendChart({
+  data,
+  config,
+  bars = false,
+  monetary = false,
+  currency,
 }: {
-  label: string;
-  value: string;
-  delta: number | null;
-  icon: ComponentType<{ className?: string }>;
+  data: ReturnType<typeof currencySeries>;
+  config: ChartConfig;
+  bars?: boolean;
+  monetary?: boolean;
+  currency: CurrencyCode;
 }) {
+  const axes = (
+    <>
+      <CartesianGrid vertical={false} />
+      <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={18} />
+      <YAxis
+        tickLine={false}
+        axisLine={false}
+        width={monetary ? 60 : 35}
+        allowDecimals={false}
+        tickFormatter={(value: number) => (monetary ? money(value, currency) : String(value))}
+      />
+      <ChartTooltip
+        content={
+          <ChartTooltipContent
+            formatter={(value) => (monetary ? money(Number(value), currency) : String(value))}
+          />
+        }
+      />
+      <ChartLegend content={<ChartLegendContent />} />
+    </>
+  );
   return (
-    <div className="surface p-5">
-      <div className="flex items-center justify-between">
-        <p className="sm:text-xs text-[13px] uppercase tracking-wider text-muted-foreground">
-          {label}
-        </p>
-        <Icon className="size-4 text-muted-foreground" />
-      </div>
-      <p className="display mt-2 sm:text-3xl text-2xl">{value}</p>
-      {delta !== null && (
-        <p
-          className={cn(
-            "mt-1 text-xs font-medium",
-            delta >= 0 ? "text-success" : "text-destructive",
-          )}
-        >
-          {delta >= 0 ? "+" : ""}
-          {delta.toFixed(1)}% vs prior period
-        </p>
+    <ChartContainer config={config} className="mt-5 aspect-auto h-64 w-full">
+      {bars ? (
+        <BarChart data={data} margin={{ left: 0, right: 5, top: 8 }}>
+          {axes}
+          {Object.keys(config).map((key) => (
+            <Bar
+              key={key}
+              dataKey={key}
+              fill={`var(--color-${key})`}
+              radius={[3, 3, 0, 0]}
+              maxBarSize={24}
+              isAnimationActive={false}
+            />
+          ))}
+        </BarChart>
+      ) : (
+        <AreaChart data={data} margin={{ left: 0, right: 5, top: 8 }}>
+          {axes}
+          {Object.keys(config).map((key) => (
+            <Area
+              key={key}
+              type="monotone"
+              dataKey={key}
+              stroke={`var(--color-${key})`}
+              fill={`var(--color-${key})`}
+              fillOpacity={0.08}
+              strokeWidth={2}
+              isAnimationActive={false}
+            />
+          ))}
+        </AreaChart>
       )}
-    </div>
+    </ChartContainer>
   );
 }
 
-const revenueConfig = {
-  revenue: { label: "Revenue", color: "var(--color-chart-revenue)" },
-} satisfies ChartConfig;
-
-const viewsConfig = {
-  views: { label: "Site views", color: "var(--color-chart-views)" },
-} satisfies ChartConfig;
-
-const bookingsConfig = {
-  bookings: { label: "Bookings", color: "var(--color-chart-engagement)" },
-} satisfies ChartConfig;
+function ProCard({ locked, children }: { locked: boolean; children: ReactNode }) {
+  return (
+    <article className={styles["chart"]}>
+      <div
+        className={cn(locked && styles["blurred"])}
+        inert={locked || undefined}
+        aria-hidden={locked || undefined}
+      >
+        {children}
+      </div>
+      {locked && (
+        <div className={styles["upgradeLayer"]}>
+          <div className={styles["upgrade"]}>
+            <LockKeyhole size={22} className="mx-auto text-[#6355ff]" aria-hidden="true" />
+            <p>Discover more with Pro</p>
+            <Link href="/dashboard/billing" className={styles["cta"]}>
+              Unlock your insights <ArrowRight size={16} />
+            </Link>
+            <small>Illustrative chart preview</small>
+          </div>
+        </div>
+      )}
+    </article>
+  );
+}
 
 export function AnalyticsClient({
-  weeklyMetrics,
-  fillRate,
-  topClasses,
+  analytics,
+  locked = false,
+  children,
+  starterStats,
 }: {
-  weeklyMetrics: WeeklyMetric[];
-  fillRate: number;
-  topClasses: TopClass[];
+  starterStats?: Awaited<ReturnType<typeof import("./queries").getStarterStats>> | undefined;
+  analytics: AnalyticsData;
+  locked?: boolean;
+  children?: ReactNode;
 }) {
   const instructor = useInstructor();
   const [range, setRange] = useState(8);
-
-  const data = useMemo(() => weeklyMetrics.slice(-range), [weeklyMetrics, range]);
-  const prevData = useMemo(
-    () =>
-      weeklyMetrics.slice(
-        Math.max(0, weeklyMetrics.length - range * 2),
-        weeklyMetrics.length - range,
-      ),
-    [weeklyMetrics, range],
+  const [currency, setCurrency] = useState<CurrencyCode>(instructor.currency);
+  const data = useMemo(
+    () => currencySeries(analytics.weeks.slice(-range), currency),
+    [analytics.weeks, range, currency],
   );
-
-  const totalRevenue = sum(data, "revenue");
-  const totalViews = sum(data, "views");
-  const totalBookings = sum(data, "bookings");
-  const conversion = totalViews > 0 ? (totalBookings / totalViews) * 100 : 0;
-  const prevConversionViews = sum(prevData, "views");
-  const prevConversion =
-    prevConversionViews > 0 ? (sum(prevData, "bookings") / prevConversionViews) * 100 : 0;
-
+  const summary = starterStats?.periods.find((period) => period.range === range);
+  const total = summary?.totals.find((total) => total.currency === currency);
+  const revenue = total?.revenue ?? data.reduce((total, week) => total + week.revenue, 0);
+  const orders = total?.orders ?? data.reduce((total, week) => total + week.orders, 0);
+  const views = summary?.views ?? data.reduce((total, week) => total + week.views, 0);
+  const top = analytics.topClasses
+    .filter((cls) => cls.currency === currency)
+    .sort((a, b) => b.earned - a.earned)
+    .slice(0, 4);
   return (
     <DashboardShell>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl">Analytics</h1>
-          <p className="mt-1 text-sm text-muted-foreground">How your booking page is performing.</p>
-        </div>
-        <div className="flex gap-2">
-          {periods.map((p) => (
-            <button
-              key={p.count}
-              type="button"
-              onClick={() => setRange(p.count)}
-              className={cn(
-                "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-                range === p.count
-                  ? "bg-primary text-primary-foreground"
-                  : "border border-border text-muted-foreground hover:bg-accent",
-              )}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4 grid-cols-2">
-        <StatCard
-          label="Revenue"
-          value={money(totalRevenue, instructor.currency)}
-          delta={pctDelta(totalRevenue, sum(prevData, "revenue"))}
-          icon={Wallet}
-        />
-        <StatCard
-          label="Site views"
-          value={totalViews.toLocaleString()}
-          delta={pctDelta(totalViews, sum(prevData, "views"))}
-          icon={Eye}
-        />
-        <StatCard
-          label="View → booking rate"
-          value={`${conversion.toFixed(1)}%`}
-          delta={pctDelta(conversion, prevConversion)}
-          icon={TrendingUp}
-        />
-        <StatCard
-          label="Avg. fill rate"
-          value={`${fillRate.toFixed(0)}%`}
-          delta={null}
-          icon={Users}
-        />
-      </div>
-
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        <div className="surface p-6">
-          <h2 className="text-sm font-medium">Revenue</h2>
-          <p className="text-xs text-muted-foreground">Weekly earnings across all classes</p>
-          <ChartContainer config={revenueConfig} className="mt-4 aspect-auto h-56 w-full">
-            <AreaChart data={data} margin={{ left: 0, right: 8, top: 8 }}>
-              <defs>
-                <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--color-revenue)" stopOpacity={0.22} />
-                  <stop offset="100%" stopColor="var(--color-revenue)" stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid vertical={false} />
-              <XAxis dataKey="week" tickLine={false} axisLine={false} tickMargin={8} />
-              <YAxis
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                width={48}
-                tickFormatter={(v: number) => compactMoney(v, instructor.currency)}
-              />
-              <ChartTooltip
-                content={
-                  <ChartTooltipContent formatter={(v) => money(Number(v), instructor.currency)} />
-                }
-              />
-              <Area
-                type="monotone"
-                dataKey="revenue"
-                stroke="var(--color-revenue)"
-                strokeWidth={2}
-                fill="url(#revenueFill)"
-              />
-            </AreaChart>
-          </ChartContainer>
-        </div>
-
-        <div className="surface p-6">
-          <h2 className="text-sm font-medium">Site views</h2>
-          <p className="text-xs text-muted-foreground">Visits to your booking page</p>
-          <ChartContainer config={viewsConfig} className="mt-4 aspect-auto h-56 w-full">
-            <AreaChart data={data} margin={{ left: 0, right: 8, top: 8 }}>
-              <defs>
-                <linearGradient id="viewsFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--color-views)" stopOpacity={0.22} />
-                  <stop offset="100%" stopColor="var(--color-views)" stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid vertical={false} />
-              <XAxis dataKey="week" tickLine={false} axisLine={false} tickMargin={8} />
-              <YAxis tickLine={false} axisLine={false} tickMargin={8} width={40} />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Area
-                type="monotone"
-                dataKey="views"
-                stroke="var(--color-views)"
-                strokeWidth={2}
-                fill="url(#viewsFill)"
-              />
-            </AreaChart>
-          </ChartContainer>
-        </div>
-      </div>
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <div className="surface p-6">
-          <h2 className="text-sm font-medium">Bookings</h2>
-          <p className="text-xs text-muted-foreground">New bookings created per week</p>
-          <ChartContainer config={bookingsConfig} className="mt-4 aspect-auto h-56 w-full">
-            <BarChart data={data} margin={{ left: 0, right: 8, top: 8 }}>
-              <CartesianGrid vertical={false} />
-              <XAxis dataKey="week" tickLine={false} axisLine={false} tickMargin={8} />
-              <YAxis
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                width={32}
-                allowDecimals={false}
-              />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar
-                dataKey="bookings"
-                fill="var(--color-bookings)"
-                radius={[4, 4, 0, 0]}
-                maxBarSize={24}
-              />
-            </BarChart>
-          </ChartContainer>
-        </div>
-
-        <div className="surface p-6">
-          <h2 className="text-sm font-medium">Top classes by revenue</h2>
-          <p className="text-xs text-muted-foreground">All-time · booked spots × price</p>
-          <div className="mt-5 space-y-4">
-            {topClasses.map((c) => (
-              <div key={c.id} className="flex items-center justify-between gap-3 text-sm">
-                <div className="min-w-0">
-                  <p className="truncate font-medium">{c.name}</p>
-                  <p className="text-xs text-muted-foreground">{c.booked} booked</p>
-                </div>
-                <span className="shrink-0 font-medium">{money(c.earned, instructor.currency)}</span>
+      <header>
+        <h1 className="text-3xl">Analytics</h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          See what’s growing across your teaching, offers, and community.
+        </p>
+      </header>
+      <section
+        className={styles["proArea"]}
+        aria-label={locked ? "Pro analytics preview" : "Pro performance analytics"}
+      >
+        <div className={styles["charts"]}>
+          <div className={styles["controls"]}>
+            <div role="group" aria-label="Chart period">
+              {[4, 8].map((weeks) => (
+                <button key={weeks} aria-pressed={range === weeks} onClick={() => setRange(weeks)}>
+                  {weeks} weeks
+                </button>
+              ))}
+            </div>
+            <label>
+              Revenue currency
+              <select
+                value={currency}
+                onChange={(event) => setCurrency(event.target.value as CurrencyCode)}
+              >
+                {(starterStats?.currencies ?? analytics.currencies).map((value) => (
+                  <option key={value}>{value}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className={styles["stats"]}>
+            {[
+              { label: "Paid revenue", value: money(revenue, currency) },
+              { label: "Completed orders", value: orders.toLocaleString() },
+              { label: "Page visits", value: views.toLocaleString() },
+              {
+                label: "Newsletter subscribers",
+                value: (
+                  starterStats?.activeSubscribers ?? analytics.activeSubscribers
+                ).toLocaleString(),
+              },
+            ].map(({ label, value }) => (
+              <div key={label}>
+                <p>{label}</p>
+                <strong>{value}</strong>
+                {label === "Newsletter subscribers" && <small>Current opted-in audience</small>}
               </div>
             ))}
           </div>
+          <p className={styles["note"]}>
+            Weeks follow {instructor.timezone}. Revenue is shown in {currency}, before processor
+            fees. Pending, failed, and refunded payments are excluded. Completed orders include free
+            bookings and downloads.
+          </p>
+          <div className={styles["grid"]}>
+            <ProCard locked={locked}>
+              <h2>Revenue by offer</h2>
+              <p>Classes, personal sessions, and ebooks · {currency}</p>
+              <TrendChart data={data} config={revenueConfig} monetary currency={currency} />
+            </ProCard>
+            <ProCard locked={locked}>
+              <h2>Completed bookings &amp; sales</h2>
+              <p>Confirmed paid or free orders, grouped by offer</p>
+              <TrendChart data={data} config={ordersConfig} bars currency={currency} />
+            </ProCard>
+            <ProCard locked={locked}>
+              <h2>Newsletter activity</h2>
+              <p>Latest recorded opt-ins and unsubscribes</p>
+              <TrendChart data={data} config={audienceConfig} bars currency={currency} />
+              <p className={styles["note"]}>
+                Based on retained contacts’ latest signup and unsubscribe dates. Repeat signup
+                history and deleted contacts aren’t retained.
+              </p>
+            </ProCard>
+            <ProCard locked={locked}>
+              <h2>Public-page visits</h2>
+              <p>Visits to your teaching page, including repeat visits</p>
+              <TrendChart data={data} config={viewsConfig} currency={currency} />
+            </ProCard>
+          </div>
+          <div className={styles["grid"]}>
+            <ProCard locked={locked}>
+              <h2>Top classes by paid revenue</h2>
+              <p>All-time · {currency} only</p>
+              {top.length ? (
+                top.map((cls) => (
+                  <div key={`${cls.id}:${cls.currency}`} className={styles["topClass"]}>
+                    <div>
+                      <strong>{cls.name}</strong>
+                      <span>{cls.booked} confirmed bookings</span>
+                    </div>
+                    <strong>{money(cls.earned, cls.currency)}</strong>
+                  </div>
+                ))
+              ) : (
+                <p className="mt-5">Your paid class activity will appear here.</p>
+              )}
+            </ProCard>
+            <ProCard locked={locked}>
+              <Flower2 className="mb-4 size-6 text-[#6355ff]" />
+              <h2>Space on the mat</h2>
+              <strong className={styles["fillRate"]}>{analytics.fillRate.toFixed(0)}%</strong>
+              <p>
+                Average fill rate across published classes, using confirmed paid or free bookings.
+              </p>
+            </ProCard>
+          </div>
         </div>
-      </div>
+      </section>
+      {children}
     </DashboardShell>
   );
 }

@@ -19,6 +19,10 @@ export type PageLayout = "CLASSIC" | "COMPACT" | "COVER_GRID";
 export type BackgroundType = "IMAGE" | "COLOR" | "GRADIENT";
 
 export type PublicInstructor = {
+  newsletterEnabled?: boolean;
+  pageTemplate?: "STANDARD" | "SAGE";
+  pageFont?: "EDITORIAL" | "LITERARY" | "MODERN";
+  coverImageUrl?: string | null;
   name: string;
   slug: string;
   photoUrl: string | null;
@@ -247,6 +251,9 @@ export function ClassCardClassic({
               {c.recurringLabel ? `${c.recurringLabel} · ` : ""}
               {formatClassDate(c)} · {formatClassTime(c)} {timezoneLabel(c.timezone)}
             </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {c.mode === "ONLINE" ? "Online" : "In studio"} · {c.durationMinutes} min
+            </p>
             {c.description && (
               <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{c.description}</p>
             )}
@@ -267,7 +274,9 @@ export function ClassCardClassic({
           />
           <span className="shrink-0 text-xs">
             {c.spots > 0 ? (
-              <span className="text-(--theme)">{c.spots} spots left</span>
+              <span className="text-clay">
+                {c.spots} {c.spots === 1 ? "spot" : "spots"} left
+              </span>
             ) : (
               <span className="text-clay">Full</span>
             )}
@@ -296,8 +305,10 @@ export function ClassCardClassic({
             <h3 className="text-xl">{c.name}</h3>
             <p className="mt-1 text-sm text-muted-foreground">
               {c.recurringLabel ? `${c.recurringLabel} · ` : ""}
-              {formatClassDate(c)} · {formatClassTime(c)} {timezoneLabel(c.timezone)} ·{" "}
-              {c.durationMinutes} min · {c.mode === "ONLINE" ? "Online" : "In-person"}
+              {formatClassDate(c)} · {formatClassTime(c)} {timezoneLabel(c.timezone)}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {c.mode === "ONLINE" ? "Online" : "In studio"} · {c.durationMinutes} min
             </p>
             {dateChips && (
               <DateChips
@@ -311,7 +322,9 @@ export function ClassCardClassic({
             )}
             <p className="mt-3 text-sm">
               {c.spots > 0 ? (
-                <span className="text-success">{c.spots} spots available</span>
+                <span className="text-clay">
+                  {c.spots} {c.spots === 1 ? "spot" : "spots"} left
+                </span>
               ) : (
                 <span className="text-clay">Class full</span>
               )}
@@ -347,7 +360,9 @@ export function ClassCardCompact({
           <h3 className="truncate text-base font-medium">{c.name}</h3>
           <span className="shrink-0 text-xs">
             {c.spots > 0 ? (
-              <span className="text-(--theme)">{c.spots} left</span>
+              <span className="text-clay">
+                {c.spots} {c.spots === 1 ? "spot" : "spots"} left
+              </span>
             ) : (
               <span className="text-clay">Full</span>
             )}
@@ -356,6 +371,9 @@ export function ClassCardCompact({
         <p className="mt-0.5 truncate text-xs text-muted-foreground">
           {c.recurringLabel ? `${c.recurringLabel} · ` : ""}
           {formatClassDate(c)} · {formatClassTime(c)} {timezoneLabel(c.timezone)}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {c.mode === "ONLINE" ? "Online" : "In studio"} · {c.durationMinutes} min
         </p>
         {dateChips && (
           <DateChips
@@ -407,6 +425,9 @@ export function ClassCardCoverGrid({
           {c.recurringLabel ? `${c.recurringLabel} · ` : ""}
           {formatClassDate(c)} · {formatClassTime(c)} {timezoneLabel(c.timezone)}
         </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {c.mode === "ONLINE" ? "Online" : "In studio"} · {c.durationMinutes} min
+        </p>
         {dateChips && (
           <DateChips
             occurrences={dateChips.occurrences}
@@ -422,7 +443,9 @@ export function ClassCardCoverGrid({
           />
           <span className="shrink-0 text-xs">
             {c.spots > 0 ? (
-              <span className="text-(--theme)">{c.spots} left</span>
+              <span className="text-clay">
+                {c.spots} {c.spots === 1 ? "spot" : "spots"} left
+              </span>
             ) : (
               <span className="text-clay">Full</span>
             )}
