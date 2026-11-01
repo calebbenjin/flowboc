@@ -1,3 +1,4 @@
+import { escapeEmailText } from "@/lib/newsletter/content";
 import { Resend } from "resend";
 import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
 import { supportEmail } from "@/lib/site";
@@ -227,12 +228,16 @@ export function stripHtml(html: string): string {
 function buildNewsletterHtml(bodyHtml: string, instructorName: string, unsubscribeUrl: string) {
   return newsletterLayout({
     bodyHtml,
-    footerHtml: `You're receiving this because you subscribed to updates from ${instructorName}. <a href="${unsubscribeUrl}" style="color:#8a8171;">Unsubscribe</a>`,
+    footerHtml: `You're receiving this because you subscribed to updates from ${escapeEmailText(instructorName)}. <a href="${escapeEmailText(unsubscribeUrl)}" style="color:#8a8171;">Unsubscribe</a>`,
   });
 }
 
 function buildNewsletterText(bodyHtml: string, instructorName: string, unsubscribeUrl: string) {
-  return `${stripHtml(bodyHtml)}\n\n—\nYou're receiving this because you subscribed to updates from ${instructorName} on Flowboc.\nUnsubscribe: ${unsubscribeUrl}`;
+  const textWithLinks = bodyHtml.replace(
+    /<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi,
+    (_, href: string, label: string) => `${label} (${href})`,
+  );
+  return `${stripHtml(textWithLinks)}\n\n—\nYou're receiving this because you subscribed to updates from ${instructorName} on Flowboc.\nUnsubscribe: ${unsubscribeUrl}`;
 }
 
 export function buildNewsletterEmail(input: {

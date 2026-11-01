@@ -1,10 +1,13 @@
 "use client";
 
-import type { CSSProperties } from "react";
-import { Instagram, Video } from "lucide-react";
+import { SagePreview } from "@/components/public/SagePreview";
+import { publicFont } from "@/lib/public-page-theme";
+import type { CSSProperties, ReactNode } from "react";
+import { Instagram, Video, Mail } from "lucide-react";
 import { PriceTag } from "@/components/PriceTag";
 import { socialIcons, socialHref, type PageLayout } from "@/lib/public-page-layout";
 import {
+  timezoneLabel,
   instructor as demoInstructor,
   classes as demoClasses,
   money,
@@ -21,6 +24,15 @@ import {
 } from "@/lib/public-page-background";
 
 export type PreviewInstructor = {
+  newsletterEnabled?: boolean;
+  pageTemplate?: "STANDARD" | "SAGE";
+  pageFont?: "EDITORIAL" | "LITERARY" | "MODERN";
+  coverImageUrl?: string | null;
+  ebookEnabled?: boolean;
+  ebookTitle?: string | null;
+  ebookDescription?: string | null;
+  ebookPrice?: number | null;
+  ebookCoverUrl?: string | null;
   name: string;
   photoUrl: string | null;
   themeColor: string;
@@ -41,10 +53,12 @@ export type PreviewInstructor = {
 };
 
 export type PreviewClass = {
+  description?: string | null;
   id: string;
   name: string;
   coverUrl: string | null;
   dateLabel: string;
+  formatLabel?: string;
   price: number;
   originalPrice?: number | null;
   currency: CurrencyCode;
@@ -55,8 +69,10 @@ function buildDemoClasses(currency: CurrencyCode): PreviewClass[] {
   return demoClasses.slice(0, 3).map((c) => ({
     id: c.id,
     name: c.name,
+    description: c.description,
     coverUrl: c.cover,
-    dateLabel: `${c.date} · ${c.time}`,
+    dateLabel: `${c.date} · ${c.time} ${timezoneLabel(c.timezone)}`,
+    formatLabel: `${c.mode === "Online" ? "Online" : "In studio"} · ${c.duration} min`,
     price: c.price,
     originalPrice: c.originalPrice ?? null,
     currency,
@@ -78,6 +94,15 @@ function BookPill({ full = false, label = "SAVE MY SEAT" }: { full?: boolean; la
   );
 }
 
+export function PreviewAvailability({ c }: { c: PreviewClass }) {
+  if (c.spots == null) return null;
+  return (
+    <p className="text-[0.6rem] text-clay">
+      {c.spots > 0 ? `${c.spots} ${c.spots === 1 ? "spot" : "spots"} left` : "Class full"}
+    </p>
+  );
+}
+
 function PreviewClassRow({ c, layout }: { c: PreviewClass; layout: PageLayout }) {
   if (layout === "COMPACT") {
     return (
@@ -85,6 +110,9 @@ function PreviewClassRow({ c, layout }: { c: PreviewClass; layout: PageLayout })
         <div className="min-w-0">
           <p className="truncate text-xs font-medium">{c.name}</p>
           <p className="truncate text-[0.65rem] text-muted-foreground">{c.dateLabel}</p>
+          {c.formatLabel ? (
+            <p className="text-[0.62rem] text-muted-foreground">{c.formatLabel}</p>
+          ) : null}
         </div>
         <div className="flex items-center justify-between gap-2">
           <PriceTag
@@ -94,7 +122,8 @@ function PreviewClassRow({ c, layout }: { c: PreviewClass; layout: PageLayout })
             priceClassName="display text-lg"
           />
         </div>
-        <BookPill full />
+        <PreviewAvailability c={c} />
+        <BookPill full label={c.spots === 0 ? "JOIN WAITLIST" : "SAVE MY SEAT"} />
       </div>
     );
   }
@@ -112,13 +141,17 @@ function PreviewClassRow({ c, layout }: { c: PreviewClass; layout: PageLayout })
         <div className="space-y-1 p-2.5">
           <p className="truncate text-xs font-medium">{c.name}</p>
           <p className="truncate text-[0.62rem] text-muted-foreground">{c.dateLabel}</p>
+          {c.formatLabel ? (
+            <p className="text-[0.62rem] text-muted-foreground">{c.formatLabel}</p>
+          ) : null}
           <PriceTag
             price={c.price}
             originalPrice={c.originalPrice ?? undefined}
             currency={c.currency}
             priceClassName="display text-lg"
           />
-          <BookPill full />
+          <PreviewAvailability c={c} />
+          <BookPill full label={c.spots === 0 ? "JOIN WAITLIST" : "SAVE MY SEAT"} />
         </div>
       </div>
     );
@@ -133,14 +166,20 @@ function PreviewClassRow({ c, layout }: { c: PreviewClass; layout: PageLayout })
           <div>
             <p className="truncate text-xs font-medium">{c.name}</p>
             <p className="truncate text-[0.62rem] text-muted-foreground">{c.dateLabel}</p>
+            {c.formatLabel ? (
+              <p className="text-[0.62rem] text-muted-foreground">{c.formatLabel}</p>
+            ) : null}
           </div>
         </div>
       ) : (
-        <div className="flex gap-2.5">
+        <div className="flex gap-0">
           <div className="size-12 shrink-0 rounded-md bg-sand" />
           <div>
             <p className="truncate text-xs font-medium">{c.name}</p>
             <p className="truncate text-[0.62rem] text-muted-foreground">{c.dateLabel}</p>
+            {c.formatLabel ? (
+              <p className="text-[0.62rem] text-muted-foreground">{c.formatLabel}</p>
+            ) : null}
           </div>
         </div>
       )}
@@ -152,13 +191,9 @@ function PreviewClassRow({ c, layout }: { c: PreviewClass; layout: PageLayout })
             currency={c?.currency}
             priceClassName="display text-lg"
           />
-          {c?.spots !== null && c?.spots !== undefined && (
-            <span className="shrink-0 text-[0.6rem]" style={{ color: "var(--theme)" }}>
-              {c?.spots} left
-            </span>
-          )}
+          <PreviewAvailability c={c} />
         </div>
-        <BookPill full />
+        <BookPill full label={c.spots === 0 ? "JOIN WAITLIST" : "SAVE MY SEAT"} />
       </div>
     </div>
   );
@@ -216,18 +251,22 @@ export function PublicPagePreview({
   instructor,
   classes,
   size = "sm",
+  showSampleClasses = true,
+  emptyState,
   className,
 }: {
   instructor: PreviewInstructor;
   classes: PreviewClass[];
   size?: "sm" | "md";
+  showSampleClasses?: boolean;
+  emptyState?: ReactNode;
   className?: string;
 }) {
-  const isDemo = classes.length === 0;
+  const isDemo = showSampleClasses && classes.length === 0;
   const items = isDemo ? buildDemoClasses("NGN") : classes;
   const name = instructor.name || demoInstructor.name;
-  const photoUrl = instructor.photoUrl ?? demoInstructor.photo;
-  const socials = instructor.socials?.length ? instructor.socials : demoInstructor.socials;
+  const photoUrl = instructor.photoUrl ?? (isDemo ? demoInstructor.photo : null);
+  const socials = instructor.socials ?? (isDemo ? demoInstructor.socials : []);
 
   const frameWidth = size === "md" ? "w-72" : "w-56";
   const screenHeight = size === "md" ? "h-[576px]" : "h-[448px]";
@@ -258,18 +297,31 @@ export function PublicPagePreview({
       : "text-white/85 font-medium drop-shadow-sm"
     : "text-muted-foreground";
 
+  if (instructor.pageTemplate === "SAGE")
+    return (
+      <SagePreview
+        instructor={instructor}
+        classes={items}
+        emptyState={emptyState}
+        size={size}
+        {...(className ? { className } : {})}
+      />
+    );
+  const font = publicFont(instructor.pageFont);
   return (
     <div className={cn("relative mx-auto", frameWidth, className)}>
       <div className="rounded-[2rem] border border-border bg-foreground p-2 shadow-(--shadow-lift)">
         <div
           className={cn(
-            "relative overflow-hidden rounded-[1.5rem] bg-background",
+            "public-personalized relative overflow-hidden rounded-[1.5rem] bg-background",
             screenHeight,
             hasBg && isImageBg ? "bg-cover bg-center" : undefined,
           )}
           style={
             {
               "--theme": instructor.themeColor,
+              "--public-heading": font.heading,
+              "--public-body": font.body,
               ...(backgroundColorValue(background)
                 ? { backgroundColor: backgroundColorValue(background)! }
                 : {}),
@@ -343,6 +395,12 @@ export function PublicPagePreview({
                   })}
                 </div>
               )}
+              {instructor.newsletterEnabled !== false && !emptyState && (
+                <div className="mt-3 inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-[10px] text-foreground">
+                  <Mail className="size-3" aria-hidden="true" />
+                  Join my newsletter
+                </div>
+              )}
             </div>
 
             <PreviewVideoCallCard instructor={instructor} />
@@ -355,6 +413,7 @@ export function PublicPagePreview({
                   : "flex flex-col gap-2",
               )}
             >
+              {items.length === 0 && emptyState}
               {items?.map((c) => (
                 <PreviewClassRow key={c.id} c={c} layout={instructor?.pageLayout} />
               ))}

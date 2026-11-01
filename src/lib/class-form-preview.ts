@@ -1,6 +1,6 @@
 import type { ClassFormDraft } from "@/components/ClassForm";
 import type { PreviewClass } from "@/components/PublicPagePreview";
-import type { CurrencyCode } from "@/lib/demo";
+import { timezoneLabel, type CurrencyCode } from "@/lib/demo";
 
 function formatDraftDate(dateStr: string): string | null {
   const [y, m, d] = dateStr.split("-").map(Number);
@@ -26,8 +26,13 @@ export function draftToPreviewClass(draft: ClassFormDraft, currency: CurrencyCod
   return {
     id: "draft",
     name: draft.name || "Your class name",
+    description: draft.description ?? null,
     coverUrl: draft.coverUrl,
-    dateLabel: dateLabel && timeLabel ? `${dateLabel} · ${timeLabel}` : "Pick a date & time",
+    dateLabel:
+      dateLabel && timeLabel
+        ? `${dateLabel} · ${timeLabel} ${timezoneLabel(draft.timezone)}`
+        : "Pick a date & time",
+    formatLabel: `${draft.online ? "Online" : "In studio"} · ${draft.durationMinutes ?? 60} min`,
     price: draft.price,
     originalPrice: draft.originalPrice,
     currency,

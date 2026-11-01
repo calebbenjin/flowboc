@@ -1,0 +1,362 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 18px;
+}
+.header h1 {
+  font-size: 36px;
+  letter-spacing: -0.04em;
+  margin-top: 7px;
+}
+.eyebrow {
+  font-size: 11px;
+  color: #8a799a;
+}
+.header > a {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: #6355ff;
+  min-height: 44px;
+}
+.hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 26px;
+  border: 1px solid #e6ddec;
+  border-radius: 24px;
+  overflow: hidden;
+  background: #f2edf8;
+}
+.intro {
+  padding: 32px;
+  color: #8c77ae;
+}
+.intro h2 {
+  font-size: 37px;
+  line-height: 1.15;
+  letter-spacing: -0.04em;
+  margin-top: 20px;
+  color: #352b40;
+}
+.intro h2 em {
+  font-weight: 400;
+  color: #8a71b4;
+}
+.intro > p {
+  font-size: 12px;
+  line-height: 1.9;
+  max-width: 320px;
+  margin-top: 16px;
+  color: #81718e;
+}
+.reward {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-top: 1px solid #e0d5ec;
+  margin-top: 24px;
+  padding-top: 20px;
+}
+.reward > strong {
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: 48px;
+  font-weight: 400;
+  line-height: 1;
+  color: #6355ff;
+  letter-spacing: -0.04em;
+}
+.reward > strong span {
+  font-size: 25px;
+}
+.reward > div {
+  font-size: 12px;
+  color: #6d597e;
+}
+.reward small {
+  display: block;
+  font-size: 10px;
+  line-height: 1.8;
+  margin-top: 4px;
+  color: #917e9f;
+}
+.reward > svg {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: #b6a3ce;
+}
+.share {
+  background: #fcfaf6;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+.shareIcon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: #eeebff;
+  color: #6355ff;
+  margin-bottom: 18px;
+}
+.share h3 {
+  font-size: 23px;
+  letter-spacing: -0.025em;
+}
+.share > p {
+  font-size: 12px;
+  line-height: 1.8;
+  color: #8a799a;
+  margin-top: 7px;
+}
+.share label {
+  font-size: 10px;
+  color: #8a799a;
+  margin-top: 23px;
+}
+.share input {
+  border: 1px solid #dfd6e9;
+  border-radius: 10px;
+  background: #fffdf9;
+  width: 100%;
+  min-width: 0;
+  padding: 13px 12px;
+  font-size: 13px;
+  margin-top: 8px;
+  color: #665176;
+}
+.copy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 48px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #6355ff;
+  color: white;
+  font-size: 12px;
+  margin-top: 12px;
+  transition: background 0.2s;
+}
+.copy:hover {
+  background: #5142e5;
+}
+.code {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 10px;
+  color: #a08dab;
+  margin-top: 16px;
+}
+.code strong {
+  font-weight: 500;
+  color: #7a628f;
+  overflow-wrap: anywhere;
+}
+.share .hint {
+  font-size: 10px;
+  margin-top: 16px;
+  line-height: 1.8;
+}
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+  padding: 26px 0;
+  list-style: none;
+  border-bottom: 1px solid #e8e0ef;
+}
+.steps li {
+  display: flex;
+  gap: 12px;
+  align-items: start;
+}
+.steps svg {
+  color: #9b83bc;
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+.steps span {
+  font-size: 9px;
+  color: #a693b8;
+}
+.steps h3 {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: #5e486f;
+  margin-top: 4px;
+}
+.steps p {
+  font-size: 11px;
+  line-height: 1.8;
+  color: #8a799a;
+  margin-top: 7px;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 26px;
+}
+.stat {
+  padding: 20px;
+  background: #fcfaf6;
+  border: 1px solid #e8e0ee;
+  border-radius: 17px;
+}
+.stat > p:first-child {
+  font-size: 10px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #8a799a;
+}
+.stat > p:last-child {
+  font-size: 30px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  color: #483650;
+}
+.balance {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 25px;
+  margin-top: 20px;
+  border: 1px solid #e1d5ef;
+  border-radius: 20px;
+  background: #f4f0fa;
+}
+.balance > div > p:first-child {
+  text-transform: none;
+  letter-spacing: 0;
+  color: #877198;
+}
+.empty {
+  padding: 36px 24px;
+  border: 1px dashed #ddd0e9;
+  background: #fcfaf6;
+  border-radius: 20px;
+  margin-top: 14px;
+  text-align: center;
+}
+.empty > span {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  background: #f0eafa;
+  border-radius: 18px;
+  color: #9479b3;
+  margin: 0 auto 16px;
+}
+.empty h3 {
+  font-size: 23px;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+.empty p {
+  font-size: 12px;
+  line-height: 1.9;
+  color: #8a799a;
+  max-width: 400px;
+  margin: 12px auto;
+}
+.empty button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #6355ff;
+  font-size: 12px;
+  min-height: 44px;
+  padding: 8px 12px;
+}
+.page :is(a, button, input):focus-visible {
+  outline: 2px solid #6355ff;
+  outline-offset: 4px;
+}
+@media (max-width: 767px) {
+  .header h1 {
+    font-size: 32px;
+  }
+  .hero {
+    grid-template-columns: 1fr;
+    margin-top: 20px;
+  }
+  .intro,
+  .share {
+    padding: 24px;
+  }
+  .intro h2 {
+    font-size: 33px;
+  }
+  .intro > p {
+    max-width: none;
+  }
+  .reward {
+    margin-top: 20px;
+    padding-top: 18px;
+  }
+  .reward > strong {
+    font-size: 44px;
+  }
+  .shareIcon {
+    display: none;
+  }
+  .share h3 {
+    font-size: 22px;
+  }
+  .share label {
+    margin-top: 18px;
+  }
+  .steps {
+    grid-template-columns: 1fr;
+    gap: 19px;
+    padding: 24px 4px;
+  }
+  .steps li {
+    gap: 15px;
+  }
+  .steps p {
+    margin-top: 4px;
+  }
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 22px;
+  }
+  .stat:last-child {
+    grid-column: 1/-1;
+  }
+  .stat {
+    padding: 17px;
+  }
+  .stat > p:last-child {
+    font-size: 28px;
+  }
+  .balance {
+    padding: 20px;
+  }
+  .balance > button {
+    width: 100%;
+    min-height: 46px;
+  }
+  .empty {
+    padding: 28px 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .copy {
+    transition: none;
+  }
+}

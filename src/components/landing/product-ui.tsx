@@ -662,7 +662,7 @@ function ClassCardThree({
     <div className="space-y-2">
       <MiniSectionLabel>Price &amp; spots</MiniSectionLabel>
       <div className="flex gap-2">
-        <MiniField label="Currency" value="₦ NGN" revealed reduce={reduce} />
+        <MiniField label="Currency" value="$ USD" revealed reduce={reduce} />
         <MiniField
           label="Max capacity"
           value="12"
@@ -670,7 +670,7 @@ function ClassCardThree({
           reduce={reduce}
         />
       </div>
-      <MiniField label="Price" value="₦8,000" revealed={!!revealed["price"]} full reduce={reduce} />
+      <MiniField label="Price" value="$28" revealed={!!revealed["price"]} full reduce={reduce} />
       {revealed["price"] ? (
         <motion.p
           initial={reduce ? false : { opacity: 0 }}
@@ -678,12 +678,12 @@ function ClassCardThree({
           transition={{ duration: 0.2, delay: 0.1 }}
           className="text-[0.5rem] text-muted-foreground"
         >
-          Paystack fee ~₦120 — you&apos;ll net ₦7,880
+          Paystack fee ~$0.84 — you&apos;ll net $27.16
         </motion.p>
       ) : null}
       <MiniField
         label="Original price (optional)"
-        value="₦9,500"
+        value="$35"
         revealed={!!revealed["originalPrice"]}
         full
         reduce={reduce}

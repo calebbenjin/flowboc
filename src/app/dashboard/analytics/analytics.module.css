@@ -1,0 +1,215 @@
+.proArea {
+  position: relative;
+  margin-top: 28px;
+}
+.charts {
+  min-width: 0;
+}
+.blurred {
+  filter: blur(6px);
+  opacity: 0.6;
+  user-select: none;
+  pointer-events: none;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 15px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.controls > div {
+  display: flex;
+  gap: 8px;
+}
+.controls button {
+  min-height: 44px;
+  padding: 9px 15px;
+  border: 1px solid #e0d8ed;
+  border-radius: 24px;
+  font-size: 12px;
+}
+.controls button[aria-pressed="true"] {
+  background: #6355ff;
+  color: white;
+  border-color: #6355ff;
+}
+.controls label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #756782;
+}
+.controls select {
+  min-height: 44px;
+  border: 1px solid #e0d8ed;
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: #fffdf8;
+  font-size: 16px;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.stats > div {
+  border: 1px solid #e4ddec;
+  background: #fcfbf7;
+  border-radius: 18px;
+  padding: 20px;
+  min-width: 0;
+}
+.stats p {
+  font-size: 11px;
+  color: #756782;
+}
+.stats strong {
+  display: block;
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: 30px;
+  letter-spacing: -0.03em;
+  margin-top: 10px;
+  overflow-wrap: anywhere;
+}
+.stats small {
+  display: block;
+  font-size: 10px;
+  color: #756782;
+  margin-top: 7px;
+}
+.note {
+  font-size: 11px !important;
+  line-height: 1.8;
+  color: #756782;
+  margin-top: 14px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+  margin-top: 24px;
+}
+.chart {
+  position: relative;
+  overflow: hidden;
+  min-height: 280px;
+  min-width: 0;
+  padding: 24px;
+  border: 1px solid #e4ddec;
+  border-radius: 20px;
+  background: #fcfbf7;
+}
+.chart h2 {
+  font-size: 15px;
+  font-weight: 500;
+  color: #30293e;
+}
+.chart > p {
+  font-size: 12px;
+  line-height: 1.8;
+  color: #756782;
+  margin-top: 8px;
+}
+.topClass {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 12px;
+  font-size: 13px;
+  padding-top: 20px;
+}
+.topClass > div {
+  min-width: 0;
+}
+.topClass strong {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.topClass span {
+  display: block;
+  margin-top: 5px;
+  color: #756782;
+  font-size: 11px;
+}
+.fillRate {
+  display: block;
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: 45px;
+  color: #6355ff;
+  margin-top: 20px;
+}
+.upgradeLayer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: #fcfbf733;
+  border-radius: 20px;
+}
+.upgrade {
+  width: 100%;
+  max-width: 260px;
+  padding: 20px;
+  border: 1px solid #e0d8ed;
+  border-radius: 18px;
+  background: #fffdf8f5;
+  text-align: center;
+  box-shadow: 0 10px 35px #6355ff12;
+}
+.upgrade p {
+  margin-top: 12px;
+  font-size: 15px;
+  color: #30293e;
+}
+.cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 12px;
+  margin-top: 16px;
+  border-radius: 12px;
+  background: #6355ff;
+  color: white;
+  font-size: 13px;
+}
+.cta:hover {
+  background: #5042e5;
+}
+.upgrade small {
+  display: block;
+  margin-top: 12px;
+  color: #756782;
+  font-size: 10px;
+}
+.proArea :is(button, a, select):focus-visible {
+  outline: 2px solid #6355ff;
+  outline-offset: 4px;
+}
+@media (max-width: 767px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .stats > div {
+    padding: 17px 13px;
+  }
+  .chart {
+    padding: 20px 14px;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .upgrade,
+  .upgradeLayer {
+    background: #fcfbf7;
+  }
+}

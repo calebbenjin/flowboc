@@ -1,36 +1,24 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import {
-  ArrowUpRight,
-  AlertCircle,
-  CalendarDays,
-  CheckCircle2,
-  Pencil,
-  UserRound,
-  Users,
-  Wallet,
-} from "lucide-react";
+import { AlertCircle, CalendarDays, CheckCircle2, Pencil, Wallet } from "lucide-react";
 import { BookingLinkAction } from "@/components/BookingLinkAction";
 import { DashboardShell } from "@/components/DashboardShell";
 import { EmptyState } from "@/components/EmptyState";
-import { PublicPagePreview, type PreviewClass } from "@/components/PublicPagePreview";
-import { StatusPill, paymentTone } from "@/components/StatusPill";
+import { StatusPill } from "@/components/StatusPill";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/db";
 import { getCurrentInstructor } from "@/lib/get-current-instructor";
 import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
-import {
-  getAttentionItems,
-  getDashboardStats,
-  getOnboardingChecklist,
-  getRecentBookings,
-} from "./queries";
+import { getAttentionItems, getDashboardStats, getOnboardingChecklist } from "./queries";
+import { dashboardIcons } from "@/components/dashboard-icons";
+import { OfferDiscovery } from "@/components/OfferDiscovery";
+import { DashboardWelcome } from "./DashboardWelcome";
 import { OnboardingChecklist } from "./OnboardingChecklist";
 import { money, timezoneLabel } from "@/lib/demo";
-import { siteHost } from "@/lib/site";
 import { cn } from "@/lib/utils";
-import { formatDistanceToNow } from "date-fns";
+import { getInstructorTransactions } from "@/lib/transactions/queries";
+import { TransactionTable } from "@/components/TransactionTable";
 
 const statCardToneClasses = {
   clay: "border-clay/20 bg-linear-to-br from-clay/15 via-clay/5 to-transparent",
@@ -86,67 +74,256 @@ export default async function Dashboard() {
         startAt: { gte: new Date() },
       },
       orderBy: { startAt: "asc" },
+      include: { _count: { select: { bookings: { where: { status: "CONFIRMED" } } } } },
       take: 5,
     }),
     getAttentionItems(instructor.id),
-    getDashboardStats(instructor.id),
-    getRecentBookings(instructor.id),
+    getDashboardStats(instructor.id, instructor.timezone, instructor.currency),
+    getInstructorTransactions({ pageSize: "5" }),
     instructor.checklistDismissedAt ? null : getOnboardingChecklist(instructor),
   ]);
+
   const today = new Intl.DateTimeFormat("en-US", {
+    timeZone: instructor.timezone,
     weekday: "long",
     month: "long",
     day: "numeric",
   }).format(new Date());
-
-  const previewClasses: PreviewClass[] = upcoming.map((c) => ({
-    id: c.id,
-    name: c.name,
-    coverUrl: c.coverUrl,
-    dateLabel: `${formatClassDate(c)} · ${formatClassTime(c)}`,
-    price: c.price,
-    originalPrice: c.originalPrice,
-    currency: instructor.currency,
-    spots: null,
-  }));
+  const showWelcome =
+    checklist !== null && !checklist.find((item) => item.key === "first-booking")?.done;
+  const hasPublishedClass = checklist?.find((item) => item.key === "create-class")?.done ?? false;
+  const actionableAttention = attention.filter((item) => item.kind !== "Almost full");
 
   return (
     <DashboardShell>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl">Good morning, {instructor.name.split(" ")[0]} 👋</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{today}</p>
+          <h1 className="text-3xl">
+            {showWelcome ? "Your teaching space" : `Welcome back, ${instructor.name.split(" ")[0]}`}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {today} · {instructor.timezone}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <BookingLinkAction />
-          <Button asChild variant="quiet">
+          <Button asChild variant="clay">
             <Link href="/dashboard/classes/new">Create class</Link>
           </Button>
         </div>
       </div>
 
-      {checklist ? (
+      {showWelcome && (
+        <DashboardWelcome
+          name={instructor.name.split(" ")[0] ?? instructor.name}
+          hasPublishedClass={hasPublishedClass}
+        />
+      )}
+
+      {checklist && (!showWelcome || hasPublishedClass) ? (
         <div className="mt-6">
           <OnboardingChecklist items={checklist} />
         </div>
       ) : null}
 
+      <OfferDiscovery />
+
+      <div className="mt-8 grid gap-6 lg:grid-cols-3">
+        <div className="min-w-0 lg:col-span-2">
+          <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+            Your teaching schedule
+          </h2>
+          {upcoming.length === 0 && showWelcome && !hasPublishedClass ? (
+            <p className="mt-3 rounded-xl border border-dashed border-[#cbd4bf] bg-[#f6f7f0] p-6 text-sm leading-relaxed text-muted-foreground">
+              Your schedule will take shape here as you add your classes.
+            </p>
+          ) : upcoming.length === 0 ? (
+            <EmptyState
+              className="mt-3"
+              icon={dashboardIcons.classes}
+              title="No upcoming classes"
+              body="Create a class to start taking bookings."
+              action={
+                <Button asChild size="sm" variant="clay">
+                  <Link href="/dashboard/classes/new">Create class</Link>
+                </Button>
+              }
+            />
+          ) : (
+            <div className="mt-3 space-y-3">
+              {upcoming.map((c, index) => (
+                <div key={c.id} className="surface bg-white flex flex-wrap items-center gap-4 p-4">
+                  {c.coverUrl ? (
+                    <img
+                      src={c.coverUrl}
+                      alt={c.name}
+                      loading="lazy"
+                      width={1200}
+                      height={800}
+                      className="size-16 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="size-16 shrink-0 rounded-lg bg-sand" />
+                  )}
+                  <div className="min-w-0 flex-1 basis-40">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">
+                        {index === 0 ? "Next up · " : ""}
+                        {c.name}
+                      </p>
+                      <StatusPill tone={c.status === "FULL" ? "warn" : "good"}>
+                        {c.status === "FULL" ? "Full" : "Open"}
+                      </StatusPill>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {formatClassDate(c)} · {formatClassTime(c)} {timezoneLabel(c.timezone)} ·{" "}
+                      {c.durationMinutes} min
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {c.mode === "ONLINE" ? "Online" : c.location || "Location not set"}
+                    </p>
+                    <p className="mt-1 text-sm">
+                      {c._count.bookings} / {c.capacity} confirmed
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-col gap-2">
+                    <Button asChild variant="quiet" size="sm">
+                      <Link href={`/dashboard/classes/${c.id}`}>View students</Link>
+                    </Button>
+                    {index === 0 ? (
+                      <Button asChild variant="ghost" size="sm">
+                        <Link href={`/dashboard/classes/${c.id}?tab=attendance`}>
+                          Take attendance
+                        </Link>
+                      </Button>
+                    ) : null}
+                    {index === 0 &&
+                    c.mode === "ONLINE" &&
+                    c.location &&
+                    /^https?:\/\//i.test(c.location) ? (
+                      <Button asChild variant="clay" size="sm">
+                        <a href={c.location} target="_blank" rel="noopener noreferrer">
+                          Open meeting
+                        </a>
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-8 mb-3 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              Recent transactions
+            </h2>
+            <Link
+              href="/dashboard/analytics#transactions"
+              className="inline-flex min-h-11 items-center text-sm text-primary"
+            >
+              View all transactions →
+            </Link>
+          </div>
+          {recent.rows.length ? (
+            <TransactionTable rows={recent.rows} compact />
+          ) : (
+            <p className="rounded-xl border border-dashed border-border p-6 text-sm text-muted-foreground">
+              Class bookings, 1:1 sessions, and ebook purchases will appear here.
+            </p>
+          )}
+        </div>
+
+        <div>
+          <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+            Needs attention
+          </h2>
+          {actionableAttention.length === 0 && instructor.payoutStatus === "CONNECTED" ? (
+            <EmptyState
+              className="mt-3"
+              icon={CheckCircle2}
+              title="You're all caught up"
+              body="Nothing needs your attention right now."
+            />
+          ) : (
+            <div className="mt-3 rounded-3xl bg-linear-to-br from-warning/20 via-clay/10 to-clay/5 p-4">
+              <div className="space-y-3">
+                {instructor.payoutStatus !== "CONNECTED" ? (
+                  <div className="rounded-xl bg-white p-4">
+                    <p className="text-sm font-medium">Set up payouts</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Connect your bank account to receive your earnings.
+                    </p>
+                    <Link
+                      href="/dashboard/payouts"
+                      className="mt-3 inline-flex text-sm font-medium text-clay underline"
+                    >
+                      Set up payouts →
+                    </Link>
+                  </div>
+                ) : null}
+                {actionableAttention.map((a) => {
+                  const meta = attentionMeta[a.kind] ?? {
+                    icon: AlertCircle,
+                    tone: "muted" as const,
+                  };
+                  const Icon = meta.icon;
+                  return (
+                    <div
+                      key={a.id}
+                      className="flex gap-3 rounded-2xl bg-white/70 p-4 shadow-(--shadow-soft)"
+                    >
+                      <span
+                        className={cn(
+                          "grid size-8 shrink-0 place-items-center rounded-full",
+                          attentionToneClasses[meta.tone],
+                        )}
+                      >
+                        <Icon className="size-4" />
+                      </span>
+                      <div>
+                        <p className="text-sm font-medium">{a.kind}</p>
+                        <p className="text-sm text-muted-foreground">{a.detail}</p>
+                        <Link
+                          href={a.href}
+                          className="mt-2 inline-flex text-sm font-medium text-clay underline"
+                        >
+                          {a.action} →
+                        </Link>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
           {
             label: "Revenue this month",
             value: money(stats.revenueThisMonth, instructor.currency),
             icon: Wallet,
-            tone: "white",
+            tone: "clay",
           },
           {
             label: "Upcoming classes",
             value: stats.upcomingClasses,
-            icon: CalendarDays,
-            tone: "white",
+            icon: dashboardIcons.classes,
+            tone: "clay",
           },
-          { label: "Bookings", value: stats.totalBookings, icon: Users, tone: "white" },
-          { label: "Students", value: stats.totalStudents, icon: UserRound, tone: "white" },
+          {
+            label: "All-time bookings",
+            value: stats.totalBookings,
+            icon: dashboardIcons.classes,
+            tone: "clay",
+          },
+          {
+            label: "All-time students",
+            value: stats.totalStudents,
+            icon: dashboardIcons.students,
+            tone: "clay",
+          },
         ].map((s) => (
           <div
             key={s.label}
@@ -171,172 +348,10 @@ export default async function Dashboard() {
         ))}
       </div>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Upcoming</h2>
-          {upcoming.length === 0 ? (
-            <EmptyState
-              className="mt-3"
-              icon={CalendarDays}
-              title="No upcoming classes"
-              body="Create a class to start taking bookings."
-              action={
-                <Button asChild size="sm" className="bg-[#6355ff] hover:bg-[#6355ff]/90 text-white">
-                  <Link href="/dashboard/classes/new">Create class</Link>
-                </Button>
-              }
-            />
-          ) : (
-            <div className="mt-3 space-y-3">
-              {upcoming.map((c) => (
-                <div key={c.id} className="surface bg-white flex items-center gap-4 p-4">
-                  {c.coverUrl ? (
-                    <img
-                      src={c.coverUrl}
-                      alt={c.name}
-                      loading="lazy"
-                      width={1200}
-                      height={800}
-                      className="size-16 rounded-lg object-cover"
-                    />
-                  ) : (
-                    <div className="size-16 shrink-0 rounded-lg bg-sand" />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">{c.name}</p>
-                      <StatusPill tone={c.status === "FULL" ? "warn" : "good"}>
-                        {c.status === "FULL" ? "Full" : "Open"}
-                      </StatusPill>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {formatClassDate(c)} · {formatClassTime(c)} {timezoneLabel(c.timezone)} ·{" "}
-                      {c.durationMinutes} min
-                    </p>
-                    <p className="mt-1 text-sm">0 / {c.capacity} booked</p>
-                  </div>
-                  <Button asChild variant="quiet" size="sm">
-                    <Link href={`/dashboard/classes/${c.id}`}>View class</Link>
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <h2 className="mt-8 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-            Recent bookings
-          </h2>
-          {recent.length === 0 ? (
-            <EmptyState
-              className="mt-3"
-              icon={Users}
-              title="No bookings yet"
-              body="Bookings will show up here once students start booking your classes."
-            />
-          ) : (
-            <div className="surface bg-white mt-3 divide-y divide-border">
-              {recent.map((b) => (
-                <div key={b.id} className="flex items-center justify-between gap-4 p-4">
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">{b.studentName}</p>
-                    <p className="truncate text-sm text-muted-foreground">
-                      {b.className} · {formatDistanceToNow(b.bookedAt, { addSuffix: true })}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <StatusPill tone={paymentTone(b.paymentStatus.toLowerCase())}>
-                      {b.paymentStatus.toLowerCase()}
-                    </StatusPill>
-                    <span className="text-sm font-medium">
-                      {money(b.amount, instructor.currency)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div>
-          <div className=" pt-4">
-            <PublicPagePreview
-              size="md"
-              instructor={{
-                name: instructor.name,
-                photoUrl: instructor.photoUrl,
-                themeColor: instructor.themeColor,
-                backgroundType: instructor.backgroundType,
-                backgroundImageUrl: instructor.backgroundImageUrl,
-                backgroundColor: instructor.backgroundColor,
-                backgroundGradientFrom: instructor.backgroundGradientFrom,
-                backgroundGradientTo: instructor.backgroundGradientTo,
-                pageLayout: instructor.pageLayout,
-                bio: instructor.bio,
-                videoCallEnabled: instructor.videoCallEnabled,
-                videoCallTitle: instructor.videoCallTitle,
-                videoCallDescription: instructor.videoCallDescription,
-                videoCallImageUrl: instructor.videoCallImageUrl,
-                videoCallPrice: instructor.videoCallPrice,
-                currency: instructor.currency,
-                socials: instructor.socials.map((s) => ({
-                  platform: s.platform.toLowerCase(),
-                  handle: s.handle,
-                })),
-              }}
-              classes={previewClasses}
-            />
-            <Link
-              href={`/${instructor.slug}`}
-              className="mt-4 flex items-center justify-center gap-1 text-sm text-clay hover:underline"
-            >
-              View live page <ArrowUpRight className="size-3.5" />
-            </Link>
-          </div>
-
-          <h2 className="mt-8 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-            Needs attention
-          </h2>
-          {attention.length === 0 ? (
-            <EmptyState
-              className="mt-3"
-              icon={CheckCircle2}
-              title="You're all caught up"
-              body="Nothing needs your attention right now."
-            />
-          ) : (
-            <div className="mt-3 rounded-3xl bg-linear-to-br from-warning/20 via-clay/10 to-clay/5 p-4">
-              <div className="space-y-3">
-                {attention.map((a) => {
-                  const meta = attentionMeta[a.kind] ?? {
-                    icon: AlertCircle,
-                    tone: "muted" as const,
-                  };
-                  const Icon = meta.icon;
-                  return (
-                    <div
-                      key={a.id}
-                      className="flex gap-3 rounded-2xl bg-white/70 p-4 shadow-(--shadow-soft)"
-                    >
-                      <span
-                        className={cn(
-                          "grid size-8 shrink-0 place-items-center rounded-full",
-                          attentionToneClasses[meta.tone],
-                        )}
-                      >
-                        <Icon className="size-4" />
-                      </span>
-                      <div>
-                        <p className="text-sm font-medium">{a.kind}</p>
-                        <p className="text-sm text-muted-foreground">{a.detail}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Revenue includes paid classes, 1:1 sessions, and ebooks in {instructor.currency}, recorded
+        this calendar month in {instructor.timezone}, before payout deductions.
+      </p>
     </DashboardShell>
   );
 }

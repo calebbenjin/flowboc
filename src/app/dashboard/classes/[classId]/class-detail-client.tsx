@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -154,6 +154,7 @@ export function ClassDetailClient({
   waitlist: WaitlistEntry[];
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const instructor = useInstructor();
   const confirmedBookings = bookings.filter((b) => b.status === "CONFIRMED");
   const collected = confirmedBookings
@@ -338,7 +339,10 @@ export function ClassDetailClient({
         </div>
       </div>
 
-      <Tabs defaultValue="bookings" className="mt-8">
+      <Tabs
+        defaultValue={searchParams.get("tab") === "attendance" ? "attendance" : "bookings"}
+        className="mt-8"
+      >
         <TabsList>
           <TabsTrigger value="bookings">Bookings</TabsTrigger>
           <TabsTrigger value="attendance">Attendance</TabsTrigger>

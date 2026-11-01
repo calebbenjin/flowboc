@@ -1,5 +1,6 @@
 "use server";
 
+import { recordCheckoutNewsletterConsent } from "@/lib/newsletter/subscribe";
 import { prisma } from "@/lib/db";
 import { recordFirstPaidBookingMilestone } from "@/lib/admin-activity";
 import {
@@ -25,6 +26,7 @@ export async function createBookingIntent(input: {
   studentName: string;
   studentEmail: string;
   studentPhone: string;
+  newsletterOptIn?: boolean;
   emergencyContact?: string;
   notes?: string;
 }): Promise<ActionResult> {
@@ -115,6 +117,14 @@ export async function createBookingIntent(input: {
           source: "ONLINE",
           reservationExpiresAt: isFree ? null : new Date(Date.now() + RESERVATION_HOLD_MS),
         },
+      });
+
+      await recordCheckoutNewsletterConsent(tx, {
+        instructorId: cls.instructorId,
+        email,
+        name,
+        newsletterOptIn: input.newsletterOptIn === true,
+        source: "class_checkout",
       });
 
       const justFilled = cls.status === "PUBLISHED" && confirmedCount + 1 >= cls.capacity;

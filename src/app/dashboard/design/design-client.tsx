@@ -1,6 +1,17 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { canUseProOffers } from "@/lib/offer-access";
+import { newsletterButtonVisible } from "@/lib/newsletter/access";
+import Image from "next/image";
+import {
+  PUBLIC_FONT_OPTIONS,
+  SAGE_PREVIEW,
+  SAGE_COVER,
+  type PublicPageTemplate,
+  type PublicPageFont,
+} from "@/lib/public-page-theme";
+import type { PreviewClass } from "@/components/PublicPagePreview";
+import { Fragment, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 import { toast } from "sonner";
@@ -126,10 +137,27 @@ function ColorSwatchPicker({
   );
 }
 
-export function DesignClient() {
+export function DesignClient({
+  embedded = false,
+  classes = [],
+}: {
+  embedded?: boolean;
+  classes?: PreviewClass[];
+}) {
+  const Wrapper = embedded ? Fragment : DashboardShell;
   const router = useRouter();
   const instructor = useInstructor();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const [pageTemplate, setPageTemplate] = useState<PublicPageTemplate>(
+    instructor.pageTemplate === "SAGE" ? "SAGE" : "STANDARD",
+  );
+  const [pageFont, setPageFont] = useState<PublicPageFont>(
+    PUBLIC_FONT_OPTIONS.some((font) => font.value === instructor.pageFont)
+      ? (instructor.pageFont as PublicPageFont)
+      : "EDITORIAL",
+  );
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(instructor.coverImageUrl);
 
   const [themeColor, setThemeColor] = useState(instructor.themeColor);
   const [backgroundType, setBackgroundType] = useState<BackgroundType>(instructor.backgroundType);
@@ -150,7 +178,7 @@ export function DesignClient() {
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const isStarter = instructor.planTier === "STARTER";
 
-  async function handleBackgroundFile(file: File) {
+  async function handleBackgroundFile(file: File, target: "background" | "cover" = "background") {
     if (!file.type.startsWith("image/")) {
       toast.error("Please choose an image file.");
       return;
@@ -162,7 +190,8 @@ export function DesignClient() {
         access: "public",
         handleUploadUrl: "/api/upload",
       });
-      setBackgroundImageUrl(blob.url);
+      if (target === "cover") setCoverImageUrl(blob.url);
+      else setBackgroundImageUrl(blob.url);
     } catch {
       toast.error("Couldn't upload image. Please try again.");
     } finally {
@@ -178,6 +207,9 @@ export function DesignClient() {
     setSaving(true);
     try {
       const result = await updateDesign({
+        pageTemplate,
+        pageFont,
+        coverImageUrl,
         themeColor,
         pageLayout,
         backgroundType,
@@ -192,21 +224,162 @@ export function DesignClient() {
       } else {
         toast.error(result.error);
       }
+    } catch {
+      toast.error("Could not save your design. Your changes are still here; please try again.");
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <DashboardShell>
+    <Wrapper>
       <div className="max-w-5xl">
-        <h1 className="text-3xl">Page design</h1>
+        <h2 className="text-xl">Appearance</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Customize the theme color, background and layout of your public booking page.
         </p>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_280px] lg:items-start">
           <div className="space-y-6">
+            <section className="surface space-y-4 p-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg">Page template</h3>
+                <ProBadge />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Choose the look of your booking page. Preview before publishing.
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  aria-pressed={pageTemplate === "STANDARD"}
+                  onClick={() => setPageTemplate("STANDARD")}
+                  className={cn(
+                    "overflow-hidden rounded-xl border-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay",
+                    pageTemplate === "STANDARD" ? "border-clay" : "border-border",
+                  )}
+                >
+                  <div className="flex h-60 flex-col items-center gap-3 bg-sand px-5 pt-8">
+                    <div className="size-12 rounded-full bg-border" />
+                    <span className="text-sm font-medium">Your booking page</span>
+                    {[1, 2, 3].map((value) => (
+                      <div
+                        key={value}
+                        className="h-9 w-full rounded-lg border border-border bg-white"
+                      />
+                    ))}
+                  </div>
+                  <div className="p-3">
+                    <p className="flex items-center justify-between text-sm font-medium">
+                      Current layout
+                      {pageTemplate === "STANDARD" ? <Check className="size-4 text-clay" /> : null}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">Keep your existing design.</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={pageTemplate === "SAGE"}
+                  onClick={() => {
+                    if (pageTemplate !== "SAGE") setThemeColor("#3e4935");
+                    setPageTemplate("SAGE");
+                  }}
+                  className={cn(
+                    "overflow-hidden rounded-xl border-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay",
+                    pageTemplate === "SAGE" ? "border-clay" : "border-border",
+                  )}
+                >
+                  <div className="relative h-60 overflow-hidden bg-[#e7ebdf]">
+                    <Image
+                      src={SAGE_PREVIEW}
+                      alt="Sage template with botanical cover, overlapping portrait, and ivory booking cards"
+                      width={913}
+                      height={1723}
+                      sizes="(max-width: 640px) 45vw, 230px"
+                      className="h-full w-full object-contain p-2"
+                    />
+                  </div>
+                  <div className="p-3">
+                    <p className="flex items-center justify-between text-sm font-medium">
+                      Sage <ProBadge />
+                      {pageTemplate === "SAGE" ? <Check className="size-4 text-clay" /> : null}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Botanical, warm, and personal.
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </section>
+            <section className="surface space-y-4 p-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg">Typography</h3>
+                <ProBadge />
+              </div>
+              <div className="space-y-2">
+                {PUBLIC_FONT_OPTIONS.map((font) => (
+                  <button
+                    type="button"
+                    key={font.value}
+                    aria-pressed={pageFont === font.value}
+                    onClick={() => setPageFont(font.value)}
+                    className={cn(
+                      "flex w-full items-center justify-between rounded-lg border p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay",
+                      pageFont === font.value ? "border-clay bg-clay/5" : "border-border",
+                    )}
+                  >
+                    <span>
+                      <span className="block text-2xl" style={{ fontFamily: font.heading }}>
+                        {font.label}
+                      </span>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        {font.description}
+                      </span>
+                    </span>
+                    {pageFont === font.value ? <Check className="size-4 text-clay" /> : null}
+                  </button>
+                ))}
+              </div>
+            </section>
+            {pageTemplate === "SAGE" ? (
+              <section className="surface space-y-4 p-6">
+                <h3 className="text-lg">Cover banner</h3>
+                <img
+                  src={coverImageUrl || SAGE_COVER}
+                  alt="Your Sage cover banner"
+                  className="aspect-[3/1] w-full rounded-lg object-cover"
+                />
+                <input
+                  ref={coverInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    event.target.value = "";
+                    if (file) void handleBackgroundFile(file, "cover");
+                  }}
+                />
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="quiet"
+                    disabled={uploading}
+                    onClick={() => coverInputRef.current?.click()}
+                  >
+                    {uploading ? "Uploading…" : "Upload cover"}
+                  </Button>
+                  {coverImageUrl ? (
+                    <Button variant="ghost" onClick={() => setCoverImageUrl(null)}>
+                      Use botanical cover
+                    </Button>
+                  ) : null}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Your profile photo and content come from your account. Content order is managed in
+                  Content and links.
+                </p>
+              </section>
+            ) : null}
             <section className="surface space-y-4 p-6">
               <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                 Theme color
@@ -242,6 +415,23 @@ export function DesignClient() {
                 </div>
               </div>
 
+              {pageTemplate === "SAGE" ? (
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-xs text-muted-foreground">
+                    Applies behind your profile and cards. Your cover banner stays separate.
+                  </p>
+                  <Button
+                    variant="quiet"
+                    size="sm"
+                    onClick={() => {
+                      setBackgroundType("IMAGE");
+                      setBackgroundImageUrl(null);
+                    }}
+                  >
+                    Use Sage background
+                  </Button>
+                </div>
+              ) : null}
               {backgroundType === "IMAGE" && (
                 <div
                   role="button"
@@ -390,39 +580,46 @@ export function DesignClient() {
               )}
             </section>
 
-            <section className="surface space-y-4 p-6">
-              <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                Page layout
-              </h2>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {LAYOUT_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setPageLayout(opt.value)}
-                    className={cn(
-                      "rounded-xl border p-4 text-left transition-colors",
-                      pageLayout === opt.value
-                        ? "border-clay bg-clay/5"
-                        : "border-border hover:bg-accent",
-                    )}
-                  >
-                    <div className="h-14 rounded-md bg-sand/60 p-2">
-                      <LayoutIcon layout={opt.value} />
-                    </div>
-                    <p className="mt-3 flex items-center gap-1.5 text-sm font-medium">
-                      {opt.label}
-                      {pageLayout === opt.value && <Check className="size-3.5 text-clay" />}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">{opt.body}</p>
-                  </button>
-                ))}
-              </div>
-            </section>
+            {pageTemplate === "STANDARD" ? (
+              <section className="surface space-y-4 p-6">
+                <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                  Page layout
+                </h2>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {LAYOUT_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setPageLayout(opt.value)}
+                      className={cn(
+                        "rounded-xl border p-4 text-left transition-colors",
+                        pageLayout === opt.value
+                          ? "border-clay bg-clay/5"
+                          : "border-border hover:bg-accent",
+                      )}
+                    >
+                      <div className="h-14 rounded-md bg-sand/60 p-2">
+                        <LayoutIcon layout={opt.value} />
+                      </div>
+                      <p className="mt-3 flex items-center gap-1.5 text-sm font-medium">
+                        {opt.label}
+                        {pageLayout === opt.value && <Check className="size-3.5 text-clay" />}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">{opt.body}</p>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ) : null}
 
             <div className="flex items-center justify-end gap-3">
               {isStarter && <ProBadge />}
-              <Button variant="clay" size="lg" onClick={() => void handleSave()} disabled={saving}>
+              <Button
+                variant="clay"
+                size="lg"
+                onClick={() => void handleSave()}
+                disabled={saving || uploading}
+              >
                 {saving ? (
                   <>
                     <Loader2 className="size-4 animate-spin" /> Saving…
@@ -444,11 +641,21 @@ export function DesignClient() {
               Preview
             </Label>
             <PublicPagePreview
+              showSampleClasses={false}
               size="md"
               instructor={{
+                pageTemplate,
+                pageFont,
+                coverImageUrl,
+                ebookEnabled: canUseProOffers(instructor) && instructor.ebookEnabled,
+                ebookTitle: instructor.ebookTitle,
+                ebookDescription: instructor.ebookDescription,
+                ebookPrice: instructor.ebookPrice,
+                ebookCoverUrl: instructor.ebookCoverUrl,
                 name: instructor.name,
                 photoUrl: instructor.photoUrl,
                 themeColor,
+                newsletterEnabled: newsletterButtonVisible(instructor),
                 backgroundType,
                 backgroundImageUrl,
                 backgroundColor,
@@ -456,7 +663,7 @@ export function DesignClient() {
                 backgroundGradientTo,
                 pageLayout,
                 bio: instructor.bio,
-                videoCallEnabled: instructor.videoCallEnabled,
+                videoCallEnabled: canUseProOffers(instructor) && instructor.videoCallEnabled,
                 videoCallTitle: instructor.videoCallTitle,
                 videoCallDescription: instructor.videoCallDescription,
                 videoCallImageUrl: instructor.videoCallImageUrl,
@@ -467,11 +674,11 @@ export function DesignClient() {
                   handle: s.handle,
                 })),
               }}
-              classes={[]}
+              classes={classes}
             />
           </div>
         </div>
       </div>
-    </DashboardShell>
+    </Wrapper>
   );
 }

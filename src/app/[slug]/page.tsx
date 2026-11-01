@@ -1,6 +1,9 @@
+import { canUseProOffers } from "@/lib/offer-access";
+import { newsletterButtonVisible } from "@/lib/newsletter/access";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { after } from "next/server";
+import { effectivePublicTheme } from "@/lib/public-page-theme";
 import { JsonLd } from "@/components/JsonLd";
 import { prisma } from "@/lib/db";
 import { siteUrl } from "@/lib/site";
@@ -86,6 +89,7 @@ export default async function PublicPage({ params }: { params: Promise<{ slug: s
       <JsonLd data={personJsonLd} />
       <PublicPageClient
         instructor={{
+          ...effectivePublicTheme(instructor),
           name: instructor.name,
           slug: instructor.slug,
           photoUrl: instructor.photoUrl,
@@ -97,18 +101,19 @@ export default async function PublicPage({ params }: { params: Promise<{ slug: s
           specialties: instructor.specialties,
           currency: instructor.currency,
           themeColor: instructor.themeColor,
+          newsletterEnabled: newsletterButtonVisible(instructor),
           backgroundType: instructor.backgroundType,
           backgroundImageUrl: instructor.backgroundImageUrl,
           backgroundColor: instructor.backgroundColor,
           backgroundGradientFrom: instructor.backgroundGradientFrom,
           backgroundGradientTo: instructor.backgroundGradientTo,
           pageLayout: instructor.pageLayout,
-          videoCallEnabled: instructor.videoCallEnabled,
+          videoCallEnabled: canUseProOffers(instructor) && instructor.videoCallEnabled,
           videoCallTitle: instructor.videoCallTitle,
           videoCallDescription: instructor.videoCallDescription,
           videoCallImageUrl: instructor.videoCallImageUrl,
           videoCallPrice: instructor.videoCallPrice,
-          ebookEnabled: instructor.ebookEnabled,
+          ebookEnabled: canUseProOffers(instructor) && instructor.ebookEnabled,
           ebookTitle: instructor.ebookTitle,
           ebookDescription: instructor.ebookDescription,
           ebookCoverUrl: instructor.ebookCoverUrl,

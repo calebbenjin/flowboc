@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { canUseProDesign } from "@/lib/public-page-theme";
 import { slugify } from "@/lib/slug";
 import { referralCodeExists } from "@/lib/referral-code";
 import { OnboardingClient } from "./onboarding-client";
@@ -98,12 +99,19 @@ export default async function OnboardingPage({
 
   return (
     <OnboardingClient
+      canCustomize={
+        instructor
+          ? canUseProDesign(instructor)
+          : ["PRO", "PREMIUM"].includes(user.pendingPlanTier ?? "STARTER")
+      }
       defaults={{
         name: instructor?.name ?? user.name ?? "",
         location: instructor?.location ?? "",
         bio: instructor?.bio ?? "",
         phone: instructor?.phone ?? "",
         instagram,
+        photoUrl: instructor?.photoUrl ?? null,
+        themeColor: instructor?.themeColor ?? "#6355ff",
         specialties: instructor?.specialties ?? ["Vinyasa", "Yin"],
         slug: defaultSlug,
         currency: instructor?.currency ?? "NGN",

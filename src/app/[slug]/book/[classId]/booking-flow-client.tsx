@@ -7,6 +7,7 @@ import posthog from "posthog-js";
 import { toast } from "sonner";
 import { AlertTriangle, CalendarPlus, Check, Download, Loader2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NewsletterOptIn } from "@/components/NewsletterOptIn";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -224,6 +225,7 @@ export function BookingFlowClient({
         studentPhone: String(formData.get("ph") ?? ""),
         emergencyContact: String(formData.get("ec") ?? ""),
         notes: String(formData.get("nt") ?? ""),
+        newsletterOptIn: formData.get("newsletterOptIn") === "on",
       }),
     );
     if (outcome.outcome !== "success") {
@@ -349,6 +351,7 @@ export function BookingFlowClient({
                 placeholder="Injuries, first class, pregnancy…"
               />
             </div>
+            <NewsletterOptIn />
             {cls.cancellationPolicy && (
               <p className="text-xs text-muted-foreground">{cls.cancellationPolicy}</p>
             )}

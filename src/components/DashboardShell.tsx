@@ -5,47 +5,65 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { signOut } from "next-auth/react";
 import posthog from "posthog-js";
-import {
-  CalendarDays,
-  LayoutDashboard,
-  Users,
-  UserRound,
-  ExternalLink,
-  LineChart,
-  Gift,
-  Landmark,
-  CreditCard,
-  LogOut,
-  ChevronsUpDown,
-  Link2,
-  Mail,
-  Palette,
-} from "lucide-react";
+import { LogOut, ChevronsUpDown, Menu } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { dashboardIcons } from "@/components/dashboard-icons";
 import { useInstructor } from "@/components/InstructorProvider";
 import { TrialBanner } from "@/components/TrialBanner";
 import { FeedbackWidget } from "@/components/FeedbackWidget";
-import { siteHost } from "@/lib/site";
+import { SidebarPlanCard } from "@/components/SidebarPlanCard";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 
 const nav = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, mobile: true },
-  { to: "/dashboard/classes", label: "Classes", icon: CalendarDays, mobile: true },
-  { to: "/dashboard/analytics", label: "Analytics", icon: LineChart, mobile: true },
-  { to: "/dashboard/students", label: "Students", icon: Users, mobile: true },
-  { to: "/dashboard/links", label: "Links", icon: Link2, mobile: false },
-  { to: "/dashboard/design", label: "Design", icon: Palette, mobile: true },
-  { to: "/dashboard/newsletter", label: "Newsletter", icon: Mail, mobile: false },
-  { to: "/dashboard/referrals", label: "Referrals", icon: Gift, mobile: false },
-  { to: "/dashboard/payouts", label: "Payouts", icon: Landmark, mobile: false },
-  { to: "/dashboard/billing", label: "Billing", icon: CreditCard, mobile: false },
-  { to: "/dashboard/profile", label: "Profile", icon: UserRound, mobile: false },
+  { to: "/dashboard", label: "Overview", icon: dashboardIcons.overview, mobile: true },
+  { to: "/dashboard/classes", label: "Classes", icon: dashboardIcons.classes, mobile: true },
+  { to: "/dashboard/offers", label: "Offers", icon: dashboardIcons.offers, mobile: false },
+  { to: "/dashboard/analytics", label: "Analytics", icon: dashboardIcons.analytics, mobile: false },
+  { to: "/dashboard/students", label: "Students", icon: dashboardIcons.students, mobile: true },
+
+  {
+    to: "/dashboard/booking-page",
+    label: "Booking page",
+    icon: dashboardIcons.bookingPage,
+    mobile: false,
+  },
+  {
+    to: "/dashboard/newsletter",
+    label: "Newsletter",
+    icon: dashboardIcons.newsletter,
+    mobile: false,
+  },
+  { to: "/dashboard/referrals", label: "Referrals", icon: dashboardIcons.referrals, mobile: false },
+  { to: "/dashboard/payouts", label: "Payouts", icon: dashboardIcons.payouts, mobile: false },
+  { to: "/dashboard/billing", label: "Billing", icon: dashboardIcons.billing, mobile: false },
+  { to: "/dashboard/profile", label: "Profile", icon: dashboardIcons.profile, mobile: false },
+];
+
+const navGroups = [
+  {
+    label: "Teach",
+    paths: ["/dashboard", "/dashboard/classes", "/dashboard/offers", "/dashboard/students"],
+  },
+  {
+    label: "Grow",
+    paths: [
+      "/dashboard/booking-page",
+      "/dashboard/newsletter",
+      "/dashboard/analytics",
+      "/dashboard/referrals",
+    ],
+  },
+  {
+    label: "Manage",
+    paths: ["/dashboard/payouts", "/dashboard/billing", "/dashboard/profile"],
+  },
 ];
 
 const mobileNav = nav.filter((item) => item.mobile);
@@ -73,14 +91,20 @@ function UserMenu({ compact = false }: { compact?: boolean }) {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
+          aria-label={`Open account menu for ${instructor.name}`}
           className={cn(
             "flex items-center gap-2 rounded-lg text-left transition-colors hover:bg-accent/60",
             compact ? "p-1.5" : "w-full p-2",
           )}
         >
-          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-clay/12 text-xs font-medium text-clay">
-            {initials}
-          </span>
+          <Avatar className="size-8">
+            {instructor.photoUrl && (
+              <AvatarImage src={instructor.photoUrl} alt="" className="object-cover" />
+            )}
+            <AvatarFallback className="bg-clay/12 text-xs font-medium text-clay">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
           {compact ? null : (
             <>
               <span className="min-w-0 flex-1">
@@ -95,27 +119,6 @@ function UserMenu({ compact = false }: { compact?: boolean }) {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align={compact ? "end" : "start"} className="w-48">
-        <DropdownMenuItem asChild>
-          <Link href="/dashboard/profile">Profile</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/dashboard/links">Links</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/dashboard/design">Design</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/dashboard/newsletter">Newsletter</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/dashboard/referrals">Referrals</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/dashboard/payouts">Payouts</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/dashboard/billing">Billing</Link>
-        </DropdownMenuItem>
         <DropdownMenuItem
           onClick={handleLogout}
           className="text-destructive focus:text-destructive"
@@ -129,8 +132,6 @@ function UserMenu({ compact = false }: { compact?: boolean }) {
 
 export function DashboardShell({ children }: { children: ReactNode }) {
   const path = usePathname();
-  const instructor = useInstructor();
-
   return (
     <div className="min-h-screen lg:flex">
       <aside className="hidden bg-sidebar text-sidebar-foreground lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:w-64 lg:flex-col lg:gap-6 lg:overflow-y-auto lg:border-r lg:border-sidebar-border lg:p-6">
@@ -147,52 +148,53 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           />
         </Link>
 
-        <nav className="flex-1 space-y-1">
-          {nav.map((item) => {
-            const active = item.to === "/dashboard" ? path === item.to : path.startsWith(item.to);
-            return (
-              <Link
-                key={item.to}
-                href={item.to}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
-                  active
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium shadow-soft"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-                )}
-              >
-                <item.icon className="size-4" />
-                {item.label}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 space-y-1 mt-8">
+          {navGroups.map((group) => (
+            <div key={group.label} className="mb-5">
+              <p className="mb-2 px-3 text-xs font-bold text-black">{group.label}</p>
+              {group.paths
+                .map((to) => nav.find((item) => item.to === to)!)
+                .map((item) => {
+                  const active =
+                    item.to === "/dashboard" ? path === item.to : path.startsWith(item.to);
+                  return (
+                    <Link
+                      key={item.to}
+                      href={item.to}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
+                        active
+                          ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium shadow-soft"
+                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                      )}
+                    >
+                      <item.icon className="size-4" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+            </div>
+          ))}
         </nav>
 
         <div className="space-y-4">
-          <div className="rounded-xl bg-card p-4 shadow-soft">
-            <p className="text-xs text-muted-foreground">Your booking page</p>
-            <p className="mt-1 truncate text-sm font-medium">
-              {siteHost}/{instructor.slug}
-            </p>
-            <Link
-              href={`/${instructor.slug}`}
-              className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-clay hover:underline"
-            >
-              View live page <ExternalLink className="size-3" />
-            </Link>
-          </div>
+          <SidebarPlanCard />
 
           <UserMenu />
         </div>
       </aside>
 
       <div className="dashboard-content bg-white min-h-screen flex-1 lg:pl-64">
-        <div className="mx-auto max-w-6xl px-4 py-6 pb-20 lg:px-8 lg:pb-6">
-          <div className="mb-6 flex items-center justify-between lg:hidden">
-            <Link
-              href="/dashboard"
-              className="inline-flex font-extrabold text-2xl text-sidebar-foreground"
-            >
+        <a
+          href="#dashboard-main"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-lg focus:bg-white focus:p-3"
+        >
+          Skip to content
+        </a>
+        <main id="dashboard-main" className="mx-auto max-w-6xl px-4 py-6 pb-20 lg:px-8 lg:pb-6">
+          <div className="mb-6 flex items-center justify-between gap-2 lg:hidden">
+            <Link href="/dashboard" className="col-start-2 inline-flex ">
               <Image
                 src="/flowboc-brand-logo.png"
                 width={100}
@@ -201,16 +203,13 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                 className="h-6 w-auto"
               />
             </Link>
-            <div className="flex items-center gap-3">
-              <Link href={`/${instructor.slug}`} className="text-xs font-medium text-clay">
-                Booking page
-              </Link>
+            <div className="col-start-3 flex justify-end">
               <UserMenu compact />
             </div>
           </div>
           <TrialBanner />
           {children}
-        </div>
+        </main>
       </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-white backdrop-blur lg:hidden">
@@ -224,6 +223,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               <Link
                 key={item.to}
                 href={item.to}
+                aria-current={active ? "page" : undefined}
                 className="flex flex-1 flex-col items-center gap-1 py-2.5 text-[0.68rem]"
               >
                 <span
@@ -244,6 +244,45 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               </Link>
             );
           })}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  "flex flex-1 flex-col items-center gap-1 py-2.5 text-[0.68rem] font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay",
+                  !mobileNav.some((item) =>
+                    item.to === "/dashboard" ? path === item.to : path.startsWith(item.to),
+                  )
+                    ? "text-clay"
+                    : "text-muted-foreground",
+                )}
+              >
+                <span className="rounded-full px-3 py-1">
+                  <Menu className="size-5" />
+                </span>
+                More
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              side="top"
+              className="mb-2 max-h-[65dvh] w-56 overflow-y-auto"
+            >
+              {nav
+                .filter((item) => !item.mobile)
+                .map((item) => (
+                  <DropdownMenuItem key={item.to} asChild>
+                    <Link
+                      href={item.to}
+                      aria-current={path.startsWith(item.to) ? "page" : undefined}
+                    >
+                      <item.icon className="size-4" />
+                      {item.label}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </nav>
 

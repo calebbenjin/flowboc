@@ -7,6 +7,7 @@ import { signOut, useSession } from "next-auth/react";
 import {
   Banknote,
   CreditCard,
+  ReceiptText,
   LayoutDashboard,
   LogOut,
   MessageCircleHeart,
@@ -18,6 +19,7 @@ import { cn } from "@/lib/utils";
 
 const nav = [
   { to: "/admin/overview", label: "Overview", icon: LayoutDashboard },
+  { to: "/admin/transactions", label: "Transactions", icon: ReceiptText },
   { to: "/admin/billing", label: "Billing", icon: CreditCard },
   { to: "/admin/referrals", label: "Referrals", icon: Share2 },
   { to: "/admin/referral-payouts", label: "Referral payouts", icon: Banknote },

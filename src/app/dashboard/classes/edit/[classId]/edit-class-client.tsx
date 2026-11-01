@@ -1,12 +1,16 @@
 "use client";
 
+import { canUseProOffers } from "@/lib/offer-access";
+import { newsletterButtonVisible } from "@/lib/newsletter/access";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import posthog from "posthog-js";
 import { toast } from "sonner";
 import { DashboardShell } from "@/components/DashboardShell";
+import { FirstClassCelebration, type ClassMilestone } from "@/components/FirstClassCelebration";
 import { ClassForm, type ClassFormInitial, type ClassFormDraft } from "@/components/ClassForm";
+import { effectivePublicTheme } from "@/lib/public-page-theme";
 import { PublicPagePreview } from "@/components/PublicPagePreview";
 import { useInstructor } from "@/components/InstructorProvider";
 import { draftToPreviewClass } from "@/lib/class-form-preview";
@@ -75,22 +79,29 @@ function readClassFormData(formData: FormData): Omit<ClassInput, "status"> {
   };
 }
 
-export function EditClassClient({ cls }: { cls: YogaClass }) {
+export function EditClassClient({ cls, futureCount }: { cls: YogaClass; futureCount: number }) {
   const router = useRouter();
   const instructor = useInstructor();
+  const [scope, setScope] = useState<"single" | "future">("single");
+  const [milestone, setMilestone] = useState<ClassMilestone | null>(null);
   const [pending, setPending] = useState(false);
   const [draft, setDraft] = useState<ClassFormDraft | null>(null);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+    const formData = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
 
     setPending(true);
     try {
-      const result = await updateClass(cls.id, {
-        ...readClassFormData(formData),
-        status: cls.status,
-      });
+      const result = await updateClass(
+        cls.id,
+        {
+          ...readClassFormData(formData),
+          status:
+            cls.status === "DRAFT" && formData.get("intent") !== "draft" ? "PUBLISHED" : cls.status,
+        },
+        scope,
+      );
       if (result.ok) {
         if (
           process.env["NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN"] &&
@@ -98,15 +109,41 @@ export function EditClassClient({ cls }: { cls: YogaClass }) {
         ) {
           posthog.capture("class_updated", { status: cls.status.toLowerCase() });
         }
-        toast.success("Class updated");
-        router.push(`/dashboard/classes/${cls.id}`);
+        if (result.firstPublication) {
+          const values = Object.fromEntries(
+            Array.from(formData.entries()).map(([key, value]) => [key, String(value)]),
+          );
+          if (result.firstDate) values["date"] = result.firstDate;
+          setMilestone({ values, classCount: result.classCount ?? 1 });
+        } else {
+          toast.success(
+            cls.status === "DRAFT" && formData.get("intent") === "draft"
+              ? "A lovely beginning—your draft is saved."
+              : scope === "future"
+                ? "Series classes updated"
+                : "Class updated",
+          );
+          router.push(`/dashboard/classes/${cls.id}`);
+        }
+        return true;
       } else {
         toast.error(result.error);
+        return false;
       }
+    } catch {
+      toast.error("Could not save the class. Your changes are still here; please try again.");
+      return false;
     } finally {
       setPending(false);
     }
   }
+
+  if (milestone)
+    return (
+      <DashboardShell>
+        <FirstClassCelebration milestone={milestone} />
+      </DashboardShell>
+    );
 
   return (
     <DashboardShell>
@@ -120,10 +157,44 @@ export function EditClassClient({ cls }: { cls: YogaClass }) {
           </Link>
           <h1 className="mt-3 text-3xl">Edit class</h1>
 
+          {cls.seriesId ? (
+            <fieldset className="mt-5 space-y-3 rounded-xl border border-border p-4">
+              <legend className="px-1 text-sm font-medium">Apply changes to</legend>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="edit-scope"
+                  checked={scope === "single"}
+                  onChange={() => setScope("single")}
+                />
+                This class only
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="edit-scope"
+                  checked={scope === "future"}
+                  disabled={futureCount === 0}
+                  onChange={() => setScope("future")}
+                />
+                This and future classes ({futureCount} dates)
+              </label>
+              <p className="text-xs text-muted-foreground">
+                {scope === "future"
+                  ? "Updates existing scheduled dates. Changing the date shifts all affected dates by the same number of days. Past and cancelled classes stay unchanged."
+                  : "Other dates in this series stay unchanged."}{" "}
+                Existing bookings keep their original prices. Notify booked students if you change
+                their schedule.
+              </p>
+            </fieldset>
+          ) : null}
           <ClassForm
+            editScope={scope}
+            affectedCount={scope === "future" ? futureCount : 1}
             initial={toFormInitial(cls)}
-            primaryLabel="Save changes"
-            secondaryLabel="Cancel"
+            primaryLabel={cls.status === "DRAFT" ? "Publish class" : "Save changes"}
+            secondaryLabel={cls.status === "DRAFT" ? "Save as draft" : "Cancel"}
+            secondarySubmits={cls.status === "DRAFT"}
             pending={pending}
             onSecondary={() => router.push(`/dashboard/classes/${cls.id}`)}
             onSubmit={handleSubmit}
@@ -136,9 +207,16 @@ export function EditClassClient({ cls }: { cls: YogaClass }) {
           <PublicPagePreview
             size="md"
             instructor={{
+              ...effectivePublicTheme(instructor),
+              ebookEnabled: canUseProOffers(instructor) && instructor.ebookEnabled,
+              ebookTitle: instructor.ebookTitle,
+              ebookDescription: instructor.ebookDescription,
+              ebookPrice: instructor.ebookPrice,
+              ebookCoverUrl: instructor.ebookCoverUrl,
               name: instructor.name,
               photoUrl: instructor.photoUrl,
               themeColor: instructor.themeColor,
+              newsletterEnabled: newsletterButtonVisible(instructor),
               backgroundType: instructor.backgroundType,
               backgroundImageUrl: instructor.backgroundImageUrl,
               backgroundColor: instructor.backgroundColor,
@@ -146,7 +224,7 @@ export function EditClassClient({ cls }: { cls: YogaClass }) {
               backgroundGradientTo: instructor.backgroundGradientTo,
               pageLayout: instructor.pageLayout,
               bio: instructor.bio,
-              videoCallEnabled: instructor.videoCallEnabled,
+              videoCallEnabled: canUseProOffers(instructor) && instructor.videoCallEnabled,
               videoCallTitle: instructor.videoCallTitle,
               videoCallDescription: instructor.videoCallDescription,
               videoCallImageUrl: instructor.videoCallImageUrl,

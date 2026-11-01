@@ -166,12 +166,17 @@ model Instructor {
   consultationLink String?
   specialties      String[] @default([])
 
+  timezone              String       @default("Africa/Lagos")
   currency              CurrencyCode @default(NGN)
   onboardingCompletedAt DateTime?
 
   // Public booking-page customization.
   themeColor String     @default("#6355ff")
   pageLayout PageLayout @default(CLASSIC)
+  pageTemplate String @default("STANDARD")
+  pageFont String @default("EDITORIAL")
+  coverImageUrl String?
+  newsletterEnabled Boolean @default(true)
 
   // Which of the three background fields below is actually in effect.
   // IMAGE is the default so existing instructors (all pre-dating this

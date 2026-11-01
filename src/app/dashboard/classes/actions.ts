@@ -4,13 +4,29 @@ import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { requireInstructor } from "@/lib/require-instructor";
 import { deadlineLabelToMinutes } from "@/lib/class-deadline";
-import { zonedDateTimeToUtc } from "@/lib/timezone";
+import { utcToZonedDateTime, zonedDateTimeToUtc } from "@/lib/timezone";
 import { sendCancellationEmail } from "@/lib/email";
-import { RECURRING_HORIZON_OPTIONS, DEFAULT_RECURRING_HORIZON_DAYS } from "@/lib/class-recurrence";
+import { RECURRING_HORIZON_OPTIONS } from "@/lib/class-recurrence";
 import { accessBlockedReason } from "@/lib/trial";
+import { Prisma } from "@/generated/prisma/client";
+import {
+  recurringDates,
+  shiftedOccurrence,
+  shiftedRepeatDays,
+  WEEKDAYS,
+} from "@/lib/class-schedule";
 import type { ClassStatus } from "@/generated/prisma/enums";
 
-type ActionResult = { ok: true } | { ok: false; error: string };
+type ActionResult =
+  | { ok: true; firstPublication?: boolean; classCount?: number; firstDate?: string }
+  | { ok: false; error: string };
+
+const publicationHistory = {
+  OR: [
+    { publishedAt: { not: null } },
+    { status: { in: ["PUBLISHED", "FULL", "COMPLETED"] as ClassStatus[] } },
+  ],
+};
 
 const WEEKDAY_ABBREVS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const WEEKDAY_FULL: Record<string, string> = {
@@ -22,19 +38,6 @@ const WEEKDAY_FULL: Record<string, string> = {
   Sat: "Saturday",
   Sun: "Sunday",
 };
-
-function addDaysToDateString(dateStr: string, days: number): string {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const dt = new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1));
-  dt.setUTCDate(dt.getUTCDate() + days);
-  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
-}
-
-function weekdayAbbrev(dateStr: string): string {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const dt = new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1));
-  return WEEKDAY_ABBREVS[dt.getUTCDay()] ?? "Sun";
-}
 
 function buildRecurringLabel(days: string[]): string {
   const ordered = WEEKDAY_ABBREVS.filter((d) => days.includes(d)).map((d) => WEEKDAY_FULL[d]);
@@ -66,9 +69,12 @@ export type ClassInput = {
 };
 
 function validate(input: ClassInput): string | null {
+  if (!["DRAFT", "PUBLISHED", "FULL", "COMPLETED", "CANCELLED"].includes(input.status))
+    return "Invalid class status.";
   if (!input.name.trim()) return "Please enter a class name.";
   if (!input.date || !input.time) return "Please set a date and time.";
-  if (!Number.isFinite(input.capacity) || input.capacity < 1) return "Capacity must be at least 1.";
+  if (!Number.isInteger(input.capacity) || input.capacity < 1)
+    return "Capacity must be at least 1.";
   if (!Number.isFinite(input.price) || input.price < 0) return "Price can't be negative.";
   if (!Number.isFinite(input.durationMinutes) || input.durationMinutes < 1) {
     return "Duration must be at least 1 minute.";
@@ -82,6 +88,20 @@ function validate(input: ClassInput): string | null {
   ) {
     return "Please choose how long the class should repeat.";
   }
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: input.timezone }).format();
+    const start = zonedDateTimeToUtc(input.date, input.time, input.timezone);
+    if (!Number.isFinite(start.getTime())) return "Please set a valid date and time.";
+  } catch {
+    return "Choose a valid timezone, date and time.";
+  }
+  if (
+    input.recurring &&
+    (!input.recurringDays.length || input.recurringDays.some((day) => !WEEKDAYS.includes(day)))
+  )
+    return "Choose at least one valid repeat day.";
+  if (input.online && input.location && !/^https?:\/\//i.test(input.location))
+    return "Meeting link must start with https:// or http://.";
   return null;
 }
 
@@ -112,39 +132,57 @@ export async function createClass(input: ClassInput): Promise<ActionResult> {
     publishedAt: input.status === "PUBLISHED" ? new Date() : null,
   };
 
-  if (input.recurring && input.recurringDays.length > 0) {
-    const seriesId = randomUUID();
-    const recurringLabel = buildRecurringLabel(input.recurringDays);
-    const occurrenceDates: string[] = [];
-    const horizonDays = RECURRING_HORIZON_OPTIONS.includes(
-      input.horizonDays as (typeof RECURRING_HORIZON_OPTIONS)[number],
-    )
-      ? input.horizonDays
-      : DEFAULT_RECURRING_HORIZON_DAYS;
-    for (let i = 0; i < horizonDays; i++) {
-      const d = addDaysToDateString(input.date, i);
-      if (input.recurringDays.includes(weekdayAbbrev(d))) occurrenceDates.push(d);
-    }
-
-    await prisma.yogaClass.createMany({
-      data: occurrenceDates.map((d) => ({
-        ...baseData,
-        seriesId,
-        recurringLabel,
-        recurringDays: input.recurringDays,
-        startAt: zonedDateTimeToUtc(d, input.time, input.timezone),
-      })),
-    });
-  } else {
-    await prisma.yogaClass.create({
-      data: {
-        ...baseData,
-        startAt: zonedDateTimeToUtc(input.date, input.time, input.timezone),
+  const occurrenceDates =
+    input.recurring && input.recurringDays.length > 0
+      ? recurringDates(input.date, input.recurringDays, input.horizonDays)
+      : [input.date];
+  if (!occurrenceDates.length) return { ok: false, error: "No class dates match this schedule." };
+  try {
+    return await prisma.$transaction(
+      async (tx): Promise<ActionResult> => {
+        const publishedBefore =
+          input.status === "PUBLISHED"
+            ? await tx.yogaClass.count({
+                where: { instructorId: instructor.id, ...publicationHistory },
+              })
+            : null;
+        if (input.recurring && input.recurringDays.length > 0) {
+          const seriesId = randomUUID();
+          const recurringLabel = buildRecurringLabel(input.recurringDays);
+          await tx.yogaClass.createMany({
+            data: occurrenceDates.map((day) => ({
+              ...baseData,
+              seriesId,
+              recurringLabel,
+              recurringDays: input.recurringDays,
+              startAt: zonedDateTimeToUtc(day, input.time, input.timezone),
+            })),
+          });
+        } else {
+          await tx.yogaClass.create({
+            data: {
+              ...baseData,
+              startAt: zonedDateTimeToUtc(input.date, input.time, input.timezone),
+            },
+          });
+        }
+        return {
+          ok: true,
+          firstPublication: input.status === "PUBLISHED" && publishedBefore === 0,
+          classCount: occurrenceDates.length,
+          firstDate: occurrenceDates[0] ?? input.date,
+        };
       },
-    });
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034")
+      return {
+        ok: false,
+        error: "Your classes changed while saving. Please review and try again.",
+      };
+    throw error;
   }
-
-  return { ok: true };
 }
 
 async function requireOwnedClass(classId: string) {
@@ -156,44 +194,135 @@ async function requireOwnedClass(classId: string) {
   return { instructor, cls };
 }
 
-export async function updateClass(classId: string, input: ClassInput): Promise<ActionResult> {
+export async function updateClass(
+  classId: string,
+  input: ClassInput,
+  scope: "single" | "future" = "single",
+): Promise<ActionResult> {
   const { instructor, cls } = await requireOwnedClass(classId);
-
   const error = validate(input);
   if (error) return { ok: false, error };
-  // Only blocks newly publishing a class — editing one that's already live
-  // (e.g. fixing a typo) isn't a new "publish" event.
+  if (scope !== "single" && scope !== "future")
+    return { ok: false, error: "Choose a valid edit scope." };
   const blockedReason =
     input.status === "PUBLISHED" && cls.status !== "PUBLISHED"
       ? accessBlockedReason(instructor)
       : null;
   if (blockedReason) return { ok: false, error: blockedReason };
-
-  await prisma.yogaClass.update({
-    where: { id: classId },
-    data: {
-      name: input.name.trim(),
-      type: input.type?.trim() || null,
-      description: input.description?.trim() || null,
-      coverUrl: input.coverUrl || null,
-      timezone: input.timezone,
-      durationMinutes: input.durationMinutes,
-      mode: input.online ? "ONLINE" : "IN_PERSON",
-      location: input.location?.trim() || null,
-      price: input.price,
-      originalPrice: input.originalPrice ?? null,
-      capacity: input.capacity,
-      status: input.status,
-      deadlineMinutesBeforeStart: deadlineLabelToMinutes(input.deadlineLabel),
-      cancellationPolicy: input.cancellationPolicy?.trim() || null,
-      startAt: zonedDateTimeToUtc(input.date, input.time, input.timezone),
-      recurringDays: input.recurring ? input.recurringDays : [],
-      recurringLabel: input.recurring ? buildRecurringLabel(input.recurringDays) : null,
-      publishedAt: input.status === "PUBLISHED" ? new Date() : null,
-    },
-  });
-
-  return { ok: true };
+  if (
+    scope === "future" &&
+    (!cls.seriesId || cls.startAt < new Date() || ["CANCELLED", "COMPLETED"].includes(cls.status))
+  ) {
+    return { ok: false, error: "Select an upcoming class in the series to edit future dates." };
+  }
+  const data = {
+    name: input.name.trim(),
+    type: input.type?.trim() || null,
+    description: input.description?.trim() || null,
+    coverUrl: input.coverUrl || null,
+    timezone: input.timezone,
+    durationMinutes: input.durationMinutes,
+    mode: input.online ? ("ONLINE" as const) : ("IN_PERSON" as const),
+    location: input.location?.trim() || null,
+    price: input.price,
+    originalPrice: input.originalPrice ?? null,
+    capacity: input.capacity,
+    deadlineMinutesBeforeStart: deadlineLabelToMinutes(input.deadlineLabel),
+    cancellationPolicy: input.cancellationPolicy?.trim() || null,
+  };
+  try {
+    return await prisma.$transaction(
+      async (tx): Promise<ActionResult> => {
+        const targets = await tx.yogaClass.findMany({
+          where:
+            scope === "future"
+              ? {
+                  instructorId: instructor.id,
+                  seriesId: cls.seriesId,
+                  startAt: { gte: cls.startAt },
+                  status: { in: ["PUBLISHED", "FULL", "DRAFT"] },
+                }
+              : { id: cls.id, instructorId: instructor.id },
+          include: { _count: { select: { bookings: { where: { status: "CONFIRMED" } } } } },
+        });
+        if (!targets.length)
+          return { ok: false, error: "No editable classes were found. Refresh and try again." };
+        if (targets.some((target) => target._count.bookings > input.capacity))
+          return {
+            ok: false,
+            error: "Capacity cannot be lower than the confirmed bookings on any affected class.",
+          };
+        for (const target of targets) {
+          const startAt =
+            scope === "future"
+              ? shiftedOccurrence(target, cls, input)
+              : zonedDateTimeToUtc(input.date, input.time, input.timezone);
+          if (scope === "future" && startAt < new Date())
+            return { ok: false, error: "Future series dates cannot be moved into the past." };
+        }
+        const publishedBefore =
+          input.status === "PUBLISHED" && cls.status === "DRAFT"
+            ? await tx.yogaClass.count({
+                where: { instructorId: instructor.id, ...publicationHistory },
+              })
+            : null;
+        let newlyPublished = 0;
+        for (const target of targets) {
+          const requestedStatus =
+            scope === "single" || (cls.status === "DRAFT" && target.status === "DRAFT")
+              ? input.status
+              : target.status;
+          const status =
+            requestedStatus === "PUBLISHED" || requestedStatus === "FULL"
+              ? target._count.bookings >= input.capacity
+                ? "FULL"
+                : "PUBLISHED"
+              : requestedStatus;
+          if (target.publishedAt === null && (status === "PUBLISHED" || status === "FULL"))
+            newlyPublished += 1;
+          await tx.yogaClass.update({
+            where: { id: target.id },
+            data: {
+              ...data,
+              status,
+              startAt:
+                scope === "future"
+                  ? shiftedOccurrence(target, cls, input)
+                  : zonedDateTimeToUtc(input.date, input.time, input.timezone),
+              ...(scope === "future"
+                ? (() => {
+                    const recurringDays = shiftedRepeatDays(
+                      target.recurringDays,
+                      utcToZonedDateTime(cls.startAt, cls.timezone).date,
+                      input.date,
+                    );
+                    return { recurringDays, recurringLabel: buildRecurringLabel(recurringDays) };
+                  })()
+                : {}),
+              // Editing preserves series membership and never creates or deletes dates.
+              publishedAt:
+                target.publishedAt ??
+                (status === "PUBLISHED" || status === "FULL" ? new Date() : null),
+            },
+          });
+        }
+        return {
+          ok: true,
+          firstPublication: publishedBefore === 0 && newlyPublished > 0,
+          classCount: newlyPublished,
+          firstDate: input.date,
+        };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034")
+      return {
+        ok: false,
+        error: "Bookings changed while you were saving. Please review and try again.",
+      };
+    throw error;
+  }
 }
 
 export async function duplicateClass(classId: string): Promise<ActionResult> {
