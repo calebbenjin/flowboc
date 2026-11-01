@@ -1,26 +1,22 @@
 import type { Metadata } from "next";
-import { Navbar } from "@/components/landing/Navbar";
-import { Hero } from "@/components/landing/Hero";
-import { MarqueeStrip } from "@/components/landing/MarqueeStrip";
-import { SocialProof } from "@/components/landing/SocialProof";
-import { ProblemSection } from "@/components/landing/ProblemSection";
-import { CreatorShowcase } from "@/components/landing/CreatorShowcase";
-import { WhyFlowboc } from "@/components/landing/WhyFlowboc";
-import { FeatureGrid } from "@/components/landing/FeatureGrid";
-import { HowItWorks } from "@/components/landing/HowItWorks";
-import { BuildAndPrice } from "@/components/landing/BuildAndPrice";
-import { TeachYourWay } from "@/components/landing/TeachYourWay";
-import { BuildWithEase } from "@/components/landing/BuildWithEase";
-import { GetStarted } from "@/components/landing/GetStarted";
-import { OneLink } from "@/components/landing/OneLink";
-import { InstructorExperience } from "@/components/landing/InstructorExperience";
-import { TestimonialVideos } from "@/components/landing/TestimonialVideos";
-import { Pricing } from "@/components/landing/Pricing";
-import { FAQ } from "@/components/landing/FAQ";
-import { FinalCTA } from "@/components/landing/FinalCTA";
-import { Footer } from "@/components/landing/Footer";
+import { LaunchDialogProvider } from "@/components/landing/launch/LaunchDialogContext";
+import { LaunchNavbar } from "@/components/landing/launch/LaunchNavbar";
+import { LaunchHero } from "@/components/landing/launch/LaunchHero";
+import { WhyJourney } from "@/components/landing/launch/WhyJourney";
+import { YourPage } from "@/components/landing/launch/YourPage";
+import { Experience } from "@/components/landing/launch/Experience";
+import { Offers } from "@/components/landing/launch/Offers";
+import { Business } from "@/components/landing/launch/Business";
+import { Community } from "@/components/landing/launch/Community";
+import { Growth } from "@/components/landing/launch/Growth";
+import { Setup } from "@/components/landing/launch/Setup";
+import { Plans } from "@/components/landing/launch/Plans";
+import { LaunchFAQ } from "@/components/landing/launch/LaunchFAQ";
+import { LaunchFinalCTA } from "@/components/landing/launch/LaunchFinalCTA";
+import { LaunchFooter } from "@/components/landing/launch/LaunchFooter";
 import { TawkToWidget } from "@/components/landing/TawkToWidget";
 import { getActivePlansForCurrency } from "@/lib/subscription-plans";
+import Benefits from "@/components/landing/launch/Benefits";
 
 const title = "Flowboc — Booking software for independent yoga instructors";
 const description =
@@ -50,21 +46,27 @@ export default async function Landing() {
   const plans = await getActivePlansForCurrency("USD");
 
   return (
-    <div className="min-h-screen overflow-x-clip bg-background">
-      <Navbar />
-      <main>
-        <Hero />
-        <MarqueeStrip />
-        <HowItWorks />
-        <TeachYourWay />
-        <BuildWithEase />
-        <OneLink />
-        <Pricing plans={plans} />
-        <FAQ />
-        <FinalCTA />
-      </main>
-      <Footer />
+    <LaunchDialogProvider plans={plans}>
+      <div className="min-h-screen overflow-x-clip bg-[#fcfbf7]">
+        <LaunchNavbar />
+        <main>
+          <LaunchHero />
+          <Benefits />
+          <WhyJourney /> 
+          <YourPage />
+          <Experience />
+          <Offers />
+          <Business />
+          <Community />
+          <Growth />
+          <Setup />
+          <Plans />
+          <LaunchFAQ />
+          <LaunchFinalCTA />
+        </main>
+        <LaunchFooter />
+      </div>
       <TawkToWidget />
-    </div>
+    </LaunchDialogProvider>
   );
 }

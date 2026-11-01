@@ -1,0 +1,321 @@
+.page {
+  max-width: 900px;
+}
+.header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+}
+.header h1 {
+  font-size: 36px;
+  letter-spacing: -0.04em;
+  margin-top: 7px;
+}
+.eyebrow {
+  font-size: 11px;
+  color: #8b789a;
+}
+.header > a {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  font-size: 12px;
+  color: #6355ff;
+}
+.identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px;
+  padding: 30px;
+  border: 1px solid #e5dced;
+  border-radius: 24px;
+  background: #f3eef9;
+  margin-top: 26px;
+}
+.photo,
+.initials {
+  width: 90px;
+  height: 100px;
+  border-radius: 32px 32px 32px 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 4px solid #fffdf9;
+}
+.initials {
+  display: grid;
+  place-items: center;
+  background: #e7ddf5;
+  color: #9c80bd;
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: 26px;
+}
+.identityCopy {
+  flex: 1;
+  min-width: 0;
+}
+.teacherLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: #9b82b2;
+}
+.identityCopy h2 {
+  font-size: 29px;
+  letter-spacing: -0.03em;
+  color: #493354;
+  margin-top: 8px;
+  overflow-wrap: anywhere;
+}
+.identityCopy > p {
+  font-size: 11px;
+  line-height: 1.8;
+  color: #9a83a9;
+  margin-top: 7px;
+  overflow-wrap: anywhere;
+}
+.photoActions {
+  display: flex;
+  gap: 8px;
+}
+.photoActions > button {
+  min-height: 44px;
+  background: #fcfaf6;
+  border: 1px solid #dfd3ec;
+  color: #8a6ca4;
+  font-size: 11px;
+  border-radius: 11px;
+}
+.sectionNav {
+  display: flex;
+  gap: 22px;
+  margin-top: 22px;
+  padding: 0 5px;
+  border-bottom: 1px solid #e7deed;
+  overflow: auto;
+}
+.sectionNav a {
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  font-size: 11px;
+  color: #9b85ac;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+}
+.sectionNav a:hover {
+  color: #6355ff;
+  border-color: #6355ff;
+}
+.form {
+  margin-top: 24px;
+  border: 1px solid #e7deed;
+  border-radius: 20px;
+  background: #fcfaf6;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 21px;
+  scroll-margin-top: 24px;
+}
+.sectionHeading {
+  display: flex;
+  align-items: start;
+  gap: 12px;
+  scroll-margin-top: 24px;
+}
+.sectionHeading > span {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 42px;
+  flex-shrink: 0;
+  background: #f0eaf7;
+  border-radius: 13px;
+  color: #a085bb;
+}
+.sectionHeading h2 {
+  font-size: 23px;
+  letter-spacing: -0.03em;
+  color: #50385f;
+}
+.sectionHeading p {
+  font-size: 11px;
+  line-height: 1.8;
+  color: #9b85ac;
+  margin-top: 5px;
+}
+.form label {
+  font-size: 11px;
+  color: #7e648f;
+}
+.form :is(input, select, textarea) {
+  background: #fffdf9;
+  border-color: #e2d7eb;
+  border-radius: 10px;
+  font-size: 14px;
+  min-height: 46px;
+  color: #665073;
+}
+.form textarea {
+  line-height: 1.8;
+  padding: 12px;
+}
+.form input::placeholder,
+.form textarea::placeholder {
+  color: #b3a2be;
+  font-size: 12px;
+}
+.form select {
+  height: auto;
+  padding: 12px;
+}
+.form > div > p,
+.form > div > div > p {
+  font-size: 10px;
+  line-height: 1.8;
+  color: #a48db4;
+}
+.form > div:last-child > button {
+  min-height: 46px;
+  background: #6355ff;
+  color: white;
+  padding: 12px 22px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+.form > div:last-child > button:hover {
+  background: #5142e5;
+}
+.form > div[id="contact-details"] {
+  border-top: 1px solid #e8dfef;
+  padding-top: 24px;
+  margin-top: 3px;
+}
+.quickLinks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 26px;
+}
+.quickLink {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 14px;
+  border: 1px solid #e8dfef;
+  border-radius: 18px;
+  padding: 23px;
+  background: #f6f2fa;
+}
+.quickLink > span {
+  width: 40px;
+  height: 42px;
+  border-radius: 13px;
+  background: #ede5f7;
+  color: #a085bb;
+}
+.quickLink > div > p:first-child {
+  font-size: 13px;
+  color: #77598b;
+}
+.quickLink > div > p:last-child {
+  font-size: 11px;
+  line-height: 1.8;
+  color: #9a82ac;
+}
+.quickLink > a {
+  grid-column: 2;
+  min-height: 44px;
+  padding-left: 0;
+  justify-self: start;
+  background: transparent;
+  color: #8c6aa5;
+  font-size: 11px;
+}
+.danger {
+  margin-top: 32px;
+  padding: 24px 3px;
+  border-top: 1px solid #e8dfef;
+}
+.danger > div > p {
+  font-size: 11px;
+  line-height: 1.8;
+  max-width: 500px;
+  color: #a08aaf;
+  margin: 8px 0 14px;
+}
+.danger > button {
+  min-height: 44px;
+}
+.page :is(a, button, input, textarea, select):focus-visible {
+  outline: 2px solid #6355ff;
+  outline-offset: 4px;
+}
+@media (max-width: 767px) {
+  .header h1 {
+    font-size: 32px;
+  }
+  .header > a {
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .eyebrow {
+    max-width: 170px;
+    font-size: 10px;
+  }
+  .identity {
+    padding: 22px;
+    gap: 15px;
+    margin-top: 20px;
+  }
+  .photo,
+  .initials {
+    width: 70px;
+    height: 80px;
+    border-radius: 26px 26px 26px 8px;
+  }
+  .identityCopy h2 {
+    font-size: 25px;
+  }
+  .photoActions {
+    width: 100%;
+    margin-top: 3px;
+  }
+  .photoActions > button {
+    width: 100%;
+  }
+  .teacherLabel {
+    font-size: 9px;
+  }
+  .form {
+    padding: 22px 18px;
+    gap: 22px;
+  }
+  .sectionHeading h2 {
+    font-size: 22px;
+  }
+  .form :is(input, textarea, select) {
+    font-size: 16px;
+  }
+  .form > div:last-child > button {
+    width: 100%;
+  }
+  .sectionNav {
+    gap: 20px;
+  }
+  .sectionNav a {
+    font-size: 10px;
+  }
+  .quickLinks {
+    grid-template-columns: 1fr;
+  }
+  .quickLink {
+    padding: 20px;
+  }
+  .danger {
+    padding: 22px 3px;
+  }
+}

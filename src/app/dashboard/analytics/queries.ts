@@ -1,133 +1,183 @@
-import { startOfWeek, subWeeks, format } from "date-fns";
+import "server-only";
 import { prisma } from "@/lib/db";
+import { requireInstructor } from "@/lib/require-instructor";
+import { canUseProAnalytics } from "@/lib/analytics/access";
+import {
+  analyticsWeekStarts,
+  emptyOfferMetrics,
+  type AnalyticsData,
+  type OfferMetrics,
+  type TopClass,
+  type WeeklyMetric,
+} from "@/lib/analytics/metrics";
+import { NEWSLETTER_CONSENT_SOURCES } from "@/lib/newsletter/consent";
+import { zonedDateTimeToUtc } from "@/lib/timezone";
+import { Prisma } from "@/generated/prisma/client";
+import type { CurrencyCode } from "@/lib/demo";
+export type { WeeklyMetric, TopClass } from "@/lib/analytics/metrics";
 
-export type WeeklyMetric = { week: string; revenue: number; views: number; bookings: number };
-
-// 16 weeks so the client can show an 8-week view alongside an 8-week prior
-// period for the vs-prior-period deltas.
-const WEEKS_OF_HISTORY = 16;
-const WEEK_KEY = "yyyy-MM-dd";
-
-function weekKey(d: Date): string {
-  return format(d, WEEK_KEY);
+export async function getProAnalytics(): Promise<AnalyticsData> {
+  const instructor = await requireInstructor();
+  if (!canUseProAnalytics(instructor))
+    throw new Error("Pro analytics requires an active Pro plan.");
+  return loadAnalytics(instructor, true);
 }
 
-export async function getWeeklyMetrics(instructorId: string): Promise<WeeklyMetric[]> {
-  const earliestWeekStart = startOfWeek(subWeeks(new Date(), WEEKS_OF_HISTORY - 1), {
-    weekStartsOn: 1,
-  });
-
-  const [revenueRows, bookingRows, videoCallRevenueRows, videoCallBookingRows, viewRows] =
-    await Promise.all([
-      prisma.$queryRaw<{ week: Date; revenue: bigint | null }[]>`
-      SELECT date_trunc('week', "bookedAt") as week, SUM("amount")::bigint as revenue
-      FROM "Booking"
-      WHERE "instructorId" = ${instructorId}
-        AND "paymentStatus" = 'PAID'
-        AND "bookedAt" >= ${earliestWeekStart}
-      GROUP BY week
-    `,
-      prisma.$queryRaw<{ week: Date; count: bigint }[]>`
-      SELECT date_trunc('week', "bookedAt") as week, COUNT(*)::bigint as count
-      FROM "Booking"
-      WHERE "instructorId" = ${instructorId}
-        AND "bookedAt" >= ${earliestWeekStart}
-      GROUP BY week
-    `,
-      prisma.$queryRaw<{ week: Date; revenue: bigint | null }[]>`
-      SELECT date_trunc('week', "createdAt") as week, SUM("amount")::bigint as revenue
-      FROM "VideoCallBooking"
-      WHERE "instructorId" = ${instructorId}
-        AND "paymentStatus" = 'PAID'
-        AND "createdAt" >= ${earliestWeekStart}
-      GROUP BY week
-    `,
-      prisma.$queryRaw<{ week: Date; count: bigint }[]>`
-      SELECT date_trunc('week', "createdAt") as week, COUNT(*)::bigint as count
-      FROM "VideoCallBooking"
-      WHERE "instructorId" = ${instructorId}
-        AND "createdAt" >= ${earliestWeekStart}
-      GROUP BY week
-    `,
-      prisma.$queryRaw<{ week: Date; count: bigint }[]>`
-      SELECT date_trunc('week', "createdAt") as week, COUNT(*)::bigint as count
-      FROM "PageView"
-      WHERE "instructorId" = ${instructorId}
-        AND "createdAt" >= ${earliestWeekStart}
-      GROUP BY week
-    `,
-    ]);
-
-  const revenueByWeek = new Map(revenueRows.map((r) => [weekKey(r.week), Number(r.revenue ?? 0)]));
-  const bookingsByWeek = new Map(bookingRows.map((r) => [weekKey(r.week), Number(r.count)]));
-  const viewsByWeek = new Map(viewRows.map((r) => [weekKey(r.week), Number(r.count)]));
-
-  for (const r of videoCallRevenueRows) {
-    const key = weekKey(r.week);
-    revenueByWeek.set(key, (revenueByWeek.get(key) ?? 0) + Number(r.revenue ?? 0));
-  }
-  for (const r of videoCallBookingRows) {
-    const key = weekKey(r.week);
-    bookingsByWeek.set(key, (bookingsByWeek.get(key) ?? 0) + Number(r.count));
-  }
-
-  const weeks: WeeklyMetric[] = [];
-  for (let i = WEEKS_OF_HISTORY - 1; i >= 0; i--) {
-    const start = startOfWeek(subWeeks(new Date(), i), { weekStartsOn: 1 });
-    const key = weekKey(start);
-    weeks.push({
-      week: format(start, "MMM d"),
-      revenue: revenueByWeek.get(key) ?? 0,
-      bookings: bookingsByWeek.get(key) ?? 0,
-      views: viewsByWeek.get(key) ?? 0,
-    });
-  }
-  return weeks;
+export async function getStarterStats() {
+  const instructor = await requireInstructor();
+  const analytics = await loadAnalytics(instructor, false);
+  return {
+    activeSubscribers: analytics.activeSubscribers,
+    currencies: analytics.currencies,
+    periods: [4, 8].map((range) => ({
+      range,
+      views: analytics.weeks.slice(-range).reduce((sum, week) => sum + week.views, 0),
+      totals: analytics.currencies.map((currency) => ({
+        currency,
+        ...analytics.weeks.slice(-range).reduce(
+          (sum, week) => {
+            const value = week.currencies[currency] ?? emptyOfferMetrics();
+            return {
+              revenue: sum.revenue + value.classRevenue + value.sessionRevenue + value.ebookRevenue,
+              orders: sum.orders + value.classBookings + value.sessionBookings + value.ebookSales,
+            };
+          },
+          { revenue: 0, orders: 0 },
+        ),
+      })),
+    })),
+  };
 }
 
-export type TopClass = {
-  id: string;
-  name: string;
-  booked: number;
-  earned: number;
-};
-
-export async function getFillRateAndTopClasses(
-  instructorId: string,
-): Promise<{ fillRate: number; topClasses: TopClass[] }> {
-  const classes = await prisma.yogaClass.findMany({
-    where: { instructorId },
-    select: {
-      id: true,
-      name: true,
-      status: true,
-      capacity: true,
-      bookings: {
-        where: { status: "CONFIRMED" },
-        select: { paymentStatus: true, amount: true },
+async function loadAnalytics(
+  instructor: Awaited<ReturnType<typeof requireInstructor>>,
+  pro: boolean,
+): Promise<AnalyticsData> {
+  const weekStarts = analyticsWeekStarts(instructor.timezone);
+  const earliest = zonedDateTimeToUtc(weekStarts[0]!, "00:00", instructor.timezone);
+  type RevenueRow = {
+    week: string;
+    kind: "CLASS" | "SESSION" | "EBOOK";
+    currency: CurrencyCode | null;
+    revenue: bigint | null;
+    orders: bigint;
+  };
+  type ActivityRow = { week: string; kind: "VIEW" | "SIGNUP" | "UNSUBSCRIBE"; count: bigint };
+  const [sales, activity, activeSubscribers, classes] = await Promise.all([
+    prisma.$queryRaw<RevenueRow[]>(Prisma.sql`
+      SELECT to_char(date_trunc('week',s.at AT TIME ZONE 'UTC' AT TIME ZONE ${instructor.timezone}),'YYYY-MM-DD') AS week,
+        s.kind,s.currency,SUM(s.amount)::bigint AS revenue,SUM(s.orders)::bigint AS orders
+      FROM (
+        SELECT 'CLASS'::text AS kind,currency::text AS currency,amount,"bookedAt" AS at,CASE WHEN status='CONFIRMED' THEN 1 ELSE 0 END AS orders
+          FROM "Booking" WHERE "instructorId"=${instructor.id} AND "paymentStatus"='PAID' AND "bookedAt">=${earliest}
+        UNION ALL SELECT 'SESSION',currency::text,COALESCE(amount,0),"createdAt",1 FROM "VideoCallBooking"
+          WHERE "instructorId"=${instructor.id} AND "paymentStatus"='PAID' AND "createdAt">=${earliest}
+        UNION ALL SELECT 'EBOOK',currency::text,amount,"createdAt",1 FROM "EbookPurchase"
+          WHERE "instructorId"=${instructor.id} AND "paymentStatus"='PAID' AND "createdAt">=${earliest}
+      ) s GROUP BY week,s.kind,s.currency`),
+    prisma.$queryRaw<ActivityRow[]>(Prisma.sql`
+      SELECT to_char(date_trunc('week',s.at AT TIME ZONE 'UTC' AT TIME ZONE ${instructor.timezone}),'YYYY-MM-DD') AS week,s.kind,COUNT(*)::bigint AS count FROM (
+        SELECT 'VIEW'::text AS kind,"createdAt" AS at FROM "PageView" WHERE "instructorId"=${instructor.id} AND "createdAt">=${earliest}
+        UNION ALL SELECT 'SIGNUP',"subscribedAt" FROM "NewsletterSubscriber" WHERE "instructorId"=${instructor.id} AND source IN (${Prisma.join(NEWSLETTER_CONSENT_SOURCES)}) AND "subscribedAt">=${earliest}
+        UNION ALL SELECT 'UNSUBSCRIBE',"unsubscribedAt" FROM "NewsletterSubscriber" WHERE "instructorId"=${instructor.id} AND source IN (${Prisma.join(NEWSLETTER_CONSENT_SOURCES)}) AND "unsubscribedAt">=${earliest}
+      ) s GROUP BY week,s.kind`),
+    prisma.newsletterSubscriber.count({
+      where: {
+        instructorId: instructor.id,
+        status: "SUBSCRIBED",
+        source: { in: NEWSLETTER_CONSENT_SOURCES },
       },
-    },
-  });
-
-  const withEarnings = classes.map((c) => ({
-    id: c.id,
-    name: c.name,
-    status: c.status,
-    capacity: c.capacity,
-    booked: c.bookings.length,
-    earned: c.bookings
-      .filter((b) => b.paymentStatus === "PAID")
-      .reduce((sum, b) => sum + b.amount, 0),
+    }),
+    pro
+      ? prisma.yogaClass.findMany({
+          where: { instructorId: instructor.id },
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            capacity: true,
+            bookings: {
+              where: { paymentStatus: "PAID" },
+              select: { amount: true, currency: true, status: true },
+            },
+          },
+        })
+      : Promise.resolve([]),
+  ]);
+  const weeks: WeeklyMetric[] = weekStarts.map((week) => ({
+    week,
+    label: new Intl.DateTimeFormat("en-GB", {
+      timeZone: "UTC",
+      month: "short",
+      day: "numeric",
+    }).format(new Date(`${week}T12:00:00Z`)),
+    views: 0,
+    signups: 0,
+    unsubscribes: 0,
+    currencies: {},
   }));
-
-  const activeClasses = withEarnings.filter((c) => c.status === "PUBLISHED" || c.status === "FULL");
-  const fillRate =
-    activeClasses.length > 0
-      ? (activeClasses.reduce((sum, c) => sum + c.booked / c.capacity, 0) / activeClasses.length) *
+  const byWeek = new Map(weeks.map((week) => [week.week, week]));
+  const currencies = new Set<CurrencyCode>([instructor.currency]);
+  for (const row of sales) {
+    const week = byWeek.get(row.week);
+    if (!week) continue;
+    // Legacy sessions with no recorded currency are free; never assign paid revenue to a guessed currency.
+    const currency = row.currency ?? instructor.currency;
+    currencies.add(currency);
+    const values = week.currencies[currency] ?? emptyOfferMetrics();
+    const revenueKey: keyof OfferMetrics =
+      row.kind === "CLASS"
+        ? "classRevenue"
+        : row.kind === "SESSION"
+          ? "sessionRevenue"
+          : "ebookRevenue";
+    const countKey: keyof OfferMetrics =
+      row.kind === "CLASS"
+        ? "classBookings"
+        : row.kind === "SESSION"
+          ? "sessionBookings"
+          : "ebookSales";
+    values[revenueKey] += row.currency ? Number(row.revenue ?? 0) : 0;
+    values[countKey] += Number(row.orders);
+    week.currencies[currency] = values;
+  }
+  for (const row of activity) {
+    const week = byWeek.get(row.week);
+    if (week)
+      week[row.kind === "VIEW" ? "views" : row.kind === "SIGNUP" ? "signups" : "unsubscribes"] +=
+        Number(row.count);
+  }
+  const topClasses: TopClass[] = [];
+  for (const cls of classes) {
+    const grouped = new Map<CurrencyCode, { earned: number; booked: number }>();
+    for (const booking of cls.bookings) {
+      const current = grouped.get(booking.currency) ?? { earned: 0, booked: 0 };
+      current.earned += booking.amount;
+      if (booking.status === "CONFIRMED") current.booked++;
+      grouped.set(booking.currency, current);
+    }
+    for (const [currency, value] of grouped) {
+      currencies.add(currency);
+      topClasses.push({ id: cls.id, name: cls.name, currency, ...value });
+    }
+  }
+  const active = classes.filter(
+    (cls) => ["PUBLISHED", "FULL"].includes(cls.status) && cls.capacity > 0,
+  );
+  return {
+    weeks,
+    currencies: [...currencies],
+    activeSubscribers,
+    fillRate: active.length
+      ? (active.reduce(
+          (total, cls) =>
+            total +
+            cls.bookings.filter((booking) => booking.status === "CONFIRMED").length / cls.capacity,
+          0,
+        ) /
+          active.length) *
         100
-      : 0;
-
-  const topClasses = [...withEarnings].sort((a, b) => b.earned - a.earned).slice(0, 4);
-
-  return { fillRate, topClasses };
+      : 0,
+    topClasses: topClasses.sort((a, b) => b.earned - a.earned),
+  };
 }

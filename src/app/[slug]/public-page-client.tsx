@@ -6,6 +6,8 @@ import {
   Share2,
   Check,
   CalendarX2,
+  Leaf,
+  Mail,
   Loader2,
   Send,
   Video,
@@ -17,8 +19,13 @@ import {
   X as XLogo,
   Download,
 } from "lucide-react";
+import Link from "next/link";
+import { SageProfileHeader, SageClassCard, SageOfferCard } from "@/components/public/SageTheme";
+import { sageBackgroundStyle } from "@/lib/sage-background";
+import { publicFont } from "@/lib/public-page-theme";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { NewsletterOptIn } from "@/components/NewsletterOptIn";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -41,6 +48,7 @@ import { cn } from "@/lib/utils";
 import { money, type CurrencyCode } from "@/lib/demo";
 import { useIsBrightImage } from "@/lib/use-image-brightness";
 import {
+  isColorBright,
   backgroundColorValue,
   backgroundImageValue,
   hasActiveBackground,
@@ -291,7 +299,7 @@ function CornerBadges({ instructor }: { instructor: PublicInstructor }) {
   );
 }
 
-function NewsletterSignupDialog({ slug }: { slug: string }) {
+function NewsletterSignupDialog({ slug, sage = false }: { slug: string; sage?: boolean }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -319,8 +327,18 @@ function NewsletterSignupDialog({ slug }: { slug: string }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="quiet" size="sm" className="flex items-center gap-2 rounded-md">
-          <Send className="size-4" /> Join my newsletter
+        <Button
+          variant="quiet"
+          size="sm"
+          className={sage ? "sage-link-row h-auto" : "flex items-center gap-2 rounded-md"}
+        >
+          {sage ? (
+            <Mail className="size-5 shrink-0" aria-hidden="true" />
+          ) : (
+            <Send className="size-4 shrink-0" />
+          )}
+          <span className="flex-1">Join my newsletter</span>
+          {sage ? <ArrowRight className="size-4 shrink-0" /> : null}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
@@ -369,7 +387,7 @@ function NewsletterSignupDialog({ slug }: { slug: string }) {
   );
 }
 
-function WaitlistDialog({
+export function WaitlistDialog({
   slug,
   classId,
   classLabel,
@@ -494,7 +512,13 @@ function BookCallDialog({
     e.preventDefault();
     setPending(true);
     try {
-      const result = await bookVideoCall({ slug, name, email, website });
+      const result = await bookVideoCall({
+        slug,
+        name,
+        email,
+        website,
+        newsletterOptIn: new FormData(e.currentTarget).get("newsletterOptIn") === "on",
+      });
       if (result.ok) {
         if ("authorizationUrl" in result) {
           window.location.href = result.authorizationUrl;
@@ -596,6 +620,7 @@ function BookCallDialog({
                   onChange={(e) => setWebsite(e.target.value)}
                 />
               </div>
+              <NewsletterOptIn />
               <Button type="submit" variant="clay" className="w-full" disabled={pending}>
                 {pending ? (
                   <>
@@ -652,70 +677,86 @@ function VideoCallCard({ instructor }: { instructor: PublicInstructor }) {
 
   return (
     <Reveal>
-      <article className="surface mb-2 items-center gap-4 p-4 sm:p-5">
-        {instructor.videoCallImageUrl ? (
-          <div className="w-full flex gap-x-4 mb-2">
-            <img
-              src={instructor.videoCallImageUrl}
-              alt=""
-              className="size-18 shrink-0 rounded-lg object-cover sm:size-20"
-            />
-            <div>
-              <h2 className="text-sm font-medium sm:text-lg uppercase">{title}</h2>
-              {instructor.videoCallDescription && (
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  {instructor.videoCallDescription}
+      {instructor.pageTemplate === "SAGE" ? (
+        <SageOfferCard
+          kind="call"
+          title={title}
+          description={instructor.videoCallDescription}
+          imageUrl={instructor.videoCallImageUrl}
+          price={price}
+          currency={instructor.currency}
+          available={canBook}
+          onClick={() => {
+            setVerifyState({ status: "idle" });
+            setOpen(true);
+          }}
+        />
+      ) : (
+        <article className="surface mb-2 items-center gap-4 p-4 sm:p-5">
+          {instructor.videoCallImageUrl ? (
+            <div className="w-full flex gap-x-4 mb-2">
+              <img
+                src={instructor.videoCallImageUrl}
+                alt=""
+                className="size-18 shrink-0 rounded-lg object-cover sm:size-20"
+              />
+              <div>
+                <h2 className="text-sm font-medium sm:text-lg uppercase">{title}</h2>
+                {instructor.videoCallDescription && (
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    {instructor.videoCallDescription}
+                  </p>
+                )}
+                <p className="mt-1 text-lg font-semibold" style={{ color: "var(--theme)" }}>
+                  {isPaid ? money(price, instructor.currency) : "FREE"}
                 </p>
-              )}
-              <p className="mt-1 text-lg font-semibold" style={{ color: "var(--theme)" }}>
-                {isPaid ? money(price, instructor.currency) : "FREE"}
-              </p>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="min-w-0 flex gap-x-4 mb-2">
-            <div className="grid size-16 shrink-0 place-items-center rounded-xl bg-(--theme)/12 text-(--theme) sm:size-20">
-              <Video className="size-6" />
-            </div>
-            <div>
-              <h2 className="text-base font-medium sm:text-lg uppercase">{title}</h2>
-              {instructor.videoCallDescription && (
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  {instructor.videoCallDescription}
+          ) : (
+            <div className="min-w-0 flex gap-x-4 mb-2">
+              <div className="grid size-16 shrink-0 place-items-center rounded-xl bg-(--theme)/12 text-(--theme) sm:size-20">
+                <Video className="size-6" />
+              </div>
+              <div>
+                <h2 className="text-base font-medium sm:text-lg uppercase">{title}</h2>
+                {instructor.videoCallDescription && (
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    {instructor.videoCallDescription}
+                  </p>
+                )}
+                <p className="mt-1 text-base font-semibold" style={{ color: "var(--theme)" }}>
+                  {isPaid ? money(price, instructor.currency) : "FREE"}
                 </p>
-              )}
-              <p className="mt-1 text-base font-semibold" style={{ color: "var(--theme)" }}>
-                {isPaid ? money(price, instructor.currency) : "FREE"}
-              </p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <div className="mt-4">
-          <div className="w-full flex items-end justify-end space-y-2">
-            {canBook ? (
-              <Button
-                // size="sm"
-                className="relative flex items-center gap-2 py-5 rounded-sm shrink-0 bg-(--theme) text-white hover:bg-(--theme) w-full sm:px-20 px-10"
-                onClick={() => {
-                  // A fresh manual click shouldn't inherit a stale
-                  // confirming/error/done state left over from an earlier
-                  // ?reference= check.
-                  setVerifyState({ status: "idle" });
-                  setOpen(true);
-                }}
-              >
-                <span className="font-extrabold absolute left-4">FIND A TIME</span>{" "}
-                <ArrowRight className="size-4 absolute right-4" />
-              </Button>
-            ) : (
-              <Button variant="quiet" size="sm" disabled className="shrink-0">
-                Coming soon
-              </Button>
-            )}
+          <div className="mt-4">
+            <div className="w-full flex items-end justify-end space-y-2">
+              {canBook ? (
+                <Button
+                  // size="sm"
+                  className="relative flex items-center gap-2 py-5 rounded-sm shrink-0 bg-(--theme) text-white hover:bg-(--theme) w-full sm:px-20 px-10"
+                  onClick={() => {
+                    // A fresh manual click shouldn't inherit a stale
+                    // confirming/error/done state left over from an earlier
+                    // ?reference= check.
+                    setVerifyState({ status: "idle" });
+                    setOpen(true);
+                  }}
+                >
+                  <span className="font-extrabold absolute left-4">FIND A TIME</span>{" "}
+                  <ArrowRight className="size-4 absolute right-4" />
+                </Button>
+              ) : (
+                <Button variant="quiet" size="sm" disabled className="shrink-0">
+                  Coming soon
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
-      </article>
+        </article>
+      )}
       <BookCallDialog
         open={open}
         onOpenChange={setOpen}
@@ -771,7 +812,13 @@ function BuyEbookDialog({
     e.preventDefault();
     setPending(true);
     try {
-      const result = await buyEbook({ slug, name, email, website });
+      const result = await buyEbook({
+        slug,
+        name,
+        email,
+        website,
+        newsletterOptIn: new FormData(e.currentTarget).get("newsletterOptIn") === "on",
+      });
       if (result.ok) {
         if ("authorizationUrl" in result) {
           window.location.href = result.authorizationUrl;
@@ -871,6 +918,7 @@ function BuyEbookDialog({
                   onChange={(e) => setWebsite(e.target.value)}
                 />
               </div>
+              <NewsletterOptIn />
               <Button type="submit" variant="clay" className="w-full" disabled={pending}>
                 {pending ? (
                   <>
@@ -921,66 +969,82 @@ function EbookCard({ instructor }: { instructor: PublicInstructor }) {
 
   return (
     <Reveal>
-      <article className="surface mb-6 items-center gap-4 p-4 sm:p-5">
-        {instructor.ebookCoverUrl ? (
-          <div className="w-full flex gap-x-4 mb-2">
-            <img
-              src={instructor.ebookCoverUrl}
-              alt=""
-              className="size-18 shrink-0 rounded-lg object-cover sm:size-20"
-            />
-            <div>
-              <h2 className="text-sm font-medium sm:text-lg uppercase">{title}</h2>
-              {instructor.ebookDescription && (
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  {instructor.ebookDescription}
+      {instructor.pageTemplate === "SAGE" ? (
+        <SageOfferCard
+          kind="ebook"
+          title={title}
+          description={instructor.ebookDescription}
+          imageUrl={instructor.ebookCoverUrl}
+          price={price}
+          currency={instructor.currency}
+          available={canBuy}
+          onClick={() => {
+            setVerifyState({ status: "idle" });
+            setOpen(true);
+          }}
+        />
+      ) : (
+        <article className="surface mb-6 items-center gap-4 p-4 sm:p-5">
+          {instructor.ebookCoverUrl ? (
+            <div className="w-full flex gap-x-4 mb-2">
+              <img
+                src={instructor.ebookCoverUrl}
+                alt=""
+                className="size-18 shrink-0 rounded-lg object-cover sm:size-20"
+              />
+              <div>
+                <h2 className="text-sm font-medium sm:text-lg uppercase">{title}</h2>
+                {instructor.ebookDescription && (
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    {instructor.ebookDescription}
+                  </p>
+                )}
+                <p className="mt-1 text-lg font-semibold" style={{ color: "var(--theme)" }}>
+                  {isPaid ? money(price, instructor.currency) : "FREE"}
                 </p>
-              )}
-              <p className="mt-1 text-lg font-semibold" style={{ color: "var(--theme)" }}>
-                {isPaid ? money(price, instructor.currency) : "FREE"}
-              </p>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="min-w-0 flex gap-x-4 mb-2">
-            <div className="grid size-16 shrink-0 place-items-center rounded-xl bg-(--theme)/12 text-(--theme) sm:size-20">
-              <Download className="size-6" />
-            </div>
-            <div>
-              <h2 className="text-base font-medium sm:text-lg uppercase">{title}</h2>
-              {instructor.ebookDescription && (
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  {instructor.ebookDescription}
+          ) : (
+            <div className="min-w-0 flex gap-x-4 mb-2">
+              <div className="grid size-16 shrink-0 place-items-center rounded-xl bg-(--theme)/12 text-(--theme) sm:size-20">
+                <Download className="size-6" />
+              </div>
+              <div>
+                <h2 className="text-base font-medium sm:text-lg uppercase">{title}</h2>
+                {instructor.ebookDescription && (
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    {instructor.ebookDescription}
+                  </p>
+                )}
+                <p className="mt-1 text-base font-semibold" style={{ color: "var(--theme)" }}>
+                  {isPaid ? money(price, instructor.currency) : "FREE"}
                 </p>
-              )}
-              <p className="mt-1 text-base font-semibold" style={{ color: "var(--theme)" }}>
-                {isPaid ? money(price, instructor.currency) : "FREE"}
-              </p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <div className="mt-4">
-          <div className="w-full flex items-end justify-end space-y-2">
-            {canBuy ? (
-              <Button
-                className="relative flex items-center gap-2 py-5 rounded-sm shrink-0 bg-(--theme) text-white hover:bg-(--theme) w-full sm:px-20 px-10"
-                onClick={() => {
-                  setVerifyState({ status: "idle" });
-                  setOpen(true);
-                }}
-              >
-                <span className="font-extrabold absolute left-4">GET IT</span>{" "}
-                <ArrowRight className="size-4 absolute right-4" />
-              </Button>
-            ) : (
-              <Button variant="quiet" size="sm" disabled className="shrink-0">
-                Coming soon
-              </Button>
-            )}
+          <div className="mt-4">
+            <div className="w-full flex items-end justify-end space-y-2">
+              {canBuy ? (
+                <Button
+                  className="relative flex items-center gap-2 py-5 rounded-sm shrink-0 bg-(--theme) text-white hover:bg-(--theme) w-full sm:px-20 px-10"
+                  onClick={() => {
+                    setVerifyState({ status: "idle" });
+                    setOpen(true);
+                  }}
+                >
+                  <span className="font-extrabold absolute left-4">GET IT</span>{" "}
+                  <ArrowRight className="size-4 absolute right-4" />
+                </Button>
+              ) : (
+                <Button variant="quiet" size="sm" disabled className="shrink-0">
+                  Coming soon
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
-      </article>
+        </article>
+      )}
       <BuyEbookDialog
         open={open}
         onOpenChange={setOpen}
@@ -1015,6 +1079,31 @@ function ClassesSection({
   selectedOccurrence: Record<string, string>;
   setSelectedOccurrence: Dispatch<SetStateAction<Record<string, string>>>;
 }) {
+  if (instructor.pageTemplate === "SAGE" && groups.length > 0) {
+    const group = groups[0]!;
+    const occurrences = group.type === "series" ? group.occurrences : [group.cls];
+    const selectedId = group.type === "series" ? selectedOccurrence[group.seriesId] : undefined;
+    const cls = occurrences.find((item) => item.id === selectedId) ?? occurrences[0]!;
+    return (
+      <SageClassCard
+        c={cls}
+        slug={instructor.slug}
+        currency={instructor.currency}
+        onWaitlist={joinedWaitlist.has(cls.id)}
+        onJoinWaitlist={() => setWaitlistOpenFor(cls.id)}
+        {...(group.type === "series"
+          ? {
+              dateChips: {
+                occurrences,
+                selectedId: cls.id,
+                onSelect: (id: string) =>
+                  setSelectedOccurrence((previous) => ({ ...previous, [group.seriesId]: id })),
+              },
+            }
+          : {})}
+      />
+    );
+  }
   const ClassCard = classCardByLayout[instructor.pageLayout];
 
   if (classes.length === 0) {
@@ -1086,6 +1175,8 @@ export function PublicPageClient({
   const [joinedWaitlist, setJoinedWaitlist] = useState<Set<string>>(new Set());
   const [selectedOccurrence, setSelectedOccurrence] = useState<Record<string, string>>({});
 
+  const isSage = instructor.pageTemplate === "SAGE";
+  const font = publicFont(instructor.pageFont);
   const groups = groupPublicClasses(classes);
   const isImageBg = instructor.backgroundType === "IMAGE";
   const hasBg = hasActiveBackground(instructor);
@@ -1115,14 +1206,21 @@ export function PublicPageClient({
 
   return (
     <div
-      className="min-h-screen bg-sand/10 bg-cover bg-center bg-fixed"
+      className={cn(
+        "public-personalized",
+        isSage ? "sage-page" : "min-h-screen bg-sand/10 bg-cover bg-center bg-fixed",
+      )}
       style={
         {
           "--theme": instructor.themeColor,
-          ...(backgroundColorValue(instructor)
+          "--theme-on": isColorBright(instructor.themeColor) ? "#152018" : "#ffffff",
+          "--public-heading": font.heading,
+          "--public-body": font.body,
+          ...(isSage ? sageBackgroundStyle(instructor) : {}),
+          ...(!isSage && backgroundColorValue(instructor)
             ? { backgroundColor: backgroundColorValue(instructor)! }
             : {}),
-          ...(backgroundImageValue(instructor)
+          ...(!isSage && backgroundImageValue(instructor)
             ? { backgroundImage: backgroundImageValue(instructor)! }
             : {}),
         } as CSSProperties
@@ -1130,116 +1228,130 @@ export function PublicPageClient({
     >
       <CornerBadges instructor={instructor} />
       <div
-        className={hasBg && isImageBg ? "min-h-screen bg-black/20 backdrop-blur-[4px]" : undefined}
+        className={
+          !isSage && hasBg && isImageBg ? "min-h-screen bg-black/20 backdrop-blur-[4px]" : undefined
+        }
       >
-        <div className="mx-auto max-w-3xl px-4 pt-14 pb-6 lg:px-0">
-          <Reveal>
-            <header className="flex flex-col gap-4 px-2 sm:flex-row items-center sm:mb-8 mb-6">
-              {instructor.photoUrl ? (
-                <img
-                  src={instructor.photoUrl}
-                  alt={instructor.name}
-                  width={600}
-                  height={600}
-                  className={cn(
-                    "sm:size-48 size-38 rounded-full object-cover shadow-2xl",
-                    hasBg && "ring-4 ring-white/80",
-                  )}
-                />
-              ) : (
-                <div
-                  className={cn(
-                    "grid size-40 shrink-0 place-items-center rounded-full bg-clay/12 text-2xl font-medium text-clay",
-                    hasBg && "ring-4 ring-white/80",
-                  )}
-                >
-                  {instructor.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")}
-                </div>
-              )}
-              <div className="flex-1">
-                <div className="flex flex-wrap items-center text-center sm:justify-start justify-center gap-3">
-                  <h1 className={cn("sm:text-3xl text-2xl", heroTextClass)}>{instructor.name}</h1>
-                </div>
-                {instructor.socials.length > 0 && (
-                  <div className="mt-4 flex flex-wrap items-center sm:justify-start justify-center gap-2">
-                    {instructor.socials.map((s) => {
-                      const Icon = socialIcons[s.platform] ?? Instagram;
-                      return (
-                        <a
-                          key={s.platform}
-                          href={socialHref(s.platform, s.handle)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          aria-label={s.platform}
-                          className={cn(
-                            "grid size-9 place-items-center rounded-full bg-white text-muted-foreground transition-colors hover:text-clay",
-                            hasBg ? "shadow-sm" : "border border-border",
-                          )}
-                        >
-                          <Icon className="size-4" />
-                        </a>
-                      );
-                    })}
+        <div
+          className={
+            isSage
+              ? "mx-auto max-w-3xl px-4 pb-6 sm:px-6"
+              : "mx-auto max-w-3xl px-4 pt-14 pb-6 lg:px-0"
+          }
+        >
+          {isSage ? (
+            <SageProfileHeader instructor={instructor} />
+          ) : (
+            <Reveal>
+              <header className="flex flex-col gap-4 px-2 sm:flex-row items-center sm:mb-8 mb-6">
+                {instructor.photoUrl ? (
+                  <img
+                    src={instructor.photoUrl}
+                    alt={instructor.name}
+                    width={600}
+                    height={600}
+                    className={cn(
+                      "sm:size-48 size-38 rounded-full object-cover shadow-2xl",
+                      hasBg && "ring-4 ring-white/80",
+                    )}
+                  />
+                ) : (
+                  <div
+                    className={cn(
+                      "grid size-40 shrink-0 place-items-center rounded-full bg-clay/12 text-2xl font-medium text-clay",
+                      hasBg && "ring-4 ring-white/80",
+                    )}
+                  >
+                    {instructor.name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")}
                   </div>
                 )}
-                {instructor.bio && (
-                  <p
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center text-center sm:justify-start justify-center gap-3">
+                    <h1 className={cn("sm:text-3xl text-2xl", heroTextClass)}>{instructor.name}</h1>
+                  </div>
+                  {instructor.socials.length > 0 && (
+                    <div className="mt-4 flex flex-wrap items-center sm:justify-start justify-center gap-2">
+                      {instructor.socials.map((s) => {
+                        const Icon = socialIcons[s.platform] ?? Instagram;
+                        return (
+                          <a
+                            key={s.platform}
+                            href={socialHref(s.platform, s.handle)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={s.platform}
+                            className={cn(
+                              "grid size-9 place-items-center rounded-full bg-white text-muted-foreground transition-colors hover:text-clay",
+                              hasBg ? "shadow-sm" : "border border-border",
+                            )}
+                          >
+                            <Icon className="size-4" />
+                          </a>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {instructor.bio && (
+                    <p
+                      className={cn(
+                        "mt-2 max-w-md sm:text-left text-center smtext-base text-sm leading-relaxed",
+                        heroSecondaryTextClass,
+                      )}
+                    >
+                      {instructor.bio}
+                    </p>
+                  )}
+                  {instructor.specialties.length > 0 && (
+                    <div className="mt-4 flex flex-wrap items-center sm:justify-start justify-center gap-2">
+                      {instructor.specialties.map((s) => (
+                        <span
+                          key={s}
+                          className={cn(
+                            "rounded-full px-3 py-1 text-xs",
+                            hasBg
+                              ? "bg-white/90 text-foreground shadow-sm"
+                              : "bg-accent text-accent-foreground",
+                          )}
+                        >
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div
                     className={cn(
-                      "mt-2 max-w-md sm:text-left text-center smtext-base text-sm leading-relaxed",
+                      "mt-4 flex flex-wrap sm:justify-start justify-center gap-2 text-sm",
                       heroSecondaryTextClass,
                     )}
                   >
-                    {instructor.bio}
-                  </p>
-                )}
-                {instructor.specialties.length > 0 && (
-                  <div className="mt-4 flex flex-wrap items-center sm:justify-start justify-center gap-2">
-                    {instructor.specialties.map((s) => (
-                      <span
-                        key={s}
-                        className={cn(
-                          "rounded-full px-3 py-1 text-xs",
-                          hasBg
-                            ? "bg-white/90 text-foreground shadow-sm"
-                            : "bg-accent text-accent-foreground",
-                        )}
-                      >
-                        {s}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <div
-                  className={cn(
-                    "mt-4 flex flex-wrap sm:justify-start justify-center gap-2 text-sm",
-                    heroSecondaryTextClass,
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <NewsletterSignupDialog slug={instructor.slug} />
-                  </div>
-                  {/* {instructor.location && (
+                    {instructor.newsletterEnabled !== false && (
+                      <div className="flex items-center gap-2">
+                        <NewsletterSignupDialog slug={instructor.slug} />
+                      </div>
+                    )}
+                    {/* {instructor.location && (
                 <span className="inline-flex items-center gap-1.5">
                   <MapPin className="size-4" /> {instructor.location}
                 </span>
               )} */}
-                  {/* <span className="inline-flex items-center gap-1.5">
+                    {/* <span className="inline-flex items-center gap-1.5">
                 <Mail className="size-4" /> {instructor.email}
               </span> */}
-                  {/* {instructor.phone && (
+                    {/* {instructor.phone && (
                 <span className="inline-flex items-center gap-1.5">
                   <Phone className="size-4" /> {instructor.phone}
                 </span>
               )} */}
+                  </div>
                 </div>
-              </div>
-            </header>
-          </Reveal>
+              </header>
+            </Reveal>
+          )}
 
-          <div className="my-2">
+          <div className={isSage ? "sage-blocks" : "my-2"}>
             {blockOrder.map((token) => {
               if (token === "VIDEO_CALL") {
                 return <VideoCallCard key={token} instructor={instructor} />;
@@ -1271,7 +1383,9 @@ export function PublicPageClient({
                   rel="noopener noreferrer"
                   onClick={() => trackLinkClick(link.id)}
                   className={cn(
-                    "surface mb-6 block font-medium transition-colors hover:bg-accent",
+                    isSage
+                      ? "sage-link-row"
+                      : "surface mb-6 block font-medium transition-colors hover:bg-accent",
                     link.imageUrl ? "flex items-center gap-3 p-3" : "px-6 py-4 text-center",
                   )}
                 >
@@ -1287,9 +1401,22 @@ export function PublicPageClient({
                   >
                     {link.label}
                   </span>
+                  {isSage ? <ArrowRight className="size-4 shrink-0" /> : null}
                 </a>
               );
             })}
+            {isSage ? (
+              <>
+                <Link href={`/${instructor.slug}/classes`} className="sage-link-row">
+                  <Leaf className="size-5 shrink-0" aria-hidden="true" />
+                  <span className="flex-1">Upcoming classes</span>
+                  <ArrowRight className="size-4 shrink-0" />
+                </Link>
+                {instructor.newsletterEnabled !== false && (
+                  <NewsletterSignupDialog slug={instructor.slug} sage />
+                )}
+              </>
+            ) : null}
           </div>
 
           <WaitlistDialog
@@ -1303,36 +1430,52 @@ export function PublicPageClient({
             }}
           />
 
-          <div className="mt-12 flex flex-col items-center gap-5 pb-4">
-            <Button
-              asChild
-              variant="clay"
-              className="rounded-full bg-white text-black px-8 py-5 font-semibold shadow-sm"
-            >
-              <a href="/auth">Get your own Flowboc</a>
-            </Button>
-            <div
-              className={cn(
-                "flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs",
-                heroSecondaryTextClass,
-              )}
-            >
-              <a href="/privacy" className="hover:underline">
-                Privacy
-              </a>
-              <span>·</span>
-              <a href="/terms" className="hover:underline">
-                Terms
-              </a>
-              <span>·</span>
-              <a href="/contact" className="hover:underline">
-                Report
-              </a>
+          {isSage ? (
+            <footer className="sage-footer">
+              <p>
+                Powered by{" "}
+                <Link href="/" className="display">
+                  Flowboc
+                </Link>
+              </p>
+              <nav className="mt-3 flex justify-center gap-4 text-[10px]" aria-label="Legal">
+                <Link href="/privacy">Privacy</Link>
+                <Link href="/terms">Terms</Link>
+                <Link href="/contact">Report</Link>
+              </nav>
+            </footer>
+          ) : (
+            <div className="mt-12 flex flex-col items-center gap-5 pb-4">
+              <Button
+                asChild
+                variant="clay"
+                className="rounded-full bg-white text-black px-8 py-5 font-semibold shadow-sm"
+              >
+                <a href="/auth">Get your own Flowboc</a>
+              </Button>
+              <div
+                className={cn(
+                  "flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs",
+                  heroSecondaryTextClass,
+                )}
+              >
+                <a href="/privacy" className="hover:underline">
+                  Privacy
+                </a>
+                <span>·</span>
+                <a href="/terms" className="hover:underline">
+                  Terms
+                </a>
+                <span>·</span>
+                <a href="/contact" className="hover:underline">
+                  Report
+                </a>
+              </div>
+              <p className="text-center text-xs text-muted-foreground">
+                Booking powered by <span className="display text-foreground">Flowboc</span>
+              </p>
             </div>
-            <p className="text-center text-xs text-muted-foreground">
-              Booking powered by <span className="display text-foreground">Flowboc</span>
-            </p>
-          </div>
+          )}
         </div>
       </div>
     </div>

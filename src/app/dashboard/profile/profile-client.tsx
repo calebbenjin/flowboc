@@ -8,14 +8,22 @@ import posthog from "posthog-js";
 import { upload } from "@vercel/blob/client";
 import { toast } from "sonner";
 import { compressImage } from "@/lib/compress-image";
-import { ArrowUpRight, FileText, Gift, ImagePlus, Landmark, Loader2, X } from "lucide-react";
+import {
+  ArrowUpRight,
+  HeartHandshake,
+  Landmark,
+  Loader2,
+  Flower2,
+  Camera,
+  Leaf,
+  Link2,
+} from "lucide-react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { useInstructor } from "@/components/InstructorProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -24,198 +32,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { currencies, socialPlatforms } from "@/lib/demo";
+import { currencies, socialPlatforms, timezones } from "@/lib/demo";
+import styles from "./profile.module.css";
 import { siteHost } from "@/lib/site";
-import { cn } from "@/lib/utils";
 import type { CurrencyCode, SocialPlatform } from "@/generated/prisma/enums";
-import {
-  deleteAccount,
-  updateEbookOffer,
-  updatePhoto,
-  updateProfile,
-  updateSocials,
-  updateVideoCallOffer,
-} from "./actions";
-
-function VideoCallImageUpload({
-  value,
-  onChange,
-}: {
-  value: string | null;
-  onChange: (url: string | null) => void;
-}) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-  const [dragActive, setDragActive] = useState(false);
-
-  async function handleFile(file: File) {
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please choose an image file.");
-      return;
-    }
-    setUploading(true);
-    try {
-      const compressed = await compressImage(file, { maxDimension: 1200 });
-      const blob = await upload(compressed.name, compressed, {
-        access: "public",
-        handleUploadUrl: "/api/upload",
-      });
-      onChange(blob.url);
-    } catch {
-      toast.error("Couldn't upload image. Please try again.");
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={() => fileInputRef.current?.click()}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click();
-      }}
-      onDragOver={(e) => {
-        e.preventDefault();
-        setDragActive(true);
-      }}
-      onDragLeave={() => setDragActive(false)}
-      onDrop={(e) => {
-        e.preventDefault();
-        setDragActive(false);
-        const file = e.dataTransfer.files?.[0];
-        if (file) void handleFile(file);
-      }}
-      className={cn(
-        "relative flex h-28 cursor-pointer items-center gap-4 overflow-hidden rounded-lg border border-dashed border-border text-sm text-muted-foreground transition-colors hover:bg-primary/10",
-        dragActive && "border-clay bg-clay/5",
-        value ? "justify-start p-3" : "justify-center",
-      )}
-    >
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          e.target.value = "";
-          if (file) void handleFile(file);
-        }}
-      />
-      {uploading ? (
-        <Loader2 className="size-5 animate-spin" />
-      ) : value ? (
-        <>
-          <img src={value} alt="" className="h-20 w-20 shrink-0 rounded-lg object-cover" />
-          <span>Drop an image or click to replace</span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label="Remove image"
-            className="absolute right-2 top-2"
-            onClick={(e) => {
-              e.stopPropagation();
-              onChange(null);
-            }}
-          >
-            <X className="size-4" />
-          </Button>
-        </>
-      ) : (
-        <span className="flex items-center gap-2">
-          <ImagePlus className="size-4" />
-          Drop an image or click to upload
-        </span>
-      )}
-    </div>
-  );
-}
-
-function EbookFileUpload({
-  value,
-  onChange,
-}: {
-  value: string | null;
-  onChange: (url: string | null) => void;
-}) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-  const [fileName, setFileName] = useState<string | null>(null);
-
-  async function handleFile(file: File) {
-    if (!["application/pdf", "application/epub+zip"].includes(file.type)) {
-      toast.error("Please choose a PDF or EPUB file.");
-      return;
-    }
-    setUploading(true);
-    try {
-      const blob = await upload(file.name, file, {
-        access: "public",
-        handleUploadUrl: "/api/ebooks/upload",
-      });
-      setFileName(file.name);
-      onChange(blob.url);
-    } catch {
-      toast.error("Couldn't upload file. Please try again.");
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={() => fileInputRef.current?.click()}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click();
-      }}
-      className="relative flex h-16 cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg border border-dashed border-border px-3 text-sm text-muted-foreground transition-colors hover:bg-primary/10"
-    >
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="application/pdf,application/epub+zip"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          e.target.value = "";
-          if (file) void handleFile(file);
-        }}
-      />
-      {uploading ? (
-        <Loader2 className="size-5 animate-spin" />
-      ) : value ? (
-        <>
-          <FileText className="size-4 shrink-0" />
-          <span className="truncate">{fileName ?? "File uploaded — click to replace"}</span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label="Remove file"
-            className="absolute right-1 top-1/2 -translate-y-1/2"
-            onClick={(e) => {
-              e.stopPropagation();
-              setFileName(null);
-              onChange(null);
-            }}
-          >
-            <X className="size-4" />
-          </Button>
-        </>
-      ) : (
-        <span className="flex items-center gap-2">
-          <FileText className="size-4" />
-          Click to upload a PDF or EPUB (max 50MB)
-        </span>
-      )}
-    </div>
-  );
-}
+import { deleteAccount, updatePhoto, updateProfile, updateSocials } from "./actions";
 
 export function ProfileClient() {
   const router = useRouter();
@@ -225,8 +46,8 @@ export function ProfileClient() {
   const quickLinks = [
     {
       href: "/dashboard/referrals",
-      icon: Gift,
-      title: "Referral Program",
+      icon: HeartHandshake,
+      title: "Grow your teaching circle",
       body: `Earn a ${instructor.commissionRate}% one-time bonus for every instructor you refer who subscribes.`,
       cta: "View referrals",
     },
@@ -246,17 +67,6 @@ export function ProfileClient() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
 
-  const [videoCallEnabled, setVideoCallEnabled] = useState(instructor.videoCallEnabled);
-  const [videoCallImageUrl, setVideoCallImageUrl] = useState<string | null>(
-    instructor.videoCallImageUrl,
-  );
-  const [videoCallPending, setVideoCallPending] = useState(false);
-
-  const [ebookEnabled, setEbookEnabled] = useState(instructor.ebookEnabled);
-  const [ebookCoverUrl, setEbookCoverUrl] = useState<string | null>(instructor.ebookCoverUrl);
-  const [ebookFileUrl, setEbookFileUrl] = useState<string | null>(instructor.ebookFileUrl);
-  const [ebookPending, setEbookPending] = useState(false);
-
   async function handleProfileSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -270,6 +80,7 @@ export function ProfileClient() {
         email: String(formData.get("email") ?? ""),
         phone: String(formData.get("phone") ?? ""),
         currency: String(formData.get("currency") ?? "NGN") as CurrencyCode,
+        timezone: String(formData.get("timezone") ?? instructor.timezone),
         slug: String(formData.get("slug") ?? ""),
       });
       if (result.ok) {
@@ -333,58 +144,6 @@ export function ProfileClient() {
     }
   }
 
-  async function handleVideoCallSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const price = String(formData.get("videoCallPrice") ?? "").trim();
-
-    setVideoCallPending(true);
-    try {
-      const result = await updateVideoCallOffer({
-        enabled: videoCallEnabled,
-        title: String(formData.get("videoCallTitle") ?? ""),
-        description: String(formData.get("videoCallDescription") ?? ""),
-        imageUrl: videoCallImageUrl,
-        price: price ? Number(price) : null,
-        meetingLink: String(formData.get("videoCallLink") ?? ""),
-      });
-      if (result.ok) {
-        toast.success("Video call offer updated");
-        router.refresh();
-      } else {
-        toast.error(result.error);
-      }
-    } finally {
-      setVideoCallPending(false);
-    }
-  }
-
-  async function handleEbookSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const price = String(formData.get("ebookPrice") ?? "").trim();
-
-    setEbookPending(true);
-    try {
-      const result = await updateEbookOffer({
-        enabled: ebookEnabled,
-        title: String(formData.get("ebookTitle") ?? ""),
-        description: String(formData.get("ebookDescription") ?? ""),
-        coverUrl: ebookCoverUrl,
-        fileUrl: ebookFileUrl,
-        price: price ? Number(price) : null,
-      });
-      if (result.ok) {
-        toast.success("Ebook offer updated");
-        router.refresh();
-      } else {
-        toast.error(result.error);
-      }
-    } finally {
-      setEbookPending(false);
-    }
-  }
-
   async function handleDelete() {
     setDeletePending(true);
     try {
@@ -411,30 +170,18 @@ export function ProfileClient() {
 
   return (
     <DashboardShell>
-      <div className="max-w-3xl">
-        <h1 className="text-3xl">Profile</h1>
-        <p className="mt-1 text-sm text-muted-foreground">This is your public booking page.</p>
+      <div className={styles["page"]}>
+        <header className={styles["header"]}>
+          <div>
+            <p className={styles["eyebrow"]}>The teacher behind the practice</p>
+            <h1>Profile</h1>
+          </div>
+          <Link href={`/${instructor.slug}`}>
+            View public page <ArrowUpRight size={16} />
+          </Link>
+        </header>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          {quickLinks.map((l) => (
-            <div key={l.href} className="surface flex flex-col gap-4 p-5">
-              <span className="grid size-11 shrink-0 place-items-center rounded-full bg-clay/12 text-clay">
-                <l.icon className="size-5" />
-              </span>
-              <div className="flex-1">
-                <p className="font-medium">{l.title}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{l.body}</p>
-              </div>
-              <Button asChild variant="quiet" size="sm" className="self-start">
-                <Link href={l.href}>
-                  {l.cta} <ArrowUpRight className="size-3.5" />
-                </Link>
-              </Button>
-            </div>
-          ))}
-        </div>
-
-        <div className="surface mt-6 flex flex-wrap items-center gap-5 p-6">
+        <div className={styles["identity"]}>
           {instructor.photoUrl ? (
             <img
               src={instructor.photoUrl}
@@ -442,23 +189,26 @@ export function ProfileClient() {
               loading="lazy"
               width={800}
               height={800}
-              className="size-20 rounded-full object-cover"
+              className={styles["photo"]}
             />
           ) : (
-            <div className="grid size-20 shrink-0 place-items-center rounded-full bg-clay/12 text-lg font-medium text-clay">
+            <div className={styles["initials"]}>
               {instructor.name
                 .split(" ")
                 .map((n) => n[0])
                 .join("")}
             </div>
           )}
-          <div className="flex-1">
-            <p className="font-medium">{instructor.name}</p>
+          <div className={styles["identityCopy"]}>
+            <span className={styles["teacherLabel"]}>
+              <Flower2 size={14} /> Your public presence
+            </span>
+            <h2>{instructor.name}</h2>
             <p className="text-sm text-muted-foreground">
               {siteHost}/{instructor.slug}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className={styles["photoActions"]}>
             <input
               ref={fileInputRef}
               type="file"
@@ -472,19 +222,58 @@ export function ProfileClient() {
               disabled={photoPending}
               onClick={() => fileInputRef.current?.click()}
             >
-              {photoPending ? <Loader2 className="size-4 animate-spin" /> : "Change photo"}
-            </Button>
-            <Button asChild size="sm" variant="ghost">
-              <Link href={`/${instructor.slug}`}>View page</Link>
+              {photoPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <>
+                  <Camera size={15} /> Change photo
+                </>
+              )}
             </Button>
           </div>
         </div>
 
-        <form className="surface mt-6 space-y-4 p-6" onSubmit={handleProfileSubmit}>
+        <nav className={styles["sectionNav"]} aria-label="Profile sections">
+          <a href="#your-story">Your story</a>
+          <a href="#contact-details">Contact & preferences</a>
+          <a href="#social-links">Social links</a>
+        </nav>
+        <form className={styles["form"]} onSubmit={handleProfileSubmit}>
+          <div id="your-story" className={styles["sectionHeading"]}>
+            <span>
+              <Leaf size={21} strokeWidth={1.4} />
+            </span>
+            <div>
+              <h2>A little about you</h2>
+              <p>Help students get to know the person guiding their practice.</p>
+            </div>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="n">Display name</Label>
               <Input id="n" name="name" defaultValue={instructor.name} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="profile-timezone">Your timezone</Label>
+              <select
+                id="profile-timezone"
+                name="timezone"
+                defaultValue={instructor.timezone}
+                className="h-9 w-full rounded-md border border-input bg-card px-3 text-sm"
+              >
+                {!timezones.some((zone) => zone.value === instructor.timezone) ? (
+                  <option value={instructor.timezone}>{instructor.timezone}</option>
+                ) : null}
+                {timezones.map((zone) => (
+                  <option key={zone.value} value={zone.value}>
+                    {zone.city} — {zone.value}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Used for your dashboard, calendar, monthly totals, and new classes. Existing classes
+                keep their own timezone.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="l">Location</Label>
@@ -492,17 +281,32 @@ export function ProfileClient() {
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="b">Bio</Label>
-            <Textarea id="b" name="bio" rows={3} defaultValue={instructor.bio ?? ""} />
+            <Label htmlFor="b">Your teaching story</Label>
+            <Textarea
+              id="b"
+              name="bio"
+              rows={4}
+              placeholder="Share what you teach, what inspires your practice, and what students can expect."
+              defaultValue={instructor.bio ?? ""}
+            />
+          </div>
+          <div id="contact-details" className={styles["sectionHeading"]}>
+            <span>
+              <Flower2 size={21} strokeWidth={1.4} />
+            </span>
+            <div>
+              <h2>The practical details</h2>
+              <p>Your contact information, payment currency, and booking link.</p>
+            </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="e">Email</Label>
-              <Input id="e" name="email" defaultValue={instructor.email} />
+              <Input id="e" type="email" name="email" defaultValue={instructor.email} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="p">Phone</Label>
-              <Input id="p" name="phone" defaultValue={instructor.phone ?? ""} />
+              <Input id="p" type="tel" name="phone" defaultValue={instructor.phone ?? ""} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="c">Currency</Label>
@@ -534,171 +338,21 @@ export function ProfileClient() {
                   <Loader2 className="size-4 animate-spin" /> Saving…
                 </>
               ) : (
-                "Save changes"
+                "Save profile"
               )}
             </Button>
           </div>
         </form>
 
-        <form
-          className="surface mt-6 space-y-4 p-6"
-          onSubmit={(e) => void handleVideoCallSubmit(e)}
-        >
-          <div className="flex items-center justify-between gap-4">
+        <form id="social-links" className={styles["form"]} onSubmit={handleSocialsSubmit}>
+          <div className={styles["sectionHeading"]}>
+            <span>
+              <Link2 size={21} strokeWidth={1.4} />
+            </span>
             <div>
-              <h2 className="text-sm font-medium">Video call</h2>
-              <p className="text-xs text-muted-foreground">
-                Shown as a bookable card on your public page, for 1:1 video calls instead of a
-                scheduled class.
-              </p>
+              <h2>Stay connected</h2>
+              <p>Add social links to your public page. Leave any blank to hide them.</p>
             </div>
-            <Switch checked={videoCallEnabled} onCheckedChange={setVideoCallEnabled} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="vctitle">Title</Label>
-            <Input
-              id="vctitle"
-              name="videoCallTitle"
-              defaultValue={instructor.videoCallTitle ?? ""}
-              placeholder="Book a Video Call with Me"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="vcdesc">Description</Label>
-            <Textarea
-              id="vcdesc"
-              name="videoCallDescription"
-              rows={2}
-              defaultValue={instructor.videoCallDescription ?? ""}
-              placeholder="I'm available on Mondays and Thursdays."
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Image</Label>
-            <VideoCallImageUpload value={videoCallImageUrl} onChange={setVideoCallImageUrl} />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="vcprice">Price (optional)</Label>
-              <Input
-                id="vcprice"
-                name="videoCallPrice"
-                type="number"
-                defaultValue={instructor.videoCallPrice ?? ""}
-                placeholder="Leave blank for free"
-              />
-              <p className="text-xs text-muted-foreground">
-                Leave blank for free. A priced call charges through Paystack at booking — stays
-                &quot;Coming soon&quot; on your page until you&apos;ve{" "}
-                <Link href="/dashboard/payouts" className="underline underline-offset-2">
-                  connected a payout account
-                </Link>
-                .
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="vclink">Scheduling or meeting link</Label>
-              <Input
-                id="vclink"
-                name="videoCallLink"
-                defaultValue={instructor.consultationLink ?? ""}
-                placeholder="https://calendly.com/you or https://zoom.us/j/…"
-              />
-              <p className="text-xs text-muted-foreground">
-                Sent to students by email once they book — this is where they&apos;ll pick a time
-                with you.
-              </p>
-            </div>
-          </div>
-          <div className="flex justify-end">
-            <Button type="submit" variant="clay" disabled={videoCallPending}>
-              {videoCallPending ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" /> Saving…
-                </>
-              ) : (
-                "Save changes"
-              )}
-            </Button>
-          </div>
-        </form>
-
-        <form className="surface mt-6 space-y-4 p-6" onSubmit={(e) => void handleEbookSubmit(e)}>
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-sm font-medium">Ebook</h2>
-              <p className="text-xs text-muted-foreground">
-                Sell a digital download — a PDF or EPUB — as a card on your public page.
-              </p>
-            </div>
-            <Switch checked={ebookEnabled} onCheckedChange={setEbookEnabled} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="ebtitle">Title</Label>
-            <Input
-              id="ebtitle"
-              name="ebookTitle"
-              defaultValue={instructor.ebookTitle ?? ""}
-              placeholder="My Ebook"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="ebdesc">Description</Label>
-            <Textarea
-              id="ebdesc"
-              name="ebookDescription"
-              rows={2}
-              defaultValue={instructor.ebookDescription ?? ""}
-              placeholder="What's inside, and who it's for."
-            />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Cover image</Label>
-              <VideoCallImageUpload value={ebookCoverUrl} onChange={setEbookCoverUrl} />
-            </div>
-            <div className="space-y-2">
-              <Label>File</Label>
-              <EbookFileUpload value={ebookFileUrl} onChange={setEbookFileUrl} />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="ebprice">Price (optional)</Label>
-            <Input
-              id="ebprice"
-              name="ebookPrice"
-              type="number"
-              defaultValue={instructor.ebookPrice ?? ""}
-              placeholder="Leave blank for free"
-            />
-            <p className="text-xs text-muted-foreground">
-              Leave blank for a free download. A priced ebook charges through Paystack at checkout —
-              stays &quot;Coming soon&quot; on your page until you&apos;ve{" "}
-              <Link href="/dashboard/payouts" className="underline underline-offset-2">
-                connected a payout account
-              </Link>
-              .
-            </p>
-          </div>
-          <div className="flex justify-end">
-            <Button type="submit" variant="clay" disabled={ebookPending}>
-              {ebookPending ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" /> Saving…
-                </>
-              ) : (
-                "Save changes"
-              )}
-            </Button>
-          </div>
-        </form>
-
-        <form className="surface mt-6 space-y-4 p-6" onSubmit={handleSocialsSubmit}>
-          <div>
-            <h2 className="text-sm font-medium">Socials</h2>
-            <p className="text-xs text-muted-foreground">
-              Shown as icon links on your public page. Leave any blank to hide them.
-            </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             {socialPlatforms.map((p) => (
@@ -723,15 +377,34 @@ export function ProfileClient() {
                   <Loader2 className="size-4 animate-spin" /> Saving…
                 </>
               ) : (
-                "Save changes"
+                "Save social links"
               )}
             </Button>
           </div>
         </form>
 
-        <div className="surface mt-6 space-y-3 p-6">
+        <div className={styles["quickLinks"]}>
+          {quickLinks.map((l) => (
+            <div key={l.href} className={styles["quickLink"]}>
+              <span className="grid size-11 shrink-0 place-items-center rounded-full bg-clay/12 text-clay">
+                <l.icon className="size-5" />
+              </span>
+              <div className="flex-1">
+                <p className="font-medium">{l.title}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{l.body}</p>
+              </div>
+              <Button asChild variant="quiet" size="sm" className="self-start">
+                <Link href={l.href}>
+                  {l.cta} <ArrowUpRight className="size-3.5" />
+                </Link>
+              </Button>
+            </div>
+          ))}
+        </div>
+
+        <div className={styles["danger"]}>
           <div>
-            <h2 className="text-sm font-medium text-destructive">Danger zone</h2>
+            <h2 className="text-sm font-medium text-destructive">Account settings</h2>
             <p className="text-xs text-muted-foreground">
               Permanently delete your account, booking page and class history. This can&apos;t be
               undone.

@@ -1,8 +1,11 @@
 "use server";
 
+import { canUseProOffers } from "@/lib/offer-access";
+import { newsletterButtonVisible } from "@/lib/newsletter/access";
 import { randomBytes } from "node:crypto";
 import { headers } from "next/headers";
 import { z } from "zod";
+import { recordCheckoutNewsletterConsent } from "@/lib/newsletter/subscribe";
 import { prisma } from "@/lib/db";
 import { sendVideoCallBookingEmail, sendInstructorNewVideoCallBookingEmail } from "@/lib/email";
 import { finalizeVideoCallPayment } from "@/lib/video-call-booking";
@@ -79,9 +82,18 @@ export async function subscribeToNewsletter(input: {
 
   const instructor = await prisma.instructor.findUnique({
     where: { slug: parsed.data.slug },
-    select: { id: true },
+    select: {
+      id: true,
+      planTier: true,
+      planStatus: true,
+      trialEndsAt: true,
+      compedUntil: true,
+      newsletterEnabled: true,
+    },
   });
   if (!instructor) return { ok: false, error: "This page could not be found." };
+  if (!newsletterButtonVisible(instructor))
+    return { ok: false, error: "Newsletter signup is not available on this page." };
 
   const ip = await getClientIp();
   const since = new Date(Date.now() - NEWSLETTER_RATE_LIMIT_WINDOW_MS);
@@ -108,7 +120,13 @@ export async function subscribeToNewsletter(input: {
       source: "public_signup_form",
       unsubscribeToken: randomBytes(24).toString("hex"),
     },
-    update: { status: "SUBSCRIBED", unsubscribedAt: null, ...(name ? { name } : {}) },
+    update: {
+      status: "SUBSCRIBED",
+      source: "public_signup_form",
+      subscribedAt: new Date(),
+      unsubscribedAt: null,
+      ...(name ? { name } : {}),
+    },
   });
 
   return { ok: true };
@@ -119,6 +137,7 @@ const videoCallSchema = z.object({
   name: z.string().trim().min(1, "Please enter your name.").max(200),
   email: z.string().trim().email("Please enter a valid email."),
   website: z.string().optional(), // honeypot — real users never fill this
+  newsletterOptIn: z.boolean().default(false),
 });
 
 const VIDEO_CALL_RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
@@ -132,6 +151,7 @@ export async function bookVideoCall(input: {
   name: string;
   email: string;
   website?: string;
+  newsletterOptIn?: boolean;
 }): Promise<BookVideoCallResult> {
   const parsed = videoCallSchema.safeParse(input);
   if (!parsed.success) {
@@ -148,6 +168,10 @@ export async function bookVideoCall(input: {
     where: { slug: parsed.data.slug },
     select: {
       id: true,
+      planTier: true,
+      planStatus: true,
+      trialEndsAt: true,
+      compedUntil: true,
       slug: true,
       name: true,
       email: true,
@@ -161,6 +185,9 @@ export async function bookVideoCall(input: {
     },
   });
   if (!instructor) return { ok: false, error: "This page could not be found." };
+
+  if (!canUseProOffers(instructor))
+    return { ok: false, error: "This offer is not available right now." };
 
   const meetingLink = instructor.consultationLink;
   if (!instructor.videoCallEnabled || !meetingLink) {
@@ -180,13 +207,23 @@ export async function bookVideoCall(input: {
 
   // Free — book and notify immediately, same as before.
   if (price === 0) {
-    await prisma.videoCallBooking.create({
-      data: {
+    await prisma.$transaction(async (tx) => {
+      const record = await tx.videoCallBooking.create({
+        data: {
+          instructorId: instructor.id,
+          studentName: name,
+          studentEmail: email,
+          paymentStatus: "PAID",
+        },
+      });
+      await recordCheckoutNewsletterConsent(tx, {
         instructorId: instructor.id,
-        studentName: name,
-        studentEmail: email,
-        paymentStatus: "PAID",
-      },
+        email,
+        name,
+        newsletterOptIn: parsed.data.newsletterOptIn,
+        source: "video_call_checkout",
+      });
+      return record;
     });
 
     await sendVideoCallBookingEmail({
@@ -225,15 +262,25 @@ export async function bookVideoCall(input: {
     return { ok: false, error: "This instructor hasn't finished setting up payments yet." };
   }
 
-  const booking = await prisma.videoCallBooking.create({
-    data: {
+  const booking = await prisma.$transaction(async (tx) => {
+    const record = await tx.videoCallBooking.create({
+      data: {
+        instructorId: instructor.id,
+        studentName: name,
+        studentEmail: email,
+        amount: price,
+        currency: instructor.currency,
+        paymentStatus: "PENDING",
+      },
+    });
+    await recordCheckoutNewsletterConsent(tx, {
       instructorId: instructor.id,
-      studentName: name,
-      studentEmail: email,
-      amount: price,
-      currency: instructor.currency,
-      paymentStatus: "PENDING",
-    },
+      email,
+      name,
+      newsletterOptIn: parsed.data.newsletterOptIn,
+      source: "video_call_checkout",
+    });
+    return record;
   });
 
   try {
@@ -311,6 +358,7 @@ const ebookSchema = z.object({
   name: z.string().trim().min(1, "Please enter your name.").max(200),
   email: z.string().trim().email("Please enter a valid email."),
   website: z.string().optional(), // honeypot — real users never fill this
+  newsletterOptIn: z.boolean().default(false),
 });
 
 const EBOOK_RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
@@ -324,6 +372,7 @@ export async function buyEbook(input: {
   name: string;
   email: string;
   website?: string;
+  newsletterOptIn?: boolean;
 }): Promise<BuyEbookResult> {
   const parsed = ebookSchema.safeParse(input);
   if (!parsed.success) {
@@ -340,6 +389,10 @@ export async function buyEbook(input: {
     where: { slug: parsed.data.slug },
     select: {
       id: true,
+      planTier: true,
+      planStatus: true,
+      trialEndsAt: true,
+      compedUntil: true,
       slug: true,
       name: true,
       email: true,
@@ -353,6 +406,9 @@ export async function buyEbook(input: {
     },
   });
   if (!instructor) return { ok: false, error: "This page could not be found." };
+
+  if (!canUseProOffers(instructor))
+    return { ok: false, error: "This offer is not available right now." };
 
   if (!instructor.ebookEnabled || !instructor.ebookFileUrl) {
     return { ok: false, error: "This ebook isn't available right now." };
@@ -374,15 +430,25 @@ export async function buyEbook(input: {
   // the "send emails" step — same idempotency guard the paid path relies
   // on, rather than duplicating email-sending here.
   if (price === 0) {
-    const purchase = await prisma.ebookPurchase.create({
-      data: {
+    const purchase = await prisma.$transaction(async (tx) => {
+      const record = await tx.ebookPurchase.create({
+        data: {
+          instructorId: instructor.id,
+          buyerName: name,
+          buyerEmail: email,
+          amount: 0,
+          currency: instructor.currency,
+          paymentStatus: "PENDING",
+        },
+      });
+      await recordCheckoutNewsletterConsent(tx, {
         instructorId: instructor.id,
-        buyerName: name,
-        buyerEmail: email,
-        amount: 0,
-        currency: instructor.currency,
-        paymentStatus: "PENDING",
-      },
+        email,
+        name,
+        newsletterOptIn: parsed.data.newsletterOptIn,
+        source: "ebook_checkout",
+      });
+      return record;
     });
 
     const result = await finalizeEbookPurchase({ purchaseId: purchase.id, paystackFee: null });
@@ -402,15 +468,25 @@ export async function buyEbook(input: {
     return { ok: false, error: "This instructor hasn't finished setting up payments yet." };
   }
 
-  const purchase = await prisma.ebookPurchase.create({
-    data: {
+  const purchase = await prisma.$transaction(async (tx) => {
+    const record = await tx.ebookPurchase.create({
+      data: {
+        instructorId: instructor.id,
+        buyerName: name,
+        buyerEmail: email,
+        amount: price,
+        currency: instructor.currency,
+        paymentStatus: "PENDING",
+      },
+    });
+    await recordCheckoutNewsletterConsent(tx, {
       instructorId: instructor.id,
-      buyerName: name,
-      buyerEmail: email,
-      amount: price,
-      currency: instructor.currency,
-      paymentStatus: "PENDING",
-    },
+      email,
+      name,
+      newsletterOptIn: parsed.data.newsletterOptIn,
+      source: "ebook_checkout",
+    });
+    return record;
   });
 
   try {

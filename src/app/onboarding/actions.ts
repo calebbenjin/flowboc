@@ -1,5 +1,7 @@
 "use server";
 
+import { canUseProDesign } from "@/lib/public-page-theme";
+import { onboardingAppearance } from "@/lib/onboarding-appearance";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
@@ -62,6 +64,8 @@ export async function saveProfile(input: {
   specialties: string[];
   slug: string;
   currency: CurrencyCode;
+  photoUrl?: string | null;
+  mood?: string;
 }): Promise<ActionResult> {
   const userId = await requireUserId();
   const name = input.name.trim();
@@ -86,6 +90,9 @@ export async function saveProfile(input: {
     throw err;
   }
 
+  if (input.photoUrl && (!/^https:\/\//i.test(input.photoUrl) || input.photoUrl.length > 2048)) {
+    return { ok: false, error: "Please upload a valid profile photo." };
+  }
   const payoutProvider = payoutProviderForCurrency(input.currency);
   const existingInstructor = await prisma.instructor.findUnique({ where: { userId } });
 
@@ -97,6 +104,7 @@ export async function saveProfile(input: {
           data: {
             name,
             slug,
+            ...(input.photoUrl !== undefined ? { photoUrl: input.photoUrl } : {}),
             location: input.location?.trim() || null,
             bio: input.bio?.trim() || null,
             phone: input.phone?.trim() || null,
@@ -110,6 +118,7 @@ export async function saveProfile(input: {
             userId,
             name,
             slug,
+            ...(input.photoUrl !== undefined ? { photoUrl: input.photoUrl } : {}),
             email: user.email,
             location: input.location?.trim() || null,
             bio: input.bio?.trim() || null,
@@ -142,12 +151,23 @@ export async function saveProfile(input: {
     });
   }
 
+  const appearance = input.mood
+    ? onboardingAppearance(input.mood, canUseProDesign(instructor))
+    : null;
+  if (appearance) {
+    await prisma.instructor.update({ where: { id: instructor.id }, data: appearance });
+  }
+
   const instagramHandle = input.instagramHandle?.trim();
   if (instagramHandle) {
     await prisma.instructorSocial.upsert({
       where: { instructorId_platform: { instructorId: instructor.id, platform: "INSTAGRAM" } },
       create: { instructorId: instructor.id, platform: "INSTAGRAM", handle: instagramHandle },
       update: { handle: instagramHandle },
+    });
+  } else if (input.instagramHandle !== undefined) {
+    await prisma.instructorSocial.deleteMany({
+      where: { instructorId: instructor.id, platform: "INSTAGRAM" },
     });
   }
 

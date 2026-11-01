@@ -1,0 +1,72 @@
+.card {
+  border: 1px solid #e3d9ef;
+  border-radius: 18px;
+  background: #f4effa;
+  padding: 17px;
+  color: #7e658f;
+}
+.top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 9px;
+  line-height: 1.6;
+  color: #a087b2;
+}
+.icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 34px;
+  background: #fcf9fd;
+  border: 1px solid #e7dff1;
+  border-radius: 11px;
+  color: #a085ba;
+  flex-shrink: 0;
+}
+.card h2 {
+  font-size: 20px;
+  line-height: 1.35;
+  letter-spacing: -0.025em;
+  color: #705086;
+  margin-top: 14px;
+}
+.card h2 strong {
+  font-weight: 400;
+  font-size: 30px;
+  letter-spacing: -0.04em;
+  color: #8e6fb4;
+  font-variant-numeric: tabular-nums;
+}
+.card p {
+  font-size: 10px;
+  line-height: 1.9;
+  color: #9b80ac;
+  margin-top: 9px;
+}
+.card a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  padding: 11px 12px;
+  background: #6355ff;
+  color: white;
+  border-radius: 10px;
+  font-size: 11px;
+  margin-top: 16px;
+  transition: background 0.2s;
+}
+.card a:hover {
+  background: #5142e5;
+}
+.card a:focus-visible {
+  outline: 2px solid #6355ff;
+  outline-offset: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .card a {
+    transition: none;
+  }
+}

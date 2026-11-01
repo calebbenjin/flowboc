@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -87,13 +88,18 @@ export function RichTextEditor({
   content,
   onChange,
   placeholder,
+  disabled = false,
+  ariaLabel = "Message",
 }: {
   content?: string;
   onChange: (html: string) => void;
   placeholder?: string;
+  disabled?: boolean;
+  ariaLabel?: string;
 }) {
   const editor = useEditor({
     immediatelyRender: false,
+    editable: !disabled,
     extensions: [
       StarterKit.configure({ heading: false }),
       Link.configure({ openOnClick: false, autolink: true }),
@@ -102,6 +108,9 @@ export function RichTextEditor({
     content: content ?? "",
     editorProps: {
       attributes: {
+        role: "textbox",
+        "aria-label": ariaLabel,
+        "aria-multiline": "true",
         class:
           "min-h-[220px] px-3 py-2 text-sm focus:outline-none " +
           "[&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 " +
@@ -111,6 +120,10 @@ export function RichTextEditor({
     },
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
   });
+
+  useEffect(() => {
+    editor?.setEditable(!disabled, false);
+  }, [editor, disabled]);
 
   if (!editor) return null;
 

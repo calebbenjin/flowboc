@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
@@ -282,8 +282,16 @@ function SortableBlockRow({
   }
 
   const presets = {
-    VIDEO_CALL: { icon: Video, label: "Video call", manageHref: "/dashboard/profile" },
-    EBOOK: { icon: Download, label: "Ebook", manageHref: "/dashboard/profile" },
+    VIDEO_CALL: {
+      icon: Video,
+      label: "1:1 session",
+      manageHref: "/dashboard/offers?offer=session#offer-setup",
+    },
+    EBOOK: {
+      icon: Download,
+      label: "Ebook",
+      manageHref: "/dashboard/offers?offer=ebook#offer-setup",
+    },
     CLASSES: { icon: CalendarDays, label: "Upcoming classes", manageHref: "/dashboard/classes" },
   } as const;
   const preset = presets[block.kind];
@@ -316,6 +324,7 @@ function SortableBlockRow({
 }
 
 export function LinksClient({
+  embedded = false,
   links: initialLinks,
   slug,
   blockOrder: initialBlockOrder,
@@ -325,6 +334,7 @@ export function LinksClient({
   ebookTitle,
   classesCount,
 }: {
+  embedded?: boolean;
   links: InstructorLink[];
   slug: string;
   blockOrder: string[];
@@ -334,6 +344,7 @@ export function LinksClient({
   ebookTitle: string | null;
   classesCount: number;
 }) {
+  const Wrapper = embedded ? Fragment : DashboardShell;
   const router = useRouter();
   const offers = { videoCallEnabled, videoCallTitle, ebookEnabled, ebookTitle, classesCount };
   const [blocks, setBlocks] = useState(() => buildBlocks(initialBlockOrder, initialLinks, offers));
@@ -477,10 +488,10 @@ export function LinksClient({
   }
 
   return (
-    <DashboardShell>
+    <Wrapper>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl">Links</h1>
+          <h2 className="text-xl">Content and links</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Drag to reorder everything on your public page at flowboc.com/{slug} — your video call
             and ebook offers, your upcoming classes, and any custom links.
@@ -588,6 +599,6 @@ export function LinksClient({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </DashboardShell>
+    </Wrapper>
   );
 }

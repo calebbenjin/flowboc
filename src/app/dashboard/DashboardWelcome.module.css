@@ -1,0 +1,178 @@
+.welcome {
+  position: relative;
+  margin-top: 24px;
+  padding: 32px;
+  border: 1px solid #e0d8ed;
+  border-radius: 24px;
+  background: radial-gradient(ellipse at 100% 0%, #e8dfff, transparent 65%), #faf7ff;
+  color: #30293e;
+}
+.dismiss {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: #77698a;
+  cursor: pointer;
+}
+.dismiss:hover {
+  background: #ece5fb;
+}
+.symbol {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  background: #e9e3ff;
+  color: #6355ff;
+  border-radius: 50%;
+  margin-bottom: 22px;
+}
+.eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #6355ff;
+}
+.welcome h2 {
+  max-width: 650px;
+  margin-top: 12px;
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: clamp(27px, 3vw, 36px);
+  line-height: 1.18;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+.body {
+  max-width: 540px;
+  font-size: 14px;
+  line-height: 1.85;
+  color: #756782;
+  margin-top: 15px;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 25px;
+}
+.actions :is(button, a) {
+  min-height: 46px;
+}
+.primary {
+  background: #6355ff;
+  color: #fffdf7;
+  border-radius: 10px;
+  min-height: 46px;
+}
+.primary:hover {
+  background: #5042e5;
+}
+.footnote {
+  font-size: 11px;
+  color: #7c6e89;
+  line-height: 1.8;
+  margin-top: 16px;
+}
+.payoutLink {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  margin-top: 10px;
+  text-decoration: underline;
+}
+.tour {
+  width: calc(100% - 32px);
+  max-width: 440px;
+  border: 1px solid #e0d8ed;
+  border-radius: 24px;
+  padding: 28px;
+  background: #fcfbf7;
+  color: #30293e;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+.tourIcon {
+  display: grid;
+  place-items: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 24px;
+  background: #eeebff;
+  color: #6355ff;
+  margin: 25px 0;
+}
+.tourTitle {
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-weight: 400;
+  font-size: 30px;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+}
+.tourBody {
+  font-size: 14px;
+  line-height: 1.9;
+  color: #756782;
+  margin-top: 16px;
+}
+.tip {
+  margin-top: 20px;
+  padding: 15px;
+  background: #f2edfa;
+  border-radius: 12px;
+  color: #756782;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.destination {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 20px;
+  color: #6355ff;
+  font-size: 12px;
+  text-decoration: underline;
+}
+.tourActions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 20px;
+}
+.tourActions button {
+  min-height: 46px;
+}
+.welcome :is(button, a):focus-visible,
+.tour :is(button, a):focus-visible {
+  outline: 2px solid #6355ff;
+  outline-offset: 4px;
+}
+@media (max-width: 639px) {
+  .welcome {
+    padding: 25px 20px;
+  }
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .actions > :is(a, button) {
+    width: 100%;
+    justify-content: center;
+  }
+  .actions > div {
+    justify-content: center;
+  }
+  .tour {
+    padding: 26px 20px 20px;
+  }
+  .tourActions {
+    flex-wrap: wrap;
+  }
+}

@@ -34,7 +34,13 @@ async function setPriceForInterval(
   let checkoutLink: string;
   try {
     const result = await createSubscriptionPlan({
-      name: `Flowboc ${tierLabel} (${intervalLabel}, ${currency})`,
+      // Startbutton plan names must be unique and plans are immutable, so a
+      // name keyed only on tier/interval/currency collides with whatever was
+      // last created for that combo (even if it's since been deactivated
+      // here — Startbutton still has it on file). Suffixing the price and a
+      // timestamp keeps every create call unique, including re-selecting a
+      // price that was used before.
+      name: `Flowboc ${tierLabel} (${intervalLabel}, ${currency}) — ${price} — ${Date.now()}`,
       description: `Flowboc ${tierLabel} subscription — ${intervalLabel} billing in ${currency}`,
       amount: price,
       currency,

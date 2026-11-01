@@ -1,12 +1,16 @@
 "use client";
 
+import { canUseProOffers } from "@/lib/offer-access";
+import { newsletterButtonVisible } from "@/lib/newsletter/access";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import posthog from "posthog-js";
 import { toast } from "sonner";
 import { DashboardShell } from "@/components/DashboardShell";
+import { FirstClassCelebration, type ClassMilestone } from "@/components/FirstClassCelebration";
 import { ClassForm, type ClassFormDraft } from "@/components/ClassForm";
+import { effectivePublicTheme } from "@/lib/public-page-theme";
 import { PublicPagePreview } from "@/components/PublicPagePreview";
 import { useInstructor } from "@/components/InstructorProvider";
 import { draftToPreviewClass } from "@/lib/class-form-preview";
@@ -52,12 +56,13 @@ function readClassFormData(formData: FormData): Omit<ClassInput, "status"> {
 export function NewClassClient() {
   const router = useRouter();
   const instructor = useInstructor();
+  const [milestone, setMilestone] = useState<ClassMilestone | null>(null);
   const [pending, setPending] = useState(false);
   const [draft, setDraft] = useState<ClassFormDraft | null>(null);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+    const formData = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
     const intent = String(formData.get("intent") ?? "publish");
 
     setPending(true);
@@ -73,15 +78,37 @@ export function NewClassClient() {
         ) {
           posthog.capture("class_created", { status: intent === "draft" ? "draft" : "published" });
         }
-        toast.success(intent === "draft" ? "Saved as draft" : "Class published");
-        router.push("/dashboard/classes");
+        if (intent !== "draft" && result.firstPublication) {
+          const values = Object.fromEntries(
+            Array.from(formData.entries()).map(([key, value]) => [key, String(value)]),
+          );
+          if (result.firstDate) values["date"] = result.firstDate;
+          setMilestone({ values, classCount: result.classCount ?? 1 });
+        } else {
+          toast.success(
+            intent === "draft" ? "A lovely beginning—your draft is saved." : "Class published",
+          );
+          router.push("/dashboard/classes");
+        }
+        return true;
       } else {
         toast.error(result.error);
+        return false;
       }
+    } catch {
+      toast.error("Could not save the class. Your changes are still here; please try again.");
+      return false;
     } finally {
       setPending(false);
     }
   }
+
+  if (milestone)
+    return (
+      <DashboardShell>
+        <FirstClassCelebration milestone={milestone} />
+      </DashboardShell>
+    );
 
   return (
     <DashboardShell>
@@ -91,8 +118,12 @@ export function NewClassClient() {
             ← Back to classes
           </Link>
           <h1 className="mt-3 text-3xl">Create a class</h1>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            From an intention to an invitation. We’ll take it one step at a time.
+          </p>
 
           <ClassForm
+            guided
             primaryLabel="Publish class"
             secondaryLabel="Save as draft"
             secondarySubmits
@@ -106,10 +137,18 @@ export function NewClassClient() {
           <p className="mb-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">Preview</p>
           <PublicPagePreview
             size="md"
+            showSampleClasses={false}
             instructor={{
+              ...effectivePublicTheme(instructor),
+              ebookEnabled: canUseProOffers(instructor) && instructor.ebookEnabled,
+              ebookTitle: instructor.ebookTitle,
+              ebookDescription: instructor.ebookDescription,
+              ebookPrice: instructor.ebookPrice,
+              ebookCoverUrl: instructor.ebookCoverUrl,
               name: instructor.name,
               photoUrl: instructor.photoUrl,
               themeColor: instructor.themeColor,
+              newsletterEnabled: newsletterButtonVisible(instructor),
               backgroundType: instructor.backgroundType,
               backgroundImageUrl: instructor.backgroundImageUrl,
               backgroundColor: instructor.backgroundColor,
@@ -117,7 +156,7 @@ export function NewClassClient() {
               backgroundGradientTo: instructor.backgroundGradientTo,
               pageLayout: instructor.pageLayout,
               bio: instructor.bio,
-              videoCallEnabled: instructor.videoCallEnabled,
+              videoCallEnabled: canUseProOffers(instructor) && instructor.videoCallEnabled,
               videoCallTitle: instructor.videoCallTitle,
               videoCallDescription: instructor.videoCallDescription,
               videoCallImageUrl: instructor.videoCallImageUrl,

@@ -1,3 +1,4 @@
+import { ONBOARDING_MOODS, type OnboardingMood } from "@/lib/onboarding-appearance";
 import type { Metadata } from "next";
 import { getCurrentInstructor } from "@/lib/get-current-instructor";
 import { getActivePlansForCurrency } from "@/lib/subscription-plans";
@@ -20,11 +21,20 @@ const EMPTY_PLANS = {
   PREMIUM: { MONTHLY: null, ANNUAL: null },
 } as const;
 
-export default async function BillingPage() {
+export default async function BillingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ onboardingMood?: string }>;
+}) {
+  const { onboardingMood: requestedMood } = await searchParams;
+  const onboardingMood =
+    requestedMood && Object.hasOwn(ONBOARDING_MOODS, requestedMood)
+      ? (requestedMood as OnboardingMood)
+      : null;
   const instructor = await getCurrentInstructor();
   // Subscriptions always bill in USD, regardless of the currency the
   // instructor charges their own students in.
   const plans = instructor ? await getActivePlansForCurrency("USD") : EMPTY_PLANS;
 
-  return <BillingClient plans={plans} />;
+  return <BillingClient plans={plans} onboardingMood={onboardingMood} />;
 }

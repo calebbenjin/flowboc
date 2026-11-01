@@ -17,9 +17,15 @@ export async function updateProfile(input: {
   email: string;
   phone?: string;
   currency: CurrencyCode;
+  timezone: string;
   slug: string;
 }): Promise<ActionResult> {
   const instructor = await requireInstructor();
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: input.timezone }).format();
+  } catch {
+    return { ok: false, error: "Choose a valid timezone." };
+  }
   const name = input.name.trim();
   const email = input.email.trim().toLowerCase();
   const slug = input.slug.trim().toLowerCase();
@@ -46,6 +52,7 @@ export async function updateProfile(input: {
         bio: input.bio?.trim() || null,
         phone: input.phone?.trim() || null,
         currency: input.currency,
+        timezone: input.timezone,
         payoutProvider: payoutProviderForCurrency(input.currency),
       },
     });
@@ -91,69 +98,6 @@ export async function updateSocials(
 export async function updatePhoto(photoUrl: string): Promise<ActionResult> {
   const instructor = await requireInstructor();
   await prisma.instructor.update({ where: { id: instructor.id }, data: { photoUrl } });
-  return { ok: true };
-}
-
-export async function updateVideoCallOffer(input: {
-  enabled: boolean;
-  title?: string;
-  description?: string;
-  imageUrl?: string | null;
-  price?: number | null;
-  meetingLink?: string;
-}): Promise<ActionResult> {
-  const instructor = await requireInstructor();
-  const meetingLink = input.meetingLink?.trim() || null;
-
-  if (input.enabled && !meetingLink) {
-    return { ok: false, error: "Add a meeting link before enabling the video call card." };
-  }
-  if (meetingLink && !/^https?:\/\//.test(meetingLink)) {
-    return { ok: false, error: "Meeting link must start with http:// or https://." };
-  }
-
-  await prisma.instructor.update({
-    where: { id: instructor.id },
-    data: {
-      videoCallEnabled: input.enabled,
-      videoCallTitle: input.title?.trim() || null,
-      videoCallDescription: input.description?.trim() || null,
-      videoCallImageUrl: input.imageUrl || null,
-      videoCallPrice: input.price ?? null,
-      consultationLink: meetingLink,
-    },
-  });
-
-  return { ok: true };
-}
-
-export async function updateEbookOffer(input: {
-  enabled: boolean;
-  title?: string;
-  description?: string;
-  coverUrl?: string | null;
-  fileUrl?: string | null;
-  price?: number | null;
-}): Promise<ActionResult> {
-  const instructor = await requireInstructor();
-  const fileUrl = input.fileUrl?.trim() || null;
-
-  if (input.enabled && !fileUrl) {
-    return { ok: false, error: "Upload an ebook file before enabling the ebook card." };
-  }
-
-  await prisma.instructor.update({
-    where: { id: instructor.id },
-    data: {
-      ebookEnabled: input.enabled,
-      ebookTitle: input.title?.trim() || null,
-      ebookDescription: input.description?.trim() || null,
-      ebookCoverUrl: input.coverUrl || null,
-      ebookFileUrl: fileUrl,
-      ebookPrice: input.price ?? null,
-    },
-  });
-
   return { ok: true };
 }
 

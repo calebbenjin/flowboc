@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, Clock } from "lucide-react";
+import { AlertTriangle, ArrowRight, Flower2 } from "lucide-react";
 import { useInstructor } from "@/components/InstructorProvider";
 import { isTrialExpired } from "@/lib/trial";
 import { cn } from "@/lib/utils";
+import styles from "./TrialBanner.module.css";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -13,23 +14,25 @@ export function TrialBanner() {
 
   if (instructor.planStatus === "PAST_DUE") {
     return (
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
-        <span className="flex items-center gap-2">
-          <AlertTriangle className="size-4 shrink-0" />
-          Your last subscription renewal failed. Update your billing to avoid losing access.
+      <aside
+        className={cn(styles["banner"], styles["urgent"])}
+        aria-label="Billing needs attention"
+      >
+        <span className={styles["icon"]}>
+          <AlertTriangle size={22} strokeWidth={1.5} aria-hidden="true" />
         </span>
-        <Link
-          href="/dashboard/billing"
-          className="shrink-0 font-medium underline underline-offset-2"
-        >
-          Fix billing
+        <div className={styles["copy"]}>
+          <h2>A quick check on your billing</h2>
+          <p>Your last renewal failed. Update your billing to avoid losing access.</p>
+        </div>
+        <Link href="/dashboard/billing" className={styles["cta"]}>
+          Fix billing <ArrowRight size={15} aria-hidden="true" />
         </Link>
-      </div>
+      </aside>
     );
   }
 
-  // No banner for paying instructors, or for pre-trial accounts grandfathered
-  // in with trialEndsAt = null (isTrialExpired treats that as never expiring).
+  // Paying and grandfathered accounts do not need a trial reminder.
   if (instructor.planStatus !== "TRIALING" || !instructor.trialEndsAt) return null;
 
   const expired = isTrialExpired(instructor);
@@ -37,25 +40,43 @@ export function TrialBanner() {
   const urgent = expired || daysLeft <= 3;
 
   return (
-    <div
-      className={cn(
-        "mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm",
-        urgent ? "bg-destructive/10 text-destructive" : "bg-clay/10 text-clay",
-      )}
+    <aside
+      className={cn(styles["banner"], urgent && styles["urgent"])}
+      aria-label={expired ? "Trial ended" : "Your Flowboc trial"}
     >
-      <span className="flex items-center gap-2">
-        {urgent ? (
-          <AlertTriangle className="size-4 shrink-0" />
-        ) : (
-          <Clock className="size-4 shrink-0" />
-        )}
-        {expired
-          ? "Your 14-day trial has ended. Publishing new classes and new bookings are paused until you upgrade."
-          : `${daysLeft} day${daysLeft === 1 ? "" : "s"} left in your trial. Upgrade to keep your booking page live.`}
-      </span>
-      <Link href="/dashboard/billing" className="shrink-0 font-medium underline underline-offset-2">
-        Upgrade
+      {expired ? (
+        <span className={styles["icon"]}>
+          <AlertTriangle size={23} strokeWidth={1.5} aria-hidden="true" />
+        </span>
+      ) : (
+        <div className={styles["countdown"]}>
+          <strong>{daysLeft}</strong>
+          <span>{daysLeft === 1 ? "day left" : "days left"}</span>
+        </div>
+      )}
+      <div className={styles["copy"]}>
+        <span className={styles["eyebrow"]}>
+          <Flower2 size={12} strokeWidth={1.5} aria-hidden="true" /> Your space to grow
+        </span>
+        <h2>
+          {expired
+            ? "Your trial has come to a close"
+            : urgent
+              ? "Keep your practice growing"
+              : "Make yourself at home"}
+        </h2>
+        <p>
+          {expired
+            ? "Publishing new classes and new bookings are paused. Choose a plan to welcome students again."
+            : urgent
+              ? "Your trial is nearly over. Choose a plan to keep your booking page live."
+              : "Explore your teaching space. Choose a plan before your trial ends to keep your booking page live."}
+        </p>
+      </div>
+      <Link href="/dashboard/billing" className={styles["cta"]}>
+        {expired ? "Continue my journey" : "Find my plan"}{" "}
+        <ArrowRight size={15} aria-hidden="true" />
       </Link>
-    </div>
+    </aside>
   );
 }

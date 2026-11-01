@@ -1,0 +1,138 @@
+.stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 50px;
+  margin-top: 48px;
+  padding: 48px;
+  border-radius: 32px;
+  background: #303b2d;
+}
+.guide {
+  min-width: 0;
+}
+.eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  font-weight: 600;
+  color: #d0dfc1;
+}
+.intro {
+  margin-top: 16px;
+  font-size: 13px;
+  line-height: 1.8;
+  color: #b9c4b0;
+}
+.journey {
+  position: relative;
+  margin-top: 28px;
+}
+.journey::before {
+  content: "";
+  position: absolute;
+  left: 18px;
+  top: 22px;
+  bottom: 40px;
+  width: 1px;
+  background: #67735e;
+}
+.step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 16px;
+  align-items: start;
+  gap: 15px;
+  width: 100%;
+  padding: 15px 0;
+  text-align: left;
+  cursor: pointer;
+  color: #b9c4b0;
+}
+.number {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #67735e;
+  border-radius: 50%;
+  background: #303b2d;
+  font-size: 12px;
+}
+.number > span:last-child {
+  position: relative;
+  z-index: 1;
+}
+.activeRing {
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  background: #e3efd8;
+}
+.step[aria-current] .number {
+  color: #303b2d;
+}
+.step strong {
+  display: block;
+  margin-top: 7px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #e5eadd;
+}
+.description {
+  display: block;
+  margin-top: 7px;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.step[aria-current] strong {
+  color: #e3efd8;
+}
+.step[aria-current] .description {
+  color: #e0e6d9;
+}
+.arrow {
+  margin-top: 11px;
+  opacity: 0;
+  transform: translateX(-5px);
+  transition:
+    opacity 0.25s,
+    transform 0.25s;
+}
+.step[aria-current] .arrow,
+.step:hover .arrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+.step:focus-visible {
+  outline: 2px solid #e3efd8;
+  outline-offset: 5px;
+  border-radius: 8px;
+}
+.demo {
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  .stage {
+    gap: 30px;
+    padding: 28px;
+  }
+}
+@media (max-width: 767px) {
+  .stage {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 28px 16px;
+    gap: 32px;
+  }
+  .guide {
+    padding: 0 8px;
+  }
+  .step {
+    gap: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .arrow {
+    transition: none;
+  }
+}
