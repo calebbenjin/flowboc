@@ -193,8 +193,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           Skip to content
         </a>
         <main id="dashboard-main" className="mx-auto max-w-6xl px-4 py-6 pb-20 lg:px-8 lg:pb-6">
-          <div className="mb-6 grid grid-cols-[1fr_auto_1fr] items-center gap-2 lg:hidden">
-            <Link href="/dashboard" className="col-start-2 inline-flex items-center justify-center">
+          <div className="mb-6 flex items-center justify-between gap-2 lg:hidden">
+            <Link href="/dashboard" className="col-start-2 inline-flex ">
               <Image
                 src="/flowboc-brand-logo.png"
                 width={100}
