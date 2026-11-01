@@ -52,7 +52,7 @@ export default async function Landing() {
         <main>
           <LaunchHero />
           <Benefits />
-          <WhyJourney /> 
+          <WhyJourney />
           <YourPage />
           <Experience />
           <Offers />
