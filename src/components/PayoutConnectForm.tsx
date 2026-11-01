@@ -29,11 +29,13 @@ export function PayoutConnectForm({
   instructorName,
   onConnected,
   connectLabel = "Connect",
+  onBusyChange,
 }: {
   currency: CurrencyCode;
   instructorName: string;
   onConnected: () => void;
   connectLabel?: string;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const mobileMoneyAvailable = supportsMobileMoney(currency);
   const canResolve = supportsAccountResolve(currency);
@@ -46,6 +48,10 @@ export function PayoutConnectForm({
   const [resolvedName, setResolvedName] = useState<string | null>(null);
   const [resolving, setResolving] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  useEffect(() => {
+    onBusyChange?.(connecting);
+    return () => onBusyChange?.(false);
+  }, [connecting, onBusyChange]);
   // Set when connectPayoutAccount itself rejects the account over a name
   // mismatch — happens for currencies where handleVerify never ran (no
   // pre-resolve support), so resolvedName alone can't catch this case.
@@ -59,14 +65,19 @@ export function PayoutConnectForm({
     setResolvedName(null);
     setServerMismatchName(null);
     setConfirmMismatch(false);
-    void listPayoutBanks(method).then((result) => {
-      setBanksLoading(false);
-      if (result.ok) {
-        setBanks(result.banks);
-      } else {
-        toast.error(result.error);
-      }
-    });
+    void listPayoutBanks(method)
+      .then((result) => {
+        setBanksLoading(false);
+        if (result.ok) {
+          setBanks(result.banks);
+        } else {
+          toast.error(result.error);
+        }
+      })
+      .catch(() => {
+        setBanksLoading(false);
+        toast.error("Couldn’t load banks. Reopen payout setup to try again.");
+      });
   }, [method]);
 
   const bankName = banks.find((b) => b.code === bankCode)?.name ?? "";
@@ -93,6 +104,8 @@ export function PayoutConnectForm({
       } else {
         toast.error(result.error);
       }
+    } catch {
+      toast.error("Couldn’t verify the account. Check your connection and try again.");
     } finally {
       setResolving(false);
     }
@@ -122,6 +135,8 @@ export function PayoutConnectForm({
       } else {
         toast.error(result.error);
       }
+    } catch {
+      toast.error("Couldn’t connect your account. Your form is still here; please try again.");
     } finally {
       setConnecting(false);
     }
@@ -241,6 +256,7 @@ export function PayoutConnectForm({
       )}
 
       <Button
+        type="button"
         variant="clay"
         className="w-full sm:w-auto"
         disabled={!canConnect || connecting}

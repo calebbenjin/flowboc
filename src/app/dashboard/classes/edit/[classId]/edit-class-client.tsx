@@ -189,6 +189,7 @@ export function EditClassClient({ cls, futureCount }: { cls: YogaClass; futureCo
             </fieldset>
           ) : null}
           <ClassForm
+            requiresPayout={["DRAFT", "PUBLISHED", "FULL"].includes(cls.status)}
             editScope={scope}
             affectedCount={scope === "future" ? futureCount : 1}
             initial={toFormInitial(cls)}

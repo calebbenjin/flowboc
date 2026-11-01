@@ -1,25 +1,32 @@
 "use client";
 
-import { canUseProOffers } from "@/lib/offer-access";
-import { newsletterButtonVisible } from "@/lib/newsletter/access";
-import Image from "next/image";
 import {
   PUBLIC_FONT_OPTIONS,
-  SAGE_PREVIEW,
+  canUseProDesign,
+  effectivePublicTheme,
   SAGE_COVER,
   type PublicPageTemplate,
   type PublicPageFont,
 } from "@/lib/public-page-theme";
-import type { PreviewClass } from "@/components/PublicPagePreview";
-import { Fragment, useRef, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 import { toast } from "sonner";
 import { compressImage } from "@/lib/compress-image";
-import { Check, ImagePlus, Loader2, X } from "lucide-react";
+import { Check, ImagePlus, Loader2, X, Flower2, Leaf, ArrowUpRight, Eye } from "lucide-react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { useInstructor } from "@/components/InstructorProvider";
-import { PublicPagePreview } from "@/components/PublicPagePreview";
+import { PublicPageLivePreview } from "@/components/PublicPageLivePreview";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
+import type { PublicDesignPreview } from "@/lib/public-preview";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import styles from "./design.module.css";
 import { ProBadge, UpgradeModal } from "@/components/ProGate";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -110,6 +117,7 @@ function ColorSwatchPicker({
           key={preset.value}
           type="button"
           aria-label={preset.label}
+          aria-pressed={value.toLowerCase() === preset.value.toLowerCase()}
           onClick={() => onChange(preset.value)}
           className={cn(
             "grid size-10 place-items-center rounded-full border-2 transition-transform hover:scale-105",
@@ -137,13 +145,7 @@ function ColorSwatchPicker({
   );
 }
 
-export function DesignClient({
-  embedded = false,
-  classes = [],
-}: {
-  embedded?: boolean;
-  classes?: PreviewClass[];
-}) {
+export function DesignClient({ embedded = false }: { embedded?: boolean }) {
   const Wrapper = embedded ? Fragment : DashboardShell;
   const router = useRouter();
   const instructor = useInstructor();
@@ -176,9 +178,47 @@ export function DesignClient({
   const [dragActive, setDragActive] = useState(false);
   const [saving, setSaving] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
-  const isStarter = instructor.planTier === "STARTER";
+  const isStarter = !canUseProDesign(instructor);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const designSettings: PublicDesignPreview = useMemo(
+    () => ({
+      pageTemplate,
+      pageFont,
+      coverImageUrl,
+      themeColor,
+      pageLayout,
+      backgroundType,
+      backgroundImageUrl,
+      backgroundColor,
+      backgroundGradientFrom,
+      backgroundGradientTo,
+    }),
+    [
+      pageTemplate,
+      pageFont,
+      coverImageUrl,
+      themeColor,
+      pageLayout,
+      backgroundType,
+      backgroundImageUrl,
+      backgroundColor,
+      backgroundGradientFrom,
+      backgroundGradientTo,
+    ],
+  );
+  const [savedDesign, setSavedDesign] = useState(() => JSON.stringify(designSettings));
+  const hasChanges = JSON.stringify(designSettings) !== savedDesign;
+  const { dialog: leaveDialog } = useUnsavedChanges(
+    hasChanges,
+    "Your page design has unsaved changes. Stay to save it, or discard your changes and leave.",
+  );
+  const liveTemplate = effectivePublicTheme(instructor).pageTemplate;
 
   async function handleBackgroundFile(file: File, target: "background" | "cover" = "background") {
+    if (isStarter) {
+      setUpgradeOpen(true);
+      return;
+    }
     if (!file.type.startsWith("image/")) {
       toast.error("Please choose an image file.");
       return;
@@ -219,6 +259,7 @@ export function DesignClient({
         backgroundGradientTo,
       });
       if (result.ok) {
+        setSavedDesign(JSON.stringify(designSettings));
         toast.success("Page design updated");
         router.refresh();
       } else {
@@ -233,87 +274,111 @@ export function DesignClient({
 
   return (
     <Wrapper>
-      <div className="max-w-5xl">
-        <h2 className="text-xl">Appearance</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Customize the theme color, background and layout of your public booking page.
-        </p>
-
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_280px] lg:items-start">
-          <div className="space-y-6">
-            <section className="surface space-y-4 p-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg">Page template</h3>
-                <ProBadge />
+      <div className={styles["studio"]}>
+        <div className={styles["studioHeader"]}>
+          <div>
+            <span className={styles["eyebrow"]}>
+              <Flower2 size={15} strokeWidth={1.4} /> Your page studio
+            </span>
+            <h2>Make it feel like you.</h2>
+            <p>Start with a template, then add your own rhythm, colour, and character.</p>
+          </div>
+          <button
+            type="button"
+            className={styles["mobilePreview"]}
+            onClick={() => setPreviewOpen(true)}
+          >
+            <Eye size={16} /> Preview page
+          </button>
+        </div>
+        {isStarter && (
+          <div className={styles["proNote"]}>
+            <Leaf size={19} strokeWidth={1.4} />
+            <p>
+              Explore every style here. <strong>Pro lets you publish your own design.</strong>
+            </p>
+            <button onClick={() => setUpgradeOpen(true)}>
+              Discover Pro <ArrowUpRight size={15} />
+            </button>
+          </div>
+        )}
+        <div className={styles["workspace"]}>
+          <div className={styles["controls"]}>
+            <section className={styles["templateSection"]} aria-labelledby="template-heading">
+              <div className={styles["sectionHeading"]}>
+                <span>01 · Your foundation</span>
+                <h3 id="template-heading">Choose your canvas</h3>
+                <p>
+                  Two ways to welcome your students. Select a template to explore it with your own
+                  content.
+                </p>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Choose the look of your booking page. Preview before publishing.
-              </p>
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  type="button"
-                  aria-pressed={pageTemplate === "STANDARD"}
-                  onClick={() => setPageTemplate("STANDARD")}
-                  className={cn(
-                    "overflow-hidden rounded-xl border-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay",
-                    pageTemplate === "STANDARD" ? "border-clay" : "border-border",
-                  )}
-                >
-                  <div className="flex h-60 flex-col items-center gap-3 bg-sand px-5 pt-8">
-                    <div className="size-12 rounded-full bg-border" />
-                    <span className="text-sm font-medium">Your booking page</span>
-                    {[1, 2, 3].map((value) => (
-                      <div
-                        key={value}
-                        className="h-9 w-full rounded-lg border border-border bg-white"
+              <div className={styles["templates"]}>
+                {(
+                  [
+                    {
+                      value: "STANDARD",
+                      name: "Standard",
+                      tag: "Starter template",
+                      body: "Clean, familiar, and easy to browse.",
+                      features: "Flexible class layouts · simple profile",
+                    },
+                    {
+                      value: "SAGE",
+                      name: "Sage",
+                      tag: "Pro template",
+                      body: "A softer home for your teaching.",
+                      features: "Botanical cover · portrait profile",
+                    },
+                  ] as const
+                ).map((template) => (
+                  <article
+                    key={template.value}
+                    className={styles["template"]}
+                    data-selected={pageTemplate === template.value}
+                  >
+                    <div className={styles["templateArt"]} aria-hidden="true">
+                      <PublicPageLivePreview
+                        thumbnail
+                        design={{ ...designSettings, pageTemplate: template.value }}
                       />
-                    ))}
-                  </div>
-                  <div className="p-3">
-                    <p className="flex items-center justify-between text-sm font-medium">
-                      Current layout
-                      {pageTemplate === "STANDARD" ? <Check className="size-4 text-clay" /> : null}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">Keep your existing design.</p>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={pageTemplate === "SAGE"}
-                  onClick={() => {
-                    if (pageTemplate !== "SAGE") setThemeColor("#3e4935");
-                    setPageTemplate("SAGE");
-                  }}
-                  className={cn(
-                    "overflow-hidden rounded-xl border-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay",
-                    pageTemplate === "SAGE" ? "border-clay" : "border-border",
-                  )}
-                >
-                  <div className="relative h-60 overflow-hidden bg-[#e7ebdf]">
-                    <Image
-                      src={SAGE_PREVIEW}
-                      alt="Sage template with botanical cover, overlapping portrait, and ivory booking cards"
-                      width={913}
-                      height={1723}
-                      sizes="(max-width: 640px) 45vw, 230px"
-                      className="h-full w-full object-contain p-2"
+                    </div>
+                    <div className={styles["templateCopy"]}>
+                      <div>
+                        <h4>{template.name}</h4>
+                        <span>{template.tag}</span>
+                      </div>
+                      <p>{template.body}</p>
+                      <small>{template.features}</small>
+                      <div className={styles["templateStatus"]}>
+                        {pageTemplate === template.value ? (
+                          <span>
+                            <Check size={14} /> Selected
+                          </span>
+                        ) : (
+                          <span>
+                            Try this look <ArrowUpRight size={13} />
+                          </span>
+                        )}
+                        {liveTemplate === template.value && <em>Live on your page</em>}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label={`Preview ${template.name} template`}
+                      aria-pressed={pageTemplate === template.value}
+                      className={styles["selectTemplate"]}
+                      onClick={() => {
+                        setPageTemplate(template.value);
+                      }}
                     />
-                  </div>
-                  <div className="p-3">
-                    <p className="flex items-center justify-between text-sm font-medium">
-                      Sage <ProBadge />
-                      {pageTemplate === "SAGE" ? <Check className="size-4 text-clay" /> : null}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Botanical, warm, and personal.
-                    </p>
-                  </div>
-                </button>
+                  </article>
+                ))}
               </div>
             </section>
             <section className="surface space-y-4 p-6">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg">Typography</h3>
+                <h3 className="text-lg">Find your voice</h3>
                 <ProBadge />
               </div>
               <div className="space-y-2">
@@ -343,7 +408,7 @@ export function DesignClient({
             </section>
             {pageTemplate === "SAGE" ? (
               <section className="surface space-y-4 p-6">
-                <h3 className="text-lg">Cover banner</h3>
+                <h3 className="text-lg">Set the scene</h3>
                 <img
                   src={coverImageUrl || SAGE_COVER}
                   alt="Your Sage cover banner"
@@ -382,7 +447,7 @@ export function DesignClient({
             ) : null}
             <section className="surface space-y-4 p-6">
               <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                Theme color
+                Your signature colour
               </h2>
               <ColorSwatchPicker
                 value={themeColor}
@@ -394,7 +459,7 @@ export function DesignClient({
             <section className="surface space-y-4 p-6">
               <div className="flex items-center justify-between gap-4">
                 <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                  Background
+                  The backdrop
                 </h2>
                 <div className="flex rounded-lg border border-border p-0.5">
                   {BACKGROUND_TYPE_OPTIONS.map((opt) => (
@@ -402,6 +467,7 @@ export function DesignClient({
                       key={opt.value}
                       type="button"
                       onClick={() => setBackgroundType(opt.value)}
+                      aria-pressed={backgroundType === opt.value}
                       className={cn(
                         "rounded-md px-3 py-1 text-xs font-medium transition-colors",
                         backgroundType === opt.value
@@ -583,7 +649,7 @@ export function DesignClient({
             {pageTemplate === "STANDARD" ? (
               <section className="surface space-y-4 p-6">
                 <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                  Page layout
+                  How your classes appear
                 </h2>
                 <div className="grid gap-3 sm:grid-cols-3">
                   {LAYOUT_OPTIONS.map((opt) => (
@@ -591,6 +657,7 @@ export function DesignClient({
                       key={opt.value}
                       type="button"
                       onClick={() => setPageLayout(opt.value)}
+                      aria-pressed={pageLayout === opt.value}
                       className={cn(
                         "rounded-xl border p-4 text-left transition-colors",
                         pageLayout === opt.value
@@ -612,20 +679,37 @@ export function DesignClient({
               </section>
             ) : null}
 
-            <div className="flex items-center justify-end gap-3">
-              {isStarter && <ProBadge />}
+            <div className={styles["saveBar"]}>
+              <div>
+                <strong>
+                  {isStarter
+                    ? "Explore your next chapter"
+                    : hasChanges
+                      ? "Your next look is taking shape"
+                      : "Your design is up to date"}
+                </strong>
+                <p>
+                  {isStarter
+                    ? "Try the styles here. Upgrade to publish your design."
+                    : hasChanges
+                      ? "Preview changes first. Save when it feels right."
+                      : "Changes only go live when you save."}
+                </p>
+              </div>
               <Button
                 variant="clay"
                 size="lg"
                 onClick={() => void handleSave()}
-                disabled={saving || uploading}
+                disabled={saving || uploading || (!hasChanges && !isStarter)}
               >
                 {saving ? (
                   <>
                     <Loader2 className="size-4 animate-spin" /> Saving…
                   </>
+                ) : isStarter ? (
+                  "Unlock my design with Pro"
                 ) : (
-                  "Save changes"
+                  "Save page design"
                 )}
               </Button>
             </div>
@@ -636,49 +720,34 @@ export function DesignClient({
             />
           </div>
 
-          <div className="lg:sticky lg:top-8">
-            <Label className="mb-3 block text-xs uppercase tracking-[0.18em] text-muted-foreground">
-              Preview
-            </Label>
-            <PublicPagePreview
-              showSampleClasses={false}
-              size="md"
-              instructor={{
-                pageTemplate,
-                pageFont,
-                coverImageUrl,
-                ebookEnabled: canUseProOffers(instructor) && instructor.ebookEnabled,
-                ebookTitle: instructor.ebookTitle,
-                ebookDescription: instructor.ebookDescription,
-                ebookPrice: instructor.ebookPrice,
-                ebookCoverUrl: instructor.ebookCoverUrl,
-                name: instructor.name,
-                photoUrl: instructor.photoUrl,
-                themeColor,
-                newsletterEnabled: newsletterButtonVisible(instructor),
-                backgroundType,
-                backgroundImageUrl,
-                backgroundColor,
-                backgroundGradientFrom,
-                backgroundGradientTo,
-                pageLayout,
-                bio: instructor.bio,
-                videoCallEnabled: canUseProOffers(instructor) && instructor.videoCallEnabled,
-                videoCallTitle: instructor.videoCallTitle,
-                videoCallDescription: instructor.videoCallDescription,
-                videoCallImageUrl: instructor.videoCallImageUrl,
-                videoCallPrice: instructor.videoCallPrice,
-                currency: instructor.currency,
-                socials: instructor.socials.map((s) => ({
-                  platform: s.platform.toLowerCase(),
-                  handle: s.handle,
-                })),
-              }}
-              classes={classes}
-            />
-          </div>
+          <aside className={styles["preview"]}>
+            <div className={styles["previewHeading"]}>
+              <span>
+                <span /> Live preview
+              </span>
+              <small>
+                {isStarter ? "Pro design preview" : hasChanges ? "Unsaved design" : "Saved design"}
+              </small>
+            </div>
+            <PublicPageLivePreview design={designSettings} />
+            <p className={styles["previewNote"]}>
+              Your actual public-page renderer, with your profile, offers, classes, and links.
+            </p>
+          </aside>
         </div>
       </div>
+      {leaveDialog}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-h-[95dvh] w-[calc(100%-1rem)] overflow-y-auto rounded-2xl p-4 sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Your next look</DialogTitle>
+            <DialogDescription>
+              This is a preview. Your page updates after you save.
+            </DialogDescription>
+          </DialogHeader>
+          <PublicPageLivePreview design={designSettings} />
+        </DialogContent>
+      </Dialog>
     </Wrapper>
   );
 }
