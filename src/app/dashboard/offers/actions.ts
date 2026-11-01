@@ -1,4 +1,5 @@
 "use server";
+import { needsPayoutSetup } from "@/lib/payout-setup";
 import { canUseProOffers } from "@/lib/offer-access";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
@@ -18,6 +19,8 @@ export async function updateVideoCallOffer(input: {
       ok: false,
       error: "An active Pro plan is required for consultation and ebook offers.",
     };
+  if (needsPayoutSetup(instructor, input.price ?? 0, input.enabled))
+    return { ok: false, error: "Connect your payout account before enabling a paid offer." };
   const meetingLink = input.meetingLink?.trim() || null;
 
   if (input.enabled && !meetingLink) {
@@ -59,6 +62,8 @@ export async function updateEbookOffer(input: {
       ok: false,
       error: "An active Pro plan is required for consultation and ebook offers.",
     };
+  if (needsPayoutSetup(instructor, input.price ?? 0, input.enabled))
+    return { ok: false, error: "Connect your payout account before enabling a paid offer." };
   const fileUrl = input.fileUrl?.trim() || null;
 
   if (input.enabled && !fileUrl) {

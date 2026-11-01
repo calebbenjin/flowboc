@@ -1,5 +1,6 @@
 "use server";
 
+import { needsPayoutSetup } from "@/lib/payout-setup";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { requireInstructor } from "@/lib/require-instructor";
@@ -11,6 +12,7 @@ import { accessBlockedReason } from "@/lib/trial";
 import { Prisma } from "@/generated/prisma/client";
 import {
   recurringDates,
+  buildRecurringLabel,
   shiftedOccurrence,
   shiftedRepeatDays,
   WEEKDAYS,
@@ -27,24 +29,6 @@ const publicationHistory = {
     { status: { in: ["PUBLISHED", "FULL", "COMPLETED"] as ClassStatus[] } },
   ],
 };
-
-const WEEKDAY_ABBREVS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const WEEKDAY_FULL: Record<string, string> = {
-  Mon: "Monday",
-  Tue: "Tuesday",
-  Wed: "Wednesday",
-  Thu: "Thursday",
-  Fri: "Friday",
-  Sat: "Saturday",
-  Sun: "Sunday",
-};
-
-function buildRecurringLabel(days: string[]): string {
-  const ordered = WEEKDAY_ABBREVS.filter((d) => days.includes(d)).map((d) => WEEKDAY_FULL[d]);
-  if (ordered.length === 0) return "Recurring";
-  if (ordered.length === 1) return `Every ${ordered[0]}`;
-  return `Every ${ordered.slice(0, -1).join(", ")} & ${ordered[ordered.length - 1]}`;
-}
 
 export type ClassInput = {
   name: string;
@@ -110,6 +94,8 @@ export async function createClass(input: ClassInput): Promise<ActionResult> {
 
   const error = validate(input);
   if (error) return { ok: false, error };
+  if (needsPayoutSetup(instructor, input.price, ["PUBLISHED", "FULL"].includes(input.status)))
+    return { ok: false, error: "Connect your payout account before publishing a paid class." };
   const blockedReason = input.status === "PUBLISHED" ? accessBlockedReason(instructor) : null;
   if (blockedReason) return { ok: false, error: blockedReason };
 
@@ -202,6 +188,8 @@ export async function updateClass(
   const { instructor, cls } = await requireOwnedClass(classId);
   const error = validate(input);
   if (error) return { ok: false, error };
+  if (needsPayoutSetup(instructor, input.price, ["PUBLISHED", "FULL"].includes(input.status)))
+    return { ok: false, error: "Connect your payout account before publishing a paid class." };
   if (scope !== "single" && scope !== "future")
     return { ok: false, error: "Choose a valid edit scope." };
   const blockedReason =

@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SessionProvider, useSession } from "next-auth/react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import posthog from "posthog-js";
+import { SessionActivity } from "@/components/SessionActivity";
 
 function PostHogSessionIdentity() {
   const { data: session, status } = useSession();
@@ -52,7 +53,8 @@ export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
 
   return (
-    <SessionProvider>
+    <SessionProvider refetchInterval={0} refetchOnWindowFocus refetchWhenOffline={false}>
+      <SessionActivity />
       <PostHogSessionIdentity />
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </SessionProvider>

@@ -1,7 +1,5 @@
 "use client";
 
-import { canUseProOffers } from "@/lib/offer-access";
-import { newsletterButtonVisible } from "@/lib/newsletter/access";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
@@ -9,11 +7,15 @@ import posthog from "posthog-js";
 import { toast } from "sonner";
 import { DashboardShell } from "@/components/DashboardShell";
 import { FirstClassCelebration, type ClassMilestone } from "@/components/FirstClassCelebration";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { ClassPublicPagePreview } from "@/components/ClassPublicPagePreview";
 import { ClassForm, type ClassFormDraft } from "@/components/ClassForm";
-import { effectivePublicTheme } from "@/lib/public-page-theme";
-import { PublicPagePreview } from "@/components/PublicPagePreview";
-import { useInstructor } from "@/components/InstructorProvider";
-import { draftToPreviewClass } from "@/lib/class-form-preview";
 import { createClass, type ClassInput } from "../actions";
 
 function readClassFormData(formData: FormData): Omit<ClassInput, "status"> {
@@ -55,9 +57,9 @@ function readClassFormData(formData: FormData): Omit<ClassInput, "status"> {
 
 export function NewClassClient() {
   const router = useRouter();
-  const instructor = useInstructor();
   const [milestone, setMilestone] = useState<ClassMilestone | null>(null);
   const [pending, setPending] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [draft, setDraft] = useState<ClassFormDraft | null>(null);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
@@ -112,7 +114,7 @@ export function NewClassClient() {
 
   return (
     <DashboardShell>
-      <div className="mx-auto max-w-5xl lg:grid lg:grid-cols-[1fr_280px] lg:items-start lg:gap-10">
+      <div className="mx-auto max-w-5xl lg:grid lg:grid-cols-[minmax(0,1fr)_350px] lg:items-start lg:gap-10">
         <div className="max-w-3xl">
           <Link href="/dashboard/classes" className="text-sm text-muted-foreground hover:text-clay">
             ← Back to classes
@@ -122,6 +124,14 @@ export function NewClassClient() {
             From an intention to an invitation. We’ll take it one step at a time.
           </p>
 
+          <button
+            type="button"
+            className="mt-4 min-h-11 rounded-xl border border-[#e0d5ed] px-4 text-sm text-[#6355ff] lg:hidden"
+            aria-haspopup="dialog"
+            onClick={() => setPreviewOpen((value) => !value)}
+          >
+            Preview my public page
+          </button>
           <ClassForm
             guided
             primaryLabel="Publish class"
@@ -133,44 +143,22 @@ export function NewClassClient() {
           />
         </div>
 
-        <div className="mt-8 hidden lg:sticky lg:top-8 lg:mt-24 lg:block">
-          <p className="mb-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">Preview</p>
-          <PublicPagePreview
-            size="md"
-            showSampleClasses={false}
-            instructor={{
-              ...effectivePublicTheme(instructor),
-              ebookEnabled: canUseProOffers(instructor) && instructor.ebookEnabled,
-              ebookTitle: instructor.ebookTitle,
-              ebookDescription: instructor.ebookDescription,
-              ebookPrice: instructor.ebookPrice,
-              ebookCoverUrl: instructor.ebookCoverUrl,
-              name: instructor.name,
-              photoUrl: instructor.photoUrl,
-              themeColor: instructor.themeColor,
-              newsletterEnabled: newsletterButtonVisible(instructor),
-              backgroundType: instructor.backgroundType,
-              backgroundImageUrl: instructor.backgroundImageUrl,
-              backgroundColor: instructor.backgroundColor,
-              backgroundGradientFrom: instructor.backgroundGradientFrom,
-              backgroundGradientTo: instructor.backgroundGradientTo,
-              pageLayout: instructor.pageLayout,
-              bio: instructor.bio,
-              videoCallEnabled: canUseProOffers(instructor) && instructor.videoCallEnabled,
-              videoCallTitle: instructor.videoCallTitle,
-              videoCallDescription: instructor.videoCallDescription,
-              videoCallImageUrl: instructor.videoCallImageUrl,
-              videoCallPrice: instructor.videoCallPrice,
-              currency: instructor.currency,
-              socials: instructor.socials.map((s) => ({
-                platform: s.platform.toLowerCase(),
-                handle: s.handle,
-              })),
-            }}
-            classes={draft ? [draftToPreviewClass(draft, instructor.currency)] : []}
-          />
-        </div>
+        <aside id="class-live-preview" className="hidden mt-8 lg:sticky lg:top-6 lg:mt-24 lg:block">
+          <p className="mb-3 text-xs text-muted-foreground">Live public-page preview</p>
+          <ClassPublicPagePreview draft={draft} />
+        </aside>
       </div>
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-h-[95dvh] w-[calc(100%-1rem)] overflow-y-auto rounded-2xl p-4 sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Your public page</DialogTitle>
+            <DialogDescription>
+              Preview your latest class details in your public-page design.
+            </DialogDescription>
+          </DialogHeader>
+          <ClassPublicPagePreview draft={draft} />
+        </DialogContent>
+      </Dialog>
     </DashboardShell>
   );
 }

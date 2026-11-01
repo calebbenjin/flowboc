@@ -101,6 +101,8 @@ export function SageClassCard({
   onJoinWaitlist,
   dateChips,
 }: ClassCardProps) {
+  const words = c.description?.trim().split(/\s+/) ?? [];
+  const descriptionPreview = words.slice(0, 8).join(" ") + (words.length > 8 ? "…" : "");
   return (
     <article className="sage-class-card">
       {c.coverUrl ? (
@@ -124,9 +126,9 @@ export function SageClassCard({
           {c.mode === "ONLINE" ? "Online" : "In studio"} · {c.durationMinutes} min
           {c.recurringLabel ? ` · ${c.recurringLabel}` : ""}
         </p>
-        {c.description ? (
-          <p className="whitespace-pre-wrap break-words text-sm leading-snug text-muted-foreground">
-            {c.description}
+        {descriptionPreview ? (
+          <p className="break-words text-sm leading-snug text-muted-foreground">
+            {descriptionPreview}
           </p>
         ) : null}
         {dateChips ? <DateChips {...dateChips} /> : null}
@@ -199,8 +201,15 @@ export function SageOfferCard({
         <p className="sage-eyebrow">{kind === "call" ? "One-to-one" : "Ebook"}</p>
         <h2>{title}</h2>
         {description ? <p className="sage-offer-description">{description}</p> : null}
-        <PriceTag price={price} currency={currency} priceClassName="text-lg font-medium" />
-        <button type="button" disabled={!available} onClick={onClick} className="sage-text-action">
+        <PriceTag price={price} currency={currency} priceClassName="text-base font-medium" />
+        <button
+          type="button"
+          disabled={!available}
+          onClick={onClick}
+          className="sage-text-action"
+          aria-label={`${kind === "call" ? "Book" : "View"} ${title}`}
+          aria-haspopup="dialog"
+        >
           {available ? (kind === "call" ? "Find a time" : "Explore the guide") : "Coming soon"}
           <ArrowRight className="size-4" />
         </button>
