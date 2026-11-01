@@ -40,7 +40,10 @@ export function WhyJourney() {
 
         <div className="grid grid-cols-1 gap-x-12 gap-y-6 pt-18 sm:grid-cols-2 lg:grid-cols-3 lg:gap-y-8 mx-auto w-full max-w-[990px]">
           {stops.map((stop, i) => (
-            <div key={stop.title} className={`items-center justify-center text-center gap-x-5 py-6`}>
+            <div
+              key={stop.title}
+              className={`items-center justify-center text-center gap-x-5 py-6`}
+            >
               {stop.featured ? (
                 <Flower2 className="row-span-2 size-20 text-primary mx-auto" />
               ) : (
