@@ -235,7 +235,7 @@
 .sage-banner {
   position: relative;
   width: 100vw;
-  height: clamp(180px, 25vw, 290px);
+  height: clamp(140px, 20vw, 220px);
   left: 50%;
   transform: translateX(-50%);
 }
@@ -245,12 +245,12 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 0 12px 22px;
-  margin-top: -96px;
+  padding: 0 12px 14px;
+  margin-top: -76px;
 }
 .sage-portrait {
-  width: 144px;
-  height: 172px;
+  width: 120px;
+  height: 144px;
   object-fit: cover;
   border-radius: 12px;
   border: 2px solid #faf7ee;
@@ -263,17 +263,17 @@
   font-size: 36px;
 }
 .sage-profile h1 {
-  margin-top: 18px;
-  font-size: clamp(34px, 6vw, 52px);
-  line-height: 1.1;
+  margin-top: 10px;
+  font-size: clamp(28px, 4.5vw, 38px);
+  line-height: 1.05;
   letter-spacing: -0.045em;
   overflow-wrap: anywhere;
 }
 .sage-bio {
   max-width: 420px;
-  margin-top: 14px;
+  margin-top: 8px;
   font-size: 12px;
-  line-height: 1.8;
+  line-height: 1.55;
   letter-spacing: 0.13em;
   text-transform: uppercase;
   text-wrap: pretty;
@@ -282,8 +282,8 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 18px;
-  margin-top: 18px;
+  gap: 6px;
+  margin-top: 8px;
 }
 .sage-socials a {
   display: grid;
@@ -329,7 +329,7 @@
   line-height: 1.35;
 }
 .sage-class-copy h2 {
-  font-size: clamp(24px, 4.5vw, 36px);
+  font-size: clamp(20px, 3.5vw, 28px);
   line-height: 1.12;
   letter-spacing: -0.025em;
   overflow-wrap: anywhere;
@@ -371,6 +371,7 @@
   cursor: default;
 }
 .sage-offer-card {
+  position: relative;
   display: flex;
   align-items: stretch;
   gap: 24px;
@@ -394,13 +395,13 @@
   line-height: 1.35;
 }
 .sage-offer-copy h2 {
-  font-size: clamp(23px, 4vw, 31px);
+  font-size: clamp(20px, 3.5vw, 26px);
   line-height: 1.18;
   letter-spacing: -0.02em;
   overflow-wrap: anywhere;
 }
 .sage-offer-description {
-  font-size: 14px;
+  font-size: 12px;
   line-height: 1.4;
   color: #60685b;
 }
@@ -410,9 +411,23 @@
   gap: 12px;
   min-height: 40px;
   font-family: var(--public-heading);
-  font-size: 19px;
+  font-size: 15px;
   text-decoration: underline;
   text-underline-offset: 5px;
+}
+.sage-text-action:not(:disabled)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  cursor: pointer;
+}
+.sage-offer-card:has(.sage-text-action:focus-visible) {
+  outline: 2px solid var(--sage-ink);
+  outline-offset: 4px;
+}
+.sage-offer-card:has(.sage-text-action:not(:disabled)):hover {
+  background: #f4f1e4;
 }
 .sage-text-action:disabled {
   text-decoration: none;
@@ -460,11 +475,11 @@
 }
 @media (max-width: 480px) {
   .sage-profile {
-    margin-top: -86px;
+    margin-top: -64px;
   }
   .sage-portrait {
-    width: 122px;
-    height: 146px;
+    width: 96px;
+    height: 116px;
   }
   .sage-class-card {
     gap: 12px;
@@ -493,7 +508,10 @@
     min-height: 120px;
   }
   .sage-offer-description {
-    font-size: 12px;
+    font-size: 11px;
+  }
+  .sage-text-action {
+    font-size: 14px;
   }
   .sage-link-row {
     padding: 16px 18px;

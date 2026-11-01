@@ -4,6 +4,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { prisma } from "@/lib/db";
 import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
 import { siteUrl } from "@/lib/site";
+import { canUseProDesign } from "@/lib/public-page-theme";
 import { BookingFlowClient } from "./booking-flow-client";
 
 export async function generateMetadata({
@@ -95,11 +96,18 @@ export default async function BookingPage({
       <BookingFlowClient
         slug={slug}
         instructorName={instructor.name}
+        instructorPhoto={instructor.photoUrl}
+        accentColor={
+          canUseProDesign(instructor) && /^#[0-9a-fA-F]{6}$/.test(instructor.themeColor)
+            ? instructor.themeColor
+            : "#6355ff"
+        }
         currency={instructor.currency}
         cls={{
           id: cls.id,
           name: cls.name,
           coverUrl: cls.coverUrl,
+          description: cls.description,
           startAt: cls.startAt,
           timezone: cls.timezone,
           durationMinutes: cls.durationMinutes,

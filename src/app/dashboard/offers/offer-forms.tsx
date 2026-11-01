@@ -1,5 +1,4 @@
 "use client";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type FormEvent } from "react";
 import { upload } from "@vercel/blob/client";
@@ -12,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { compressImage } from "@/lib/compress-image";
+import { usePayoutSetup } from "@/hooks/use-payout-setup";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { cn } from "@/lib/utils";
 import { updateVideoCallOffer, updateEbookOffer } from "./actions";
@@ -209,6 +209,7 @@ function EbookFileUpload({
 export function OfferSetupForm({ kind }: { kind: "session" | "ebook" }) {
   const router = useRouter();
   const instructor = useInstructor();
+  const payoutSetup = usePayoutSetup();
   const [dirty, setDirty] = useState(false);
   const [busyUploads, setBusyUploads] = useState(0);
   const onUploadBusy = (busy: boolean) =>
@@ -234,6 +235,7 @@ export function OfferSetupForm({ kind }: { kind: "session" | "ebook" }) {
     const formData = new FormData(e.currentTarget);
     const price = String(formData.get("videoCallPrice") ?? "").trim();
 
+    if (payoutSetup.check(Number(price), videoCallEnabled)) return;
     setVideoCallPending(true);
     try {
       const result = await updateVideoCallOffer({
@@ -264,6 +266,7 @@ export function OfferSetupForm({ kind }: { kind: "session" | "ebook" }) {
     const formData = new FormData(e.currentTarget);
     const price = String(formData.get("ebookPrice") ?? "").trim();
 
+    if (payoutSetup.check(Number(price), ebookEnabled)) return;
     setEbookPending(true);
     try {
       const result = await updateEbookOffer({
@@ -364,11 +367,14 @@ export function OfferSetupForm({ kind }: { kind: "session" | "ebook" }) {
                 placeholder="Leave blank for free"
               />
               <p className="text-xs text-muted-foreground">
-                Leave blank for free. A priced call charges through Paystack at booking — stays
-                &quot;Coming soon&quot; on your page until you&apos;ve{" "}
-                <Link href="/dashboard/payouts" className="underline underline-offset-2">
-                  connected a payout account
-                </Link>
+                Leave blank for free. Paid sessions use Paystack. Before going live, you’ll need a{" "}
+                <button
+                  type="button"
+                  onClick={() => payoutSetup.check(1)}
+                  className="underline underline-offset-2"
+                >
+                  connected payout account
+                </button>
                 .
               </p>
             </div>
@@ -479,11 +485,15 @@ export function OfferSetupForm({ kind }: { kind: "session" | "ebook" }) {
               placeholder="Leave blank for free"
             />
             <p className="text-xs text-muted-foreground">
-              Leave blank for a free download. A priced ebook charges through Paystack at checkout —
-              stays &quot;Coming soon&quot; on your page until you&apos;ve{" "}
-              <Link href="/dashboard/payouts" className="underline underline-offset-2">
-                connected a payout account
-              </Link>
+              Leave blank for a free download. Paid ebooks use Paystack. Before going live, you’ll
+              need a{" "}
+              <button
+                type="button"
+                onClick={() => payoutSetup.check(1)}
+                className="underline underline-offset-2"
+              >
+                connected payout account
+              </button>
               .
             </p>
           </div>
@@ -504,6 +514,7 @@ export function OfferSetupForm({ kind }: { kind: "session" | "ebook" }) {
         </form>
       )}
       {leaveDialog}
+      {payoutSetup.dialog}
     </div>
   );
 }

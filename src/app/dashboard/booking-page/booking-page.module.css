@@ -1,0 +1,83 @@
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: #a38ab3;
+}
+.header h1 {
+  font-size: 35px;
+  letter-spacing: -0.04em;
+  margin-top: 9px;
+}
+.header > div > p:last-child {
+  font-size: 12px;
+  line-height: 1.8;
+  color: #9b80ac;
+  margin-top: 9px;
+}
+.tabs {
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  background: #f5f1f9;
+  border: 1px solid #e8dfef;
+  border-radius: 14px;
+  margin-top: 26px;
+  max-width: 440px;
+}
+.tab {
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 15px;
+  min-height: 46px;
+  border-radius: 10px;
+  color: #a085b1;
+  font-size: 12px;
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+.tab[aria-current="page"] {
+  background: #fffdf9;
+  color: #6355ff;
+  box-shadow: 0 2px 7px #72568a0a;
+}
+.tab:hover {
+  color: #6355ff;
+}
+.tab:focus-visible {
+  outline: 2px solid #6355ff;
+  outline-offset: 3px;
+}
+@media (max-width: 480px) {
+  .header h1 {
+    font-size: 32px;
+  }
+  .header {
+    gap: 15px;
+  }
+  .tabs {
+    margin-top: 22px;
+    max-width: none;
+  }
+  .tab {
+    font-size: 11px;
+    padding: 11px 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tab {
+    transition: none;
+  }
+}

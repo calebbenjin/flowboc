@@ -1,4 +1,5 @@
 import NextAuth from "next-auth";
+import { SESSION_MAX_AGE_SECONDS, sessionIdleExpired } from "@/lib/session-policy";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
@@ -6,7 +7,8 @@ import { prisma } from "@/lib/db";
 import type { Role } from "@/generated/prisma/enums";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt", maxAge: SESSION_MAX_AGE_SECONDS },
+  jwt: { maxAge: SESSION_MAX_AGE_SECONDS },
   pages: { signIn: "/auth" },
   providers: [
     Credentials({
@@ -36,6 +38,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, user, account }) {
+      if (!user && sessionIdleExpired(token)) return null;
       // Google already verifies the email, so this skips the OTP flow
       // entirely — find-or-create the User row directly rather than going
       // through src/app/auth/actions.ts's signUp/verifyOtp pair.

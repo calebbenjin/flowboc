@@ -3,11 +3,15 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import ts from "typescript";
-import { recurringDates } from "../src/lib/class-schedule.ts";
+import { needsPayoutSetup } from "../src/lib/payout-setup.ts";
+import { recurringDates, buildRecurringLabel } from "../src/lib/class-schedule.ts";
 
 // Exercise the real server actions with an in-memory transaction boundary.
 // No database, account, payment, or email is touched by these tests.
-function actionsWithHistory(history = []) {
+function actionsWithHistory(
+  history = [],
+  account = { payoutStatus: "CONNECTED", payoutAccountId: "test-account" },
+) {
   let rows = history.map((row, i) => ({
     id: `class-${i}`,
     instructorId: "teacher",
@@ -59,9 +63,10 @@ function actionsWithHistory(history = []) {
   };
   const modules = {
     "node:crypto": { randomUUID },
+    "@/lib/payout-setup": { needsPayoutSetup },
     "@/lib/db": { prisma },
     "@/lib/require-instructor": {
-      requireInstructor: async () => ({ id: "teacher", planTier: "PRO" }),
+      requireInstructor: async () => ({ id: "teacher", planTier: "PRO", ...account }),
     },
     "@/lib/class-deadline": { deadlineLabelToMinutes: () => 120 },
     "@/lib/timezone": { zonedDateTimeToUtc: (date, time) => new Date(`${date}T${time}:00Z`) },
@@ -76,6 +81,7 @@ function actionsWithHistory(history = []) {
     },
     "@/lib/class-schedule": {
       recurringDates,
+      buildRecurringLabel,
       WEEKDAYS: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     },
   };
@@ -157,4 +163,19 @@ test("invalid classes cannot trigger a milestone or write rows", async () => {
   const actions = actionsWithHistory();
   assert.equal((await actions.createClass({ ...practice, name: "" })).ok, false);
   assert.equal(actions.rows().length, 0);
+});
+
+test("paid publication requires connected payouts, while drafts and free classes remain available", async () => {
+  for (const account of [
+    { payoutStatus: "NOT_CONNECTED", payoutAccountId: null },
+    { payoutStatus: "CONNECTED", payoutAccountId: null },
+  ]) {
+    const actions = actionsWithHistory([{}], account);
+    assert.equal((await actions.createClass(practice)).ok, false);
+    assert.equal((await actions.updateClass("class-0", practice)).ok, false);
+    assert.equal(actions.rows().length, 1);
+    assert.equal(actions.rows()[0].status, "DRAFT");
+    assert.equal((await actions.createClass({ ...practice, status: "DRAFT" })).ok, true);
+    assert.equal((await actions.createClass({ ...practice, price: 0 })).ok, true);
+  }
 });

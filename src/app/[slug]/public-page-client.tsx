@@ -1407,11 +1407,14 @@ export function PublicPageClient({
             })}
             {isSage ? (
               <>
-                <Link href={`/${instructor.slug}/classes`} className="sage-link-row">
-                  <Leaf className="size-5 shrink-0" aria-hidden="true" />
-                  <span className="flex-1">Upcoming classes</span>
-                  <ArrowRight className="size-4 shrink-0" />
-                </Link>
+                {(classes.length > 1 ||
+                  classes.some((cls) => cls.seriesId || cls.recurringLabel)) && (
+                  <Link href={`/${instructor.slug}/classes`} className="sage-link-row">
+                    <Leaf className="size-5 shrink-0" aria-hidden="true" />
+                    <span className="flex-1">Upcoming classes</span>
+                    <ArrowRight className="size-4 shrink-0" />
+                  </Link>
+                )}
                 {instructor.newsletterEnabled !== false && (
                   <NewsletterSignupDialog slug={instructor.slug} sage />
                 )}

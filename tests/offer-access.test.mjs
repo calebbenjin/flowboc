@@ -3,6 +3,7 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
 import { z } from "zod";
+import { needsPayoutSetup } from "../src/lib/payout-setup.ts";
 import { canUseProOffers } from "../src/lib/offer-access.ts";
 const active = { planTier: "PRO", planStatus: "ACTIVE", trialEndsAt: null, compedUntil: null };
 const denied = [
@@ -15,6 +16,7 @@ function loadActions(path, account) {
   const writes = [];
   const dependencies = {
     "@/lib/offer-access": { canUseProOffers },
+    "@/lib/payout-setup": { needsPayoutSetup },
     "@/lib/require-instructor": {
       requireInstructor: async () => ({ id: "teacher", slug: "teacher", ...account }),
     },
@@ -97,4 +99,24 @@ test("direct public consultation booking and ebook checkout reject ineligible in
     assert.equal((await actions.buyEbook(input)).ok, false);
     assert.equal(actions.writes.length, 0);
   }
+});
+
+test("paid enabled offers require payouts; hidden drafts and free offers can still save", async () => {
+  const actions = loadActions("../src/app/dashboard/offers/actions.ts", active);
+  const session = { enabled: true, price: 20, meetingLink: "https://example.com/session" };
+  const ebook = { enabled: true, price: 15, fileUrl: "https://example.com/ebook.pdf" };
+  assert.equal((await actions.updateVideoCallOffer(session)).ok, false);
+  assert.equal((await actions.updateEbookOffer(ebook)).ok, false);
+  assert.equal(actions.writes.length, 0);
+  assert.equal((await actions.updateVideoCallOffer({ ...session, enabled: false })).ok, true);
+  assert.equal((await actions.updateEbookOffer({ ...ebook, enabled: false })).ok, true);
+  assert.equal((await actions.updateVideoCallOffer({ ...session, price: 0 })).ok, true);
+  assert.equal((await actions.updateEbookOffer({ ...ebook, price: 0 })).ok, true);
+  const connected = loadActions("../src/app/dashboard/offers/actions.ts", {
+    ...active,
+    payoutStatus: "CONNECTED",
+    payoutAccountId: "test-account",
+  });
+  assert.equal((await connected.updateVideoCallOffer(session)).ok, true);
+  assert.equal((await connected.updateEbookOffer(ebook)).ok, true);
 });

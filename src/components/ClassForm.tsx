@@ -18,6 +18,7 @@ import { DEADLINE_OPTIONS, deadlineMinutesToLabel } from "@/lib/class-deadline";
 import { estimatePaystackFee, payoutProviderForCurrency } from "@/lib/payout";
 import { useInstructor } from "@/components/InstructorProvider";
 import { recurringDates } from "@/lib/class-schedule";
+import { usePayoutSetup } from "@/hooks/use-payout-setup";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import {
   Dialog,
@@ -58,6 +59,7 @@ export type ClassFormInitial = {
 
 export type ClassFormProps = {
   guided?: boolean;
+  requiresPayout?: boolean;
   initial?: ClassFormInitial;
   onSubmit: (e: FormEvent<HTMLFormElement>) => Promise<boolean>;
   editScope?: "single" | "future";
@@ -78,6 +80,11 @@ export type ClassFormProps = {
 };
 
 export type ClassFormDraft = {
+  capacity?: number;
+  location?: string;
+  recurring?: boolean;
+  recurringDays?: string[];
+  horizonDays?: number;
   durationMinutes?: number;
   online?: boolean;
   description?: string;
@@ -195,6 +202,7 @@ function CoverPhotoUpload({
 
 export function ClassForm({
   guided = false,
+  requiresPayout = true,
   initial,
   onSubmit,
   primaryLabel,
@@ -207,6 +215,7 @@ export function ClassForm({
   affectedCount = 1,
 }: ClassFormProps) {
   const instructor = useInstructor();
+  const payoutSetup = usePayoutSetup();
   const [step, setStep] = useState(0);
   const [furthestStep, setFurthestStep] = useState(0);
   const [imagePending, setImagePending] = useState(false);
@@ -261,6 +270,8 @@ export function ClassForm({
   const [timezone, setTimezone] = useState(initial?.timezone ?? instructor.timezone);
   const [durationMinutes, setDurationMinutes] = useState(initial?.durationMinutes ?? 60);
   const [price, setPrice] = useState(initial?.price ?? 0);
+  const [capacity, setCapacity] = useState(initial?.capacity ?? 12);
+  const [location, setLocation] = useState(initial?.location ?? "");
   const [originalPrice, setOriginalPrice] = useState<number | null>(initial?.originalPrice ?? null);
 
   const formRef = useRef<HTMLFormElement>(null);
@@ -382,6 +393,10 @@ export function ClassForm({
       }
       if (!validateStep(true)) return;
     }
+    if (!isDraft && payoutSetup.check(price, requiresPayout)) {
+      event.preventDefault();
+      return;
+    }
     if (!guided && !isDraft && !approved.current) {
       event.preventDefault();
       if (recurring && !initial && scheduleDates.length === 0) {
@@ -411,6 +426,11 @@ export function ClassForm({
 
   useEffect(() => {
     onLiveChange?.({
+      capacity,
+      location,
+      recurring,
+      recurringDays: pickedDays,
+      horizonDays,
       durationMinutes,
       online,
       name,
@@ -425,6 +445,11 @@ export function ClassForm({
     // onLiveChange's identity shouldn't retrigger this — only the field values should.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    capacity,
+    location,
+    recurring,
+    pickedDays,
+    horizonDays,
     durationMinutes,
     online,
     name,
@@ -787,7 +812,8 @@ export function ClassForm({
               name="location"
               type={guided && online ? "url" : "text"}
               placeholder={online ? "https://zoom.us/j/…" : "Freedom Park Studio, Lekki"}
-              defaultValue={initial?.location}
+              value={location}
+              onChange={(event) => setLocation(event.target.value)}
             />
           </div>
         </section>
@@ -829,7 +855,8 @@ export function ClassForm({
                 type="number"
                 min={1}
                 required
-                defaultValue={initial?.capacity ?? 12}
+                value={capacity}
+                onChange={(event) => setCapacity(Number(event.target.value))}
               />
             </div>
             <div className="space-y-2">
@@ -1020,6 +1047,7 @@ export function ClassForm({
         )}
       </form>
       {leaveDialog}
+      {payoutSetup.dialog}
       <Dialog
         open={review !== null}
         onOpenChange={(open) => {

@@ -2,12 +2,12 @@ import { canUseProOffers } from "@/lib/offer-access";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
-import { timezoneLabel } from "@/lib/demo";
 import { prisma } from "@/lib/db";
 import { getCurrentInstructor } from "@/lib/get-current-instructor";
 import { resolveBlockOrder } from "@/lib/public-page-blocks";
 import { DashboardShell } from "@/components/DashboardShell";
+import { Leaf, Palette, Layers } from "lucide-react";
+import styles from "./booking-page.module.css";
 import { BookingLinkAction } from "@/components/BookingLinkAction";
 import { DesignClient } from "../design/design-client";
 import { LinksClient } from "../links/links-client";
@@ -38,34 +38,6 @@ export default async function BookingPage({
     }),
   ]);
 
-  const previewClasses = await prisma.yogaClass.findMany({
-    where: {
-      instructorId: instructor.id,
-      status: { in: ["PUBLISHED", "FULL"] },
-      startAt: { gte: new Date() },
-    },
-    orderBy: { startAt: "asc" },
-    take: 8,
-    include: {
-      _count: {
-        select: {
-          bookings: { where: { status: "CONFIRMED", paymentStatus: { in: ["PAID", "PENDING"] } } },
-        },
-      },
-    },
-  });
-  const classes = previewClasses.map((cls) => ({
-    id: cls.id,
-    name: cls.name,
-    description: cls.description,
-    coverUrl: cls.coverUrl,
-    dateLabel: `${formatClassDate(cls)} · ${formatClassTime(cls)} ${timezoneLabel(cls.timezone)}`,
-    formatLabel: `${cls.mode === "ONLINE" ? "Online" : "In studio"} · ${cls.durationMinutes} min`,
-    price: cls.price,
-    originalPrice: cls.originalPrice,
-    currency: instructor.currency,
-    spots: Math.max(0, cls.capacity - cls._count.bookings),
-  }));
   const blockOrder = resolveBlockOrder(
     instructor.publicPageBlockOrder,
     links.map((l) => l.id),
@@ -73,35 +45,36 @@ export default async function BookingPage({
 
   return (
     <DashboardShell>
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <header className={styles["header"]}>
         <div>
-          <h1 className="text-3xl">Booking page</h1>
+          <p className={styles["eyebrow"]}>
+            <Leaf size={14} strokeWidth={1.4} /> An invitation to your practice
+          </p>
+          <h1>Booking page</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Manage what students see and how your page looks.
           </p>
         </div>
         <BookingLinkAction />
-      </div>
-      <nav
-        aria-label="Booking page settings"
-        className="my-6 flex gap-2 border-b border-border pb-3"
-      >
+      </header>
+      <nav aria-label="Booking page settings" className={styles["tabs"]}>
         {[
-          { key: "design", label: "Appearance" },
-          { key: "content", label: "Content and links" },
+          { key: "design", label: "Page design", Icon: Palette },
+          { key: "content", label: "Content & links", Icon: Layers },
         ].map((item) => (
           <Link
             key={item.key}
             href={`/dashboard/booking-page?tab=${item.key}`}
             aria-current={tab === item.key ? "page" : undefined}
-            className={`rounded-lg px-4 py-2 text-sm font-medium ${tab === item.key ? "bg-clay/10 text-clay" : "text-muted-foreground hover:bg-accent"}`}
+            className={styles["tab"]}
           >
+            <item.Icon size={16} strokeWidth={1.5} />
             {item.label}
           </Link>
         ))}
       </nav>
       {tab === "design" ? (
-        <DesignClient embedded classes={classes} />
+        <DesignClient embedded />
       ) : (
         <LinksClient
           embedded

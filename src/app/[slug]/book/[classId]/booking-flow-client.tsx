@@ -1,11 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef, type CSSProperties } from "react";
 import { useSearchParams } from "next/navigation";
 import posthog from "posthog-js";
 import { toast } from "sonner";
-import { AlertTriangle, CalendarPlus, Check, Download, Loader2, Lock } from "lucide-react";
+import {
+  AlertTriangle,
+  CalendarPlus,
+  Check,
+  Download,
+  Loader2,
+  Lock,
+  CalendarDays,
+  Clock,
+  MapPin,
+  Video,
+  Flower2,
+  ArrowLeft,
+  ChevronDown,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NewsletterOptIn } from "@/components/NewsletterOptIn";
 import { Input } from "@/components/ui/input";
@@ -15,6 +29,7 @@ import { PriceTag } from "@/components/PriceTag";
 import { money, timezoneLabel, type CurrencyCode } from "@/lib/demo";
 import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
 import { googleCalendarUrl } from "@/lib/calendar";
+import styles from "./booking.module.css";
 import { usePendingAction } from "@/hooks/use-pending-action";
 import {
   checkResumableBooking,
@@ -35,6 +50,7 @@ export type BookableClass = {
   id: string;
   name: string;
   coverUrl: string | null;
+  description?: string | null;
   startAt: Date;
   timezone: string;
   durationMinutes: number;
@@ -51,17 +67,29 @@ export function BookingFlowClient({
   instructorName,
   currency,
   cls,
+  instructorPhoto = null,
+  accentColor = "#6355ff",
 }: {
   slug: string;
   instructorName: string;
   currency: CurrencyCode;
   cls: BookableClass;
+  instructorPhoto?: string | null;
+  accentColor?: string;
 }) {
   const searchParams = useSearchParams();
   const returningReference = searchParams.get("reference");
 
   const [step, setStep] = useState<Step>(returningReference ? "confirming" : "details");
   const [name, setName] = useState("");
+  const progressRef = useRef<HTMLElement>(null);
+  const previousStep = useRef(step);
+  useEffect(() => {
+    if (previousStep.current === step) return;
+    previousStep.current = step;
+    progressRef.current?.focus({ preventScroll: true });
+    progressRef.current?.scrollIntoView({ block: "start" });
+  }, [step]);
   const [bookingId, setBookingId] = useState<string | null>(null);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   // "checking" until we know whether this visitor is sitting on their own
@@ -190,7 +218,7 @@ export function BookingFlowClient({
     );
   }
 
-  if (cls.spots <= 0 && resumeStatus !== "resumable") {
+  if (cls.spots <= 0 && resumeStatus !== "resumable" && step === "details") {
     return (
       <div className="min-h-screen bg-sand/50 px-4 py-12">
         <div className="mx-auto max-w-2xl text-center">
@@ -248,81 +276,128 @@ export function BookingFlowClient({
     }
   }
 
+  const steps: Step[] = cls.price === 0 ? ["details", "done"] : ["details", "payment", "done"];
   return (
-    <div className="min-h-screen bg-sand/50 px-4 py-12">
-      <div className="mx-auto max-w-2xl">
-        <Link href={`/${slug}`} className="text-sm text-muted-foreground hover:text-clay">
-          ← {instructorName}
+    <div className={styles["page"]} style={{ "--booking-accent": accentColor } as CSSProperties}>
+      <div className={styles["container"]}>
+        <Link href={`/${slug}`} className={styles["back"]}>
+          <ArrowLeft size={15} /> Back to {instructorName.split(" ")[0]}’s page
         </Link>
-
-        <div className="surface mt-4 p-5">
-          <div className="flex items-center gap-4 mb-4">
-            {cls.coverUrl ? (
-              <img
-                src={cls.coverUrl}
-                alt={cls.name}
-                loading="lazy"
-                width={1200}
-                height={800}
-                className="size-16 rounded-md object-cover"
-              />
-            ) : (
-              <div className="size-16 shrink-0 rounded-md bg-sand" />
-            )}
-            <div className="flex-1 mt-2">
-              <h1 className="text-xl">{cls.name}</h1>
-              <p className="text-sm text-muted-foreground">
-                {formatClassDate(cls)} · {formatClassTime(cls)} {timezoneLabel(cls.timezone)} ·{" "}
-                {cls.durationMinutes} min ·{" "}
-                {cls.mode === "ONLINE"
-                  ? "Online — link shared once you're booked"
-                  : (cls.location ?? "Location TBC")}
-              </p>
-            </div>
+        <header className={styles["teacher"]}>
+          {instructorPhoto ? (
+            <img src={instructorPhoto} alt="" width={40} height={40} />
+          ) : (
+            <span>
+              <Flower2 size={23} strokeWidth={1.3} />
+            </span>
+          )}
+          <div>
+            <small>A little time for yourself</small>
+            <p>Practice with {instructorName}</p>
           </div>
-          <PriceTag
-            price={cls.price}
-            originalPrice={cls.originalPrice ?? undefined}
-            currency={currency}
-            priceClassName="display text-xl"
-          />
-        </div>
-
-        <div className="mt-6 flex items-center gap-2 text-xs text-muted-foreground">
-          {(["details", "payment", "done"] as const).map((s, i) => {
-            const active = step === s || (s === "payment" && step === "confirming");
-            return (
-              <div key={s} className="flex items-center gap-2">
-                <span
-                  className={
-                    active
-                      ? "rounded-full bg-clay px-2.5 py-1 font-medium text-clay-foreground"
-                      : "rounded-full bg-secondary px-2.5 py-1"
-                  }
-                >
-                  {i + 1}.{" "}
-                  {s === "details" ? "Your details" : s === "payment" ? "Payment" : "Confirmed"}
+        </header>
+        <section className={styles["summary"]} aria-label="Your class">
+          {cls.coverUrl && (
+            <img src={cls.coverUrl} alt="" width={800} height={400} className={styles["cover"]} />
+          )}
+          <div className={styles["summaryBody"]}>
+            <div className={styles["titleRow"]}>
+              <div>
+                <span className={styles["eyebrow"]}>
+                  {cls.mode === "ONLINE" ? "An online practice" : "Meet on the mat"}
                 </span>
-                {i < 2 && <span className="h-px w-6 bg-border" />}
+                <h1>{cls.name}</h1>
               </div>
-            );
-          })}
-        </div>
+              <div className={styles["price"]}>
+                <PriceTag
+                  price={cls.price}
+                  originalPrice={cls.originalPrice ?? undefined}
+                  currency={currency}
+                />
+                <span>{cls.price === 0 ? "No payment needed" : "per person"}</span>
+              </div>
+            </div>
+            <dl className={styles["classDetails"]}>
+              <div>
+                <CalendarDays size={18} />
+                <dt>Date</dt>
+                <dd>{formatClassDate(cls)}</dd>
+              </div>
+              <div>
+                <Clock size={18} />
+                <dt>Time & duration</dt>
+                <dd>
+                  {formatClassTime(cls)} · {cls.durationMinutes} min
+                  <small>{timezoneLabel(cls.timezone)}</small>
+                </dd>
+              </div>
+              <div>
+                {cls.mode === "ONLINE" ? <Video size={18} /> : <MapPin size={18} />}
+                <dt>{cls.mode === "ONLINE" ? "Online class" : "Location"}</dt>
+                <dd>
+                  {cls.mode === "ONLINE"
+                    ? "Joining details in your confirmation email"
+                    : (cls.location ?? "Location to be confirmed")}
+                </dd>
+              </div>
+            </dl>
+            {cls.description?.trim() && (
+              <section className={styles["about"]} aria-labelledby="about-class">
+                <h2 id="about-class">About this practice</h2>
+                <p>{cls.description}</p>
+              </section>
+            )}
+            {cls.cancellationPolicy && (
+              <details className={styles["policy"]}>
+                <summary>
+                  Cancellation policy <ChevronDown size={14} />
+                </summary>
+                <p>{cls.cancellationPolicy}</p>
+              </details>
+            )}
+          </div>
+        </section>
+        <nav
+          ref={progressRef}
+          tabIndex={-1}
+          className={styles["steps"]}
+          aria-label="Booking progress"
+        >
+          <ol>
+            {steps.map((value, index) => {
+              const active = step === value || (value === "payment" && step === "confirming");
+              const completed = steps.indexOf(step === "confirming" ? "payment" : step) > index;
+              return (
+                <li
+                  key={value}
+                  aria-current={active ? "step" : undefined}
+                  data-complete={completed}
+                >
+                  <span>{completed ? <Check size={12} /> : index + 1}</span>
+                  {value === "details"
+                    ? "Your details"
+                    : value === "payment"
+                      ? "Payment"
+                      : "Confirmed"}
+                </li>
+              );
+            })}
+          </ol>
+        </nav>
 
         {step === "details" && (
-          <form
-            className="surface mt-4 space-y-4 p-6"
-            onSubmit={(e) => void handleDetailsSubmit(e)}
-          >
-            <p className="text-sm text-muted-foreground">
-              No account needed — just your details for the register.
-            </p>
+          <form className={styles["panel"]} onSubmit={(e) => void handleDetailsSubmit(e)}>
+            <div className={styles["panelHeading"]}>
+              <h2>Your place starts here</h2>
+              <p>No account needed. Just a few details so your teacher can welcome you.</p>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="fn">Full name</Label>
                 <Input
                   id="fn"
                   name="fn"
+                  autoComplete="name"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -331,49 +406,79 @@ export function BookingFlowClient({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="em">Email</Label>
-                <Input id="em" name="em" type="email" required placeholder="sarah@mail.com" />
+                <Input
+                  id="em"
+                  name="em"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  placeholder="you@example.com"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="ph">Phone number</Label>
-                <Input id="ph" name="ph" required placeholder="+234 803 000 0000" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ec">Emergency contact (optional)</Label>
-                <Input id="ec" name="ec" placeholder="Name and number" />
+                <Input
+                  id="ph"
+                  name="ph"
+                  type="tel"
+                  autoComplete="tel"
+                  required
+                  placeholder="+234 803 000 0000"
+                />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="nt">Anything I should know? (optional)</Label>
-              <Textarea
-                id="nt"
-                name="nt"
-                rows={2}
-                placeholder="Injuries, first class, pregnancy…"
-              />
-            </div>
+            <details className={styles["optional"]}>
+              <summary>
+                <div>
+                  A note for your teacher
+                  <span>Optional · emergency contact or anything you’d like to share</span>
+                </div>
+                <ChevronDown size={16} />
+              </summary>
+              <div className={styles["optionalFields"]}>
+                <div className="space-y-2">
+                  <Label htmlFor="ec">Emergency contact</Label>
+                  <Input id="ec" name="ec" placeholder="Name and number" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="nt">Anything you’d like your teacher to know?</Label>
+                  <Textarea
+                    id="nt"
+                    name="nt"
+                    rows={3}
+                    placeholder="First class, accessibility needs, or a question about the practice…"
+                  />
+                </div>
+                <p>Only share what you’re comfortable sharing.</p>
+              </div>
+            </details>
             <NewsletterOptIn />
-            {cls.cancellationPolicy && (
-              <p className="text-xs text-muted-foreground">{cls.cancellationPolicy}</p>
-            )}
+
             <Button
               type="submit"
               variant="default"
               size="lg"
-              className="w-full"
+              className={styles["primary"]}
               disabled={detailsAction.isPending}
             >
               {detailsAction.isSlow
                 ? "Still working — check your connection…"
                 : detailsAction.isPending
                   ? "Reserving your spot…"
-                  : "Continue to payment"}
+                  : cls.price === 0
+                    ? "Reserve my spot"
+                    : "Continue to payment"}
             </Button>
           </form>
         )}
 
         {step === "payment" && (
-          <div className="surface mt-4 space-y-4 p-6">
-            <div className="flex items-center justify-between rounded-lg bg-sand/70 px-4 py-3 text-sm">
+          <div className={styles["panel"]}>
+            <div className={styles["panelHeading"]}>
+              <h2>One last step to the mat</h2>
+              <p>Your total is below. Complete payment to confirm your place.</p>
+            </div>
+            <div className={styles["total"]}>
               <span>{cls.name}</span>
               <span className="font-medium">{money(cls.price, currency)}</span>
             </div>
@@ -385,7 +490,7 @@ export function BookingFlowClient({
               type="button"
               variant="clay"
               size="lg"
-              className="w-full"
+              className={styles["primary"]}
               disabled={payAction.isPending}
               onClick={() => void handlePay()}
             >
@@ -399,7 +504,7 @@ export function BookingFlowClient({
         )}
 
         {step === "confirming" && (
-          <div className="surface mt-4 p-8 text-center">
+          <div className={styles["confirmation"]}>
             {confirmError ? (
               <>
                 <AlertTriangle className="mx-auto size-6 text-warning-foreground" />
@@ -427,23 +532,37 @@ export function BookingFlowClient({
         )}
 
         {step === "done" && (
-          <div className="surface mt-4 p-8 text-center">
-            <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-success/15">
-              <Check className="size-6 text-success" />
+          <div className={styles["confirmation"]}>
+            <div className={styles["successIcon"]}>
+              <Check size={26} strokeWidth={1.5} />
             </div>
-            <h2 className="mt-5 text-2xl">You're booked</h2>
+            <span className={styles["eyebrow"]}>A little space, just for you</span>
+            <h2 className="mt-3 text-3xl">You’re on the mat.</h2>
             <p className="mt-2 text-muted-foreground">
-              {name || "You"} are booked for {cls.name} with {instructorName.split(" ")[0]}.
+              {name ? `${name}, your` : "Your"} place in {cls.name} with{" "}
+              {instructorName.split(" ")[0]} is confirmed.
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               {formatClassDate(cls)} · {formatClassTime(cls)} {timezoneLabel(cls.timezone)} ·{" "}
-              {cls.location ?? "Location TBC"}
+              {cls.mode === "ONLINE"
+                ? "Online class"
+                : (cls.location ?? "Location to be confirmed")}
             </p>
             <p className="mt-4 text-sm">
-              Payment of {money(cls.price, currency)} was successful. A confirmation email is on its
-              way.
+              {cls.price === 0
+                ? "Your place is reserved. No payment needed."
+                : `Your payment of ${money(cls.price, currency)} is confirmed.`}{" "}
+              Your booking confirmation will be sent by email.
             </p>
 
+            <div className={styles["nextSteps"]}>
+              <h3>Before your practice</h3>
+              <p>
+                {cls.mode === "ONLINE"
+                  ? "Check your confirmation email for the joining details. Give yourself a few minutes to settle in before class."
+                  : "Check the class location above and your confirmation email for any instructions from your teacher."}
+              </p>
+            </div>
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               <Button variant="quiet" asChild>
                 <a
@@ -474,6 +593,9 @@ export function BookingFlowClient({
             </Link>
           </div>
         )}
+        <footer className={styles["footer"]}>
+          Booking with <Link href="/">Flowboc</Link> · A little more space for your practice.
+        </footer>
       </div>
     </div>
   );
