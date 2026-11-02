@@ -11,7 +11,7 @@ const links = [
   { label: "Your page", href: "#your-page" },
   { label: "How it works", href: "#experience" },
   { label: "Business tools", href: "#business" },
-  { label: "Plans", href: "#plans" },
+  { label: "Pricing", href: "#pricing" },
 ];
 
 export function LaunchNavbar() {

@@ -61,18 +61,25 @@ export async function submitContactForm(input: {
     data: { name, email, subject: subject || null, message, ip },
   });
 
-  await logAdminActivity({
-    type: "CONTACT_MESSAGE",
-    message: `${name} sent a contact message`,
+  // The message is safely stored. Notification or activity-log failures must
+  // not make visitors retry and create duplicate contact messages.
+  const followUps = await Promise.allSettled([
+    logAdminActivity({
+      type: "CONTACT_MESSAGE",
+      message: `${name} sent a contact message`,
+    }),
+    sendContactNotificationEmail({ name, email, subject: subject || null, message }),
+  ]);
+  followUps.forEach((result, index) => {
+    if (result.status === "rejected") {
+      console.error(
+        index === 0
+          ? "Failed to log contact activity:"
+          : "Failed to send contact notification email:",
+        result.reason,
+      );
+    }
   });
-
-  try {
-    await sendContactNotificationEmail({ name, email, subject: subject || null, message });
-  } catch (err) {
-    // The message is already stored — don't fail the user's submission
-    // over a transient email-provider issue.
-    console.error("Failed to send contact notification email:", err);
-  }
 
   return { ok: true };
 }

@@ -8,6 +8,7 @@ export const siteHost = siteUrl.replace(/^https?:\/\//, "");
 export const siteName = "Flowboc";
 
 export const supportEmail = "hello@flowboc.com";
+export const contactEmail = "mail@flowboc.com";
 
 export const siteTitle = "Flowboc — Simple booking for yoga instructors";
 
