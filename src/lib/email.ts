@@ -1,7 +1,7 @@
 import { escapeEmailText } from "@/lib/newsletter/content";
 import { Resend } from "resend";
 import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
-import { supportEmail } from "@/lib/site";
+import { contactEmail, supportEmail } from "@/lib/site";
 import { emailButton, emailLayout, newsletterLayout } from "@/lib/email-layout";
 import type { CurrencyCode } from "@/generated/prisma/enums";
 
@@ -38,7 +38,13 @@ function whenLine(cls: ClassTiming): string {
   return `${formatClassDate(cls, "long")} at ${formatClassTime(cls)}`;
 }
 
-async function dispatch(params: { to: string; subject: string; html: string; text: string }) {
+async function dispatch(params: {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  replyTo?: string;
+}) {
   if (process.env["NODE_ENV"] !== "production") {
     console.log(`[email] to=${params.to} subject="${params.subject}"\n${params.text}`);
   }
@@ -49,6 +55,7 @@ async function dispatch(params: { to: string; subject: string; html: string; tex
     subject: params.subject,
     html: params.html,
     text: params.text,
+    ...(params.replyTo ? { replyTo: params.replyTo } : {}),
   });
 
   if (error) {
@@ -58,7 +65,13 @@ async function dispatch(params: { to: string; subject: string; html: string; tex
 
 // Raw send for internal/ops notifications that don't need the customer-facing
 // branded layout (e.g. contact form alerts to the support inbox).
-async function sendEmail(params: { to: string; subject: string; html: string; text: string }) {
+async function sendEmail(params: {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  replyTo?: string;
+}) {
   await dispatch(params);
 }
 
@@ -107,10 +120,11 @@ export async function sendContactNotificationEmail(input: {
 }) {
   const subjectLine = input.subject ? `Contact form: ${input.subject}` : "New contact form message";
   await sendEmail({
-    to: supportEmail,
+    to: contactEmail,
+    replyTo: input.email,
     subject: subjectLine,
     text: `From: ${input.name} <${input.email}>\n\n${input.message}`,
-    html: `<p>From: ${input.name} &lt;${input.email}&gt;</p><p>${input.message.replace(/\n/g, "<br>")}</p>`,
+    html: `<p>From: ${escapeEmailText(input.name)} &lt;${escapeEmailText(input.email)}&gt;</p><p>${escapeEmailText(input.message).replace(/\n/g, "<br>")}</p>`,
   });
 }
 

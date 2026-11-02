@@ -32,7 +32,7 @@ export function Plans() {
       : "Billed monthly in USD.";
 
   return (
-    <section id="plans" className="bg-[#f3efe5] px-5 py-16 sm:px-8 lg:py-24">
+    <section id="pricing" className="bg-[#f3efe5] px-5 py-16 sm:px-8 lg:py-24">
       <div className="mx-auto w-full max-w-[1230px]">
         <div className="mx-auto max-w-[650px] text-center">
           <p className="text-[0.65rem] font-semibold uppercase tracking-[0.17em] text-[#6355ff]">
