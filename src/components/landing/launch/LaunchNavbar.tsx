@@ -22,7 +22,7 @@ export function LaunchNavbar() {
     <>
       <div className="bg-[#30293e] px-5 py-2.5 text-center text-xs text-[#ddd3ed] sm:px-8">
         A new chapter for your teaching.{" "}
-        <strong className="font-semibold text-white">Launching 1 November.</strong>{" "}
+        <strong className="font-semibold text-white">Launching 9 November.</strong>{" "}
         <a href="#setup" className="ml-2 text-[#baffdc] underline-offset-2 hover:underline">
           Meet your business home ↗
         </a>
