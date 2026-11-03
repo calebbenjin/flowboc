@@ -50,7 +50,7 @@ export function LaunchFAQ() {
             A little more clarity
           </p>
           <h2 className="display mt-4 text-4xl leading-[1.08] tracking-tight text-[#272334] sm:text-5xl">
-            Good questions.
+            For the questions.
             <br />
             <em className="font-normal italic text-primary">Clear answers.</em>
           </h2>

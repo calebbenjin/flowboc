@@ -2,7 +2,7 @@ import { escapeEmailText } from "@/lib/newsletter/content";
 import { Resend } from "resend";
 import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
 import { contactEmail, supportEmail } from "@/lib/site";
-import { emailButton, emailLayout, newsletterLayout } from "@/lib/email-layout";
+import { emailButton, emailCode, emailLayout, newsletterLayout } from "@/lib/email-layout";
 import type { CurrencyCode } from "@/generated/prisma/enums";
 
 // Same symbols as src/lib/demo.ts's `money` — duplicated rather than
@@ -82,12 +82,19 @@ async function sendBrandedEmail(params: {
   subject: string;
   heading: string;
   bodyHtml: string;
+  preheader?: string;
+  eyebrow?: string;
   text: string;
 }) {
   await dispatch({
     to: params.to,
     subject: params.subject,
-    html: emailLayout({ heading: params.heading, bodyHtml: params.bodyHtml }),
+    html: emailLayout({
+      heading: params.heading,
+      bodyHtml: params.bodyHtml,
+      ...(params.preheader ? { preheader: params.preheader } : {}),
+      ...(params.eyebrow ? { eyebrow: params.eyebrow } : {}),
+    }),
     text: `${params.text}${TEXT_FOOTER}`,
   });
 }
@@ -96,9 +103,11 @@ export async function sendOtpEmail(to: string, code: string) {
   await sendBrandedEmail({
     to,
     subject: "Your Flowboc verification code",
-    heading: "Verify your email",
+    heading: "A little step. You’re nearly in.",
+    eyebrow: "WELCOME TO FLOWBOC",
+    preheader: "Your verification code is ready. It expires in 10 minutes.",
     text: `Your verification code is ${code}. It expires in 10 minutes.`,
-    bodyHtml: `<p>Enter this code to verify your email:</p><p style="font-size:28px;font-weight:700;letter-spacing:0.1em;color:#2e2a24;margin:16px 0;">${code}</p><p>It expires in 10 minutes.</p>`,
+    bodyHtml: `<p>Let’s make this space yours. Enter the code below to verify your email and continue.</p>${emailCode(code)}<p style="font-size:13px;line-height:21px;color:#70677c;">This code expires in 10 minutes. Keep it private. If you didn’t request it, you can ignore this email.</p>`,
   });
 }
 
@@ -106,9 +115,11 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string) {
   await sendBrandedEmail({
     to,
     subject: "Reset your Flowboc password",
-    heading: "Reset your password",
+    heading: "Let’s get you back in.",
+    eyebrow: "YOUR ACCOUNT",
+    preheader: "Reset your password and return to your teaching space.",
     text: `Reset your password: ${resetUrl}\n\nThis link expires in 1 hour. If you didn't request this, you can ignore this email.`,
-    bodyHtml: `<p>We received a request to reset your password.</p><p>${emailButton("Reset password", resetUrl)}</p><p>This link expires in 1 hour. If you didn't request this, you can ignore this email.</p>`,
+    bodyHtml: `<p>We received a request to reset your Flowboc password. Choose a new one and return to your teaching space.</p>${emailButton("Reset my password", resetUrl)}<p style="font-size:13px;line-height:21px;color:#70677c;">This link expires in 1 hour. If you didn’t request a reset, you can ignore this email. Your password will stay the same.</p>`,
   });
 }
 
@@ -157,9 +168,9 @@ export async function sendBookingConfirmationEmail(
   await sendBrandedEmail({
     to: input.to,
     subject: `You're booked: ${input.className}`,
-    heading: "You're booked!",
+    heading: "Your place is waiting.",
     text: `Hi ${input.studentName},\n\nYou're booked for ${input.className} with ${input.instructorName} on ${when}${input.location ? ` at ${input.location}` : ""}.\n\nSee you there!`,
-    bodyHtml: `<p>Hi ${input.studentName},</p><p>You're booked for <strong>${input.className}</strong> with ${input.instructorName} on ${when}${input.location ? ` at ${input.location}` : ""}.</p><p>See you there!</p>`,
+    bodyHtml: `<p>Hi ${input.studentName},</p><p>You're booked for <strong>${input.className}</strong> with ${input.instructorName} on ${when}${input.location ? ` at ${input.location}` : ""}.</p><p>A little time to breathe, move, and reconnect. See you on the mat.</p>`,
   });
 }
 
@@ -170,7 +181,7 @@ export async function sendInstructorNewBookingEmail(
   await sendBrandedEmail({
     to: input.to,
     subject: `New booking: ${input.studentName} for ${input.className}`,
-    heading: "New booking",
+    heading: "Someone’s making space for you.",
     text: `${input.studentName} just booked ${input.className} on ${when}.`,
     bodyHtml: `<p><strong>${input.studentName}</strong> just booked <strong>${input.className}</strong> on ${when}.</p>`,
   });
@@ -183,7 +194,7 @@ export async function sendCapacityReachedEmail(
   await sendBrandedEmail({
     to: input.to,
     subject: `${input.className} is fully booked`,
-    heading: "Class fully booked",
+    heading: "Every space has a name.",
     text: `${input.className} on ${when} just hit its capacity of ${input.capacity}. New students will be offered the waitlist.`,
     bodyHtml: `<p><strong>${input.className}</strong> on ${when} just hit its capacity of ${input.capacity}. New students will be offered the waitlist.</p>`,
   });
@@ -216,7 +227,7 @@ export async function sendWaitlistSpotOpenEmail(
     subject: `A spot opened up: ${input.className}`,
     heading: "A spot opened up!",
     text: `Hi ${input.name},\n\nA spot just opened up for ${input.className} on ${when}. Book it before it's gone: ${input.bookUrl}`,
-    bodyHtml: `<p>Hi ${input.name},</p><p>A spot just opened up for <strong>${input.className}</strong> on ${when}.</p><p>${emailButton("Book your spot", input.bookUrl)}</p>`,
+    bodyHtml: `<p>Hi ${input.name},</p><p>A spot just opened up for <strong>${input.className}</strong> on ${when}.</p>${emailButton("Book your spot", input.bookUrl)}`,
   });
 }
 
@@ -333,9 +344,9 @@ export async function sendVideoCallBookingEmail(input: {
   await sendBrandedEmail({
     to: input.to,
     subject: `You're booked: ${input.offerTitle}`,
-    heading: "You're booked!",
+    heading: "Your place is waiting.",
     text: `Hi ${input.studentName},\n\nYou're confirmed for "${input.offerTitle}", a 1:1 video call with ${input.instructorName}. ${paidLine}\n\nThis link isn't a live meeting room yet — it's where you'll pick a time that works for both of you. ${input.instructorName} will confirm the exact time with you directly.\n\nPick a time: ${input.meetingLink}\n\nQuestions about your booking? Reach ${input.instructorName} directly at ${input.instructorEmail}.`,
-    bodyHtml: `<p>Hi ${input.studentName},</p><p>You're confirmed for <strong>${input.offerTitle}</strong>, a 1:1 video call with ${input.instructorName}. ${paidLine}</p><p>This link isn't a live meeting room yet — it's where you'll pick a time that works for both of you. ${input.instructorName} will confirm the exact time with you directly.</p><p>${emailButton("Pick a time", input.meetingLink)}</p><p style="font-size:13px;color:#8a8171;">Questions about your booking? Reach ${input.instructorName} directly at <a href="mailto:${input.instructorEmail}" style="color:#8a8171;">${input.instructorEmail}</a>.</p>`,
+    bodyHtml: `<p>Hi ${input.studentName},</p><p>You're confirmed for <strong>${input.offerTitle}</strong>, a 1:1 video call with ${input.instructorName}. ${paidLine}</p><p>This link isn't a live meeting room yet — it's where you'll pick a time that works for both of you. ${input.instructorName} will confirm the exact time with you directly.</p>${emailButton("Pick a time", input.meetingLink)}<p style="font-size:13px;line-height:21px;color:#70677c;">Questions about your booking? Reach ${input.instructorName} directly at <a href="mailto:${input.instructorEmail}" style="color:#8a8171;">${input.instructorEmail}</a>.</p>`,
   });
 }
 
@@ -353,7 +364,7 @@ export async function sendInstructorNewVideoCallBookingEmail(input: {
   await sendBrandedEmail({
     to: input.to,
     subject: `New video call booking: ${input.studentName}`,
-    heading: "New booking",
+    heading: "Someone’s making space for you.",
     text: `${input.studentName} (${input.studentEmail}) just booked "${input.offerTitle}" ${paidLine}.\n\nReach out to ${input.studentEmail} to confirm a time that works for both of you.`,
     bodyHtml: `<p><strong>${input.studentName}</strong> (<a href="mailto:${input.studentEmail}" style="color:#2e2a24;">${input.studentEmail}</a>) just booked <strong>${input.offerTitle}</strong> ${paidLine}.</p><p>Reach out to them directly to confirm a time that works for both of you.</p>`,
   });
@@ -378,9 +389,9 @@ export async function sendEbookPurchaseEmail(input: {
   await sendBrandedEmail({
     to: input.to,
     subject: `Your download: ${input.offerTitle}`,
-    heading: "It's yours!",
+    heading: "A little inspiration, all yours.",
     text: `Hi ${input.buyerName},\n\nThanks for getting "${input.offerTitle}" from ${input.instructorName}. ${paidLine}\n\nDownload it here: ${input.downloadUrl}\n\nQuestions? Reach ${input.instructorName} directly at ${input.instructorEmail}.`,
-    bodyHtml: `<p>Hi ${input.buyerName},</p><p>Thanks for getting <strong>${input.offerTitle}</strong> from ${input.instructorName}. ${paidLine}</p><p>${emailButton("Download now", input.downloadUrl)}</p><p style="font-size:13px;color:#8a8171;">Questions? Reach ${input.instructorName} directly at <a href="mailto:${input.instructorEmail}" style="color:#8a8171;">${input.instructorEmail}</a>.</p>`,
+    bodyHtml: `<p>Hi ${input.buyerName},</p><p>Thanks for getting <strong>${input.offerTitle}</strong> from ${input.instructorName}. ${paidLine}</p>${emailButton("Download now", input.downloadUrl)}<p style="font-size:13px;line-height:21px;color:#70677c;">Questions? Reach ${input.instructorName} directly at <a href="mailto:${input.instructorEmail}" style="color:#8a8171;">${input.instructorEmail}</a>.</p>`,
   });
 }
 
@@ -397,7 +408,7 @@ export async function sendInstructorNewEbookSaleEmail(input: {
   await sendBrandedEmail({
     to: input.to,
     subject: `New ebook sale: ${input.buyerName}`,
-    heading: "New sale",
+    heading: "Your teaching is reaching further.",
     text: `${input.buyerName} (${input.buyerEmail}) just got "${input.offerTitle}" ${paidLine}.`,
     bodyHtml: `<p><strong>${input.buyerName}</strong> (<a href="mailto:${input.buyerEmail}" style="color:#2e2a24;">${input.buyerEmail}</a>) just got <strong>${input.offerTitle}</strong> ${paidLine}.</p>`,
   });
@@ -415,7 +426,7 @@ export async function sendClassReminderEmail(
   await sendBrandedEmail({
     to: input.to,
     subject: `Reminder: ${input.className} is coming up`,
-    heading: "See you soon",
+    heading: "A little time for your practice.",
     text: `Hi ${input.studentName},\n\nJust a reminder — you're booked for ${input.className} on ${when}${input.location ? ` at ${input.location}` : ""}.`,
     bodyHtml: `<p>Hi ${input.studentName},</p><p>Just a reminder — you're booked for <strong>${input.className}</strong> on ${when}${input.location ? ` at ${input.location}` : ""}.</p>`,
   });
