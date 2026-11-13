@@ -59,23 +59,27 @@ export function SageProfileHeader({
   return (
     <>
       <div className="sage-banner" aria-hidden="true">
-        {cover.startsWith("/") ? (
-          <Image
-            src={cover}
-            alt=""
-            width={2172}
-            height={724}
-            priority
-            sizes="100vw"
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <img src={cover} alt="" className="h-full w-full object-cover" />
-        )}
+        <Image
+          src={cover}
+          alt=""
+          width={2172}
+          height={724}
+          priority
+          sizes="100vw"
+          className="h-full w-full object-cover"
+        />
       </div>
       <header className="sage-profile">
         {instructor.photoUrl ? (
-          <img src={instructor.photoUrl} alt={instructor.name} className="sage-portrait" />
+          <Image
+            src={instructor.photoUrl}
+            alt={instructor.name}
+            width={120}
+            height={144}
+            priority
+            sizes="120px"
+            className="sage-portrait"
+          />
         ) : (
           <div className="sage-portrait sage-initials">
             {instructor.name
@@ -106,7 +110,14 @@ export function SageClassCard({
   return (
     <article className="sage-class-card">
       {c.coverUrl ? (
-        <img src={c.coverUrl} alt={c.name} className="sage-class-photo" loading="lazy" />
+        <Image
+          src={c.coverUrl}
+          alt={c.name}
+          width={640}
+          height={480}
+          sizes="(min-width: 768px) 320px, 44vw"
+          className="sage-class-photo"
+        />
       ) : (
         <div className="sage-class-photo sage-image-placeholder">
           <Leaf className="size-10" aria-hidden="true" />
@@ -136,19 +147,19 @@ export function SageClassCard({
           price={c.price}
           originalPrice={c.originalPrice ?? undefined}
           currency={currency}
-          priceClassName="text-xl font-medium"
+          priceClassName="text-xl font-bold"
         />
         <p className="text-xs text-clay">
           {c.spots > 0 ? `${c.spots} ${c.spots === 1 ? "spot" : "spots"} left` : "Class full"}
         </p>
         {c.spots > 0 ? (
-          <Link href={`/${slug}/book/${c.id}`} className="sage-book-button">
-            Book your place <ArrowRight className="size-4" />
+          <Link href={`/${slug}/book/${c.id}`} className="sage-book-button uppercase text-sm">
+            Book your seat <ArrowRight className="size-4" />
           </Link>
         ) : (
           <button
             type="button"
-            className="sage-book-button"
+            className="sage-book-button uppercase text-sm"
             disabled={onWaitlist}
             onClick={onJoinWaitlist}
           >
@@ -191,7 +202,14 @@ export function SageOfferCard({
   return (
     <article className="sage-offer-card">
       {imageUrl ? (
-        <img src={imageUrl} alt="" className="sage-offer-photo" loading="lazy" />
+        <Image
+          src={imageUrl}
+          alt=""
+          width={400}
+          height={300}
+          sizes="(min-width: 768px) 220px, 29vw"
+          className="sage-offer-photo"
+        />
       ) : (
         <div className="sage-offer-photo sage-image-placeholder">
           <Icon className="size-8" aria-hidden="true" />

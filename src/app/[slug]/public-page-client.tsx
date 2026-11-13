@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState, type CSSProperties, type Dispatch, type SetStateAction } from "react";
 import {
   Instagram,
@@ -43,7 +44,14 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { EmptyState } from "@/components/EmptyState";
-import { Reveal } from "@/components/landing/primitives";
+// CSS-only entrance (tw-animate-css) so content is visible as soon as the
+// stylesheet lands, instead of waiting for JS to hydrate a motion component.
+// Sage template: how many class cards sit on the profile before the rest
+// move behind the "Upcoming classes" link to /[slug]/classes.
+export const SAGE_MAX_CLASSES = 2;
+
+const revealClass =
+  "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 motion-safe:duration-500 motion-safe:fill-mode-both";
 import { cn } from "@/lib/utils";
 import { money, type CurrencyCode } from "@/lib/demo";
 import { useIsBrightImage } from "@/lib/use-image-brightness";
@@ -150,9 +158,12 @@ function ShareDialog({
           style={{ backgroundColor: instructor.themeColor }}
         >
           {instructor.photoUrl ? (
-            <img
+            <Image
               src={instructor.photoUrl}
               alt=""
+              width={96}
+              height={96}
+              sizes="96px"
               className="size-24 rounded-full object-cover ring-2 ring-white/70"
             />
           ) : (
@@ -165,7 +176,8 @@ function ShareDialog({
           )}
           <p className="text-lg font-semibold text-white drop-shadow-sm">{instructor.name}</p>
           <div className="flex items-center gap-1.5 text-sm text-white/85">
-            <img src="/flowboc-favicon.png" alt="" className="size-3.5" />/{instructor.slug}
+            <Image src="/flowboc-favicon.png" alt="" width={14} height={14} className="size-3.5" />/
+            {instructor.slug}
           </div>
         </div>
 
@@ -233,7 +245,7 @@ function ClaimSheet({
         className="mx-auto max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl border-none bg-clay text-clay-foreground"
       >
         <SheetHeader className="text-left">
-          <img src="/flowboc-favicon.png" alt="" className="size-8" />
+          <Image src="/flowboc-favicon.png" alt="" width={32} height={32} className="size-8" />
           <SheetTitle className="mt-2 text-3xl leading-tight text-clay-foreground">
             The simplest way to book your classes
           </SheetTitle>
@@ -283,7 +295,7 @@ function CornerBadges({ instructor }: { instructor: PublicInstructor }) {
         aria-label="Flowboc"
         className="fixed left-4 top-4 z-50 grid size-11 place-items-center rounded-full bg-white shadow-md transition-transform hover:scale-105"
       >
-        <img src="/flowboc-favicon.png" alt="" className="size-5" />
+        <Image src="/flowboc-favicon.png" alt="" width={20} height={20} className="size-5" />
       </button>
       <button
         type="button"
@@ -676,7 +688,7 @@ function VideoCallCard({ instructor }: { instructor: PublicInstructor }) {
   const canBook = !isPaid || instructor.payoutConnected;
 
   return (
-    <Reveal>
+    <div className={revealClass}>
       {instructor.pageTemplate === "SAGE" ? (
         <SageOfferCard
           kind="call"
@@ -695,9 +707,12 @@ function VideoCallCard({ instructor }: { instructor: PublicInstructor }) {
         <article className="surface mb-2 items-center gap-4 p-4 sm:p-5">
           {instructor.videoCallImageUrl ? (
             <div className="w-full flex gap-x-4 mb-2">
-              <img
+              <Image
                 src={instructor.videoCallImageUrl}
                 alt=""
+                width={80}
+                height={80}
+                sizes="80px"
                 className="size-18 shrink-0 rounded-lg object-cover sm:size-20"
               />
               <div>
@@ -766,7 +781,7 @@ function VideoCallCard({ instructor }: { instructor: PublicInstructor }) {
         currency={instructor.currency}
         verifyState={verifyState}
       />
-    </Reveal>
+    </div>
   );
 }
 
@@ -968,7 +983,7 @@ function EbookCard({ instructor }: { instructor: PublicInstructor }) {
   const canBuy = !isPaid || instructor.payoutConnected;
 
   return (
-    <Reveal>
+    <div className={revealClass}>
       {instructor.pageTemplate === "SAGE" ? (
         <SageOfferCard
           kind="ebook"
@@ -987,9 +1002,12 @@ function EbookCard({ instructor }: { instructor: PublicInstructor }) {
         <article className="surface mb-6 items-center gap-4 p-4 sm:p-5">
           {instructor.ebookCoverUrl ? (
             <div className="w-full flex gap-x-4 mb-2">
-              <img
+              <Image
                 src={instructor.ebookCoverUrl}
                 alt=""
+                width={80}
+                height={80}
+                sizes="80px"
                 className="size-18 shrink-0 rounded-lg object-cover sm:size-20"
               />
               <div>
@@ -1054,7 +1072,7 @@ function EbookCard({ instructor }: { instructor: PublicInstructor }) {
         currency={instructor.currency}
         verifyState={verifyState}
       />
-    </Reveal>
+    </div>
   );
 }
 
@@ -1080,28 +1098,41 @@ function ClassesSection({
   setSelectedOccurrence: Dispatch<SetStateAction<Record<string, string>>>;
 }) {
   if (instructor.pageTemplate === "SAGE" && groups.length > 0) {
-    const group = groups[0]!;
-    const occurrences = group.type === "series" ? group.occurrences : [group.cls];
-    const selectedId = group.type === "series" ? selectedOccurrence[group.seriesId] : undefined;
-    const cls = occurrences.find((item) => item.id === selectedId) ?? occurrences[0]!;
+    // The Sage page keeps the profile tight: at most SAGE_MAX_CLASSES cards
+    // here, and the "Upcoming classes" row (rendered by the page) takes over
+    // once there are more than that.
     return (
-      <SageClassCard
-        c={cls}
-        slug={instructor.slug}
-        currency={instructor.currency}
-        onWaitlist={joinedWaitlist.has(cls.id)}
-        onJoinWaitlist={() => setWaitlistOpenFor(cls.id)}
-        {...(group.type === "series"
-          ? {
-              dateChips: {
-                occurrences,
-                selectedId: cls.id,
-                onSelect: (id: string) =>
-                  setSelectedOccurrence((previous) => ({ ...previous, [group.seriesId]: id })),
-              },
-            }
-          : {})}
-      />
+      <>
+        {groups.slice(0, SAGE_MAX_CLASSES).map((group) => {
+          const occurrences = group.type === "series" ? group.occurrences : [group.cls];
+          const selectedId =
+            group.type === "series" ? selectedOccurrence[group.seriesId] : undefined;
+          const cls = occurrences.find((item) => item.id === selectedId) ?? occurrences[0]!;
+          return (
+            <SageClassCard
+              key={group.type === "series" ? group.seriesId : group.cls.id}
+              c={cls}
+              slug={instructor.slug}
+              currency={instructor.currency}
+              onWaitlist={joinedWaitlist.has(cls.id)}
+              onJoinWaitlist={() => setWaitlistOpenFor(cls.id)}
+              {...(group.type === "series"
+                ? {
+                    dateChips: {
+                      occurrences,
+                      selectedId: cls.id,
+                      onSelect: (id: string) =>
+                        setSelectedOccurrence((previous) => ({
+                          ...previous,
+                          [group.seriesId]: id,
+                        })),
+                    },
+                  }
+                : {})}
+            />
+          );
+        })}
+      </>
     );
   }
   const ClassCard = classCardByLayout[instructor.pageLayout];
@@ -1124,7 +1155,7 @@ function ClassesSection({
 
         if (group.type === "single") {
           return (
-            <Reveal key={group.cls.id} delay={delay}>
+            <div key={group.cls.id} className={revealClass} style={{ animationDelay: `${delay}s` }}>
               <ClassCard
                 c={group.cls}
                 slug={instructor.slug}
@@ -1132,7 +1163,7 @@ function ClassesSection({
                 onWaitlist={joinedWaitlist.has(group.cls.id)}
                 onJoinWaitlist={() => setWaitlistOpenFor(group.cls.id)}
               />
-            </Reveal>
+            </div>
           );
         }
 
@@ -1141,7 +1172,7 @@ function ClassesSection({
           group.occurrences.find((o) => o.id === selectedId) ?? group.occurrences[0]!;
 
         return (
-          <Reveal key={group.seriesId} delay={delay}>
+          <div key={group.seriesId} className={revealClass} style={{ animationDelay: `${delay}s` }}>
             <ClassCard
               c={selected}
               slug={instructor.slug}
@@ -1155,7 +1186,7 @@ function ClassesSection({
                   setSelectedOccurrence((prev) => ({ ...prev, [group.seriesId]: id })),
               }}
             />
-          </Reveal>
+          </div>
         );
       })}
     </div>
@@ -1242,14 +1273,16 @@ export function PublicPageClient({
           {isSage ? (
             <SageProfileHeader instructor={instructor} />
           ) : (
-            <Reveal>
+            <div className={revealClass}>
               <header className="flex flex-col gap-4 px-2 sm:flex-row items-center sm:mb-8 mb-6">
                 {instructor.photoUrl ? (
-                  <img
+                  <Image
                     src={instructor.photoUrl}
                     alt={instructor.name}
-                    width={600}
-                    height={600}
+                    width={192}
+                    height={192}
+                    priority
+                    sizes="(min-width: 640px) 192px, 152px"
                     className={cn(
                       "sm:size-48 size-38 rounded-full object-cover shadow-2xl",
                       hasBg && "ring-4 ring-white/80",
@@ -1348,7 +1381,7 @@ export function PublicPageClient({
                   </div>
                 </div>
               </header>
-            </Reveal>
+            </div>
           )}
 
           <div className={isSage ? "sage-blocks" : "my-2"}>
@@ -1390,9 +1423,12 @@ export function PublicPageClient({
                   )}
                 >
                   {link.imageUrl && (
-                    <img
+                    <Image
                       src={link.imageUrl}
                       alt=""
+                      width={48}
+                      height={48}
+                      sizes="48px"
                       className="size-12 shrink-0 rounded-lg object-cover"
                     />
                   )}
@@ -1407,8 +1443,7 @@ export function PublicPageClient({
             })}
             {isSage ? (
               <>
-                {(classes.length > 1 ||
-                  classes.some((cls) => cls.seriesId || cls.recurringLabel)) && (
+                {groups.length > SAGE_MAX_CLASSES && (
                   <Link href={`/${instructor.slug}/classes`} className="sage-link-row">
                     <Leaf className="size-5 shrink-0" aria-hidden="true" />
                     <span className="flex-1">Upcoming classes</span>

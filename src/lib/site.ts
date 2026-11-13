@@ -1,4 +1,4 @@
-export const siteUrl = process.env["NEXT_PUBLIC_SITE_URL"] ?? "https://flowboc.com";
+export const siteUrl = process.env["NEXT_PUBLIC_SITE_URL"] ?? "https://www.flowboc.com";
 
 // Bare host, no protocol — for display strings like "flowboc.com/{slug}".
 // Derived from siteUrl rather than hardcoded again so the domain only ever

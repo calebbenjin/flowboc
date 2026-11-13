@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
+import { SessionProvider, useSession } from "next-auth/react";
 import { ArrowRight, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -18,7 +18,18 @@ const links = [
   { label: "Pricing", href: "#pricing" },
 ];
 
+// Marketing pages (about, contact, legal, referral) render this outside the
+// app-wide Providers, so the navbar brings its own lightweight session
+// context for the "My Account" vs "Get free trial" switch.
 export function Navbar() {
+  return (
+    <SessionProvider refetchInterval={0} refetchOnWindowFocus={false} refetchWhenOffline={false}>
+      <NavbarInner />
+    </SessionProvider>
+  );
+}
+
+function NavbarInner() {
   const { status } = useSession();
   const authed = status === "authenticated";
   const [open, setOpen] = React.useState(false);

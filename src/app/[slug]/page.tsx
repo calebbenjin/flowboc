@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { after } from "next/server";
 import { JsonLd } from "@/components/JsonLd";
 import { prisma } from "@/lib/db";
+import { getPublicInstructor, getUpcomingPublicClasses } from "@/lib/public-instructor";
 import { siteUrl } from "@/lib/site";
 import { PublicPageClient } from "./public-page-client";
 
@@ -13,7 +14,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const instructor = await prisma.instructor.findUnique({ where: { slug } });
+  const instructor = await getPublicInstructor(slug);
   if (!instructor) return {};
 
   const title = `${instructor.name} — Book a yoga class`;
@@ -33,18 +34,17 @@ export async function generateMetadata({
 export default async function PublicPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
 
-  const instructor = await prisma.instructor.findUnique({
-    where: { slug },
-    include: {
-      socials: true,
-      links: { where: { isActive: true }, orderBy: { order: "asc" } },
-    },
-  });
+  // Both queries key on the slug, so they run side by side; the instructor
+  // lookup itself is shared with generateMetadata via React cache.
+  const [instructor, classes] = await Promise.all([
+    getPublicInstructor(slug),
+    getUpcomingPublicClasses(slug),
+  ]);
   if (!instructor || !instructor.onboardingCompletedAt) notFound();
 
   after(() => prisma.pageView.create({ data: { instructorId: instructor.id, path: `/${slug}` } }));
 
-  const content = await getPublicPageContent(instructor);
+  const content = await getPublicPageContent(instructor, classes);
 
   const personJsonLd = {
     "@context": "https://schema.org",

@@ -1,9 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState, useRef, type CSSProperties } from "react";
 import { useSearchParams } from "next/navigation";
-import posthog from "posthog-js";
 import { toast } from "sonner";
 import {
   AlertTriangle,
@@ -266,7 +266,9 @@ export function BookingFlowClient({
         process.env["NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN"] &&
         process.env["NEXT_PUBLIC_POSTHOG_HOST"]
       ) {
-        posthog.capture("booking_details_submitted", { currency, is_free: result.isFree });
+        void import("posthog-js").then(({ default: posthog }) =>
+          posthog.capture("booking_details_submitted", { currency, is_free: result.isFree }),
+        );
       }
       if (!result.isFree) localStorage.setItem(resumeKey(cls.id), result.bookingId);
       setBookingId(result.bookingId);
@@ -285,7 +287,7 @@ export function BookingFlowClient({
         </Link>
         <header className={styles["teacher"]}>
           {instructorPhoto ? (
-            <img src={instructorPhoto} alt="" width={40} height={40} />
+            <Image src={instructorPhoto} alt="" width={40} height={40} sizes="40px" />
           ) : (
             <span>
               <Flower2 size={23} strokeWidth={1.3} />
@@ -298,7 +300,15 @@ export function BookingFlowClient({
         </header>
         <section className={styles["summary"]} aria-label="Your class">
           {cls.coverUrl && (
-            <img src={cls.coverUrl} alt="" width={800} height={400} className={styles["cover"]} />
+            <Image
+              src={cls.coverUrl}
+              alt=""
+              width={800}
+              height={400}
+              priority
+              sizes="(min-width: 640px) 640px, 100vw"
+              className={styles["cover"]}
+            />
           )}
           <div className={styles["summaryBody"]}>
             <div className={styles["titleRow"]}>

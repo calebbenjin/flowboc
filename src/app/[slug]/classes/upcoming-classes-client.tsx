@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useState, type CSSProperties } from "react";
 import { ArrowLeft, CalendarDays } from "lucide-react";
@@ -65,7 +66,14 @@ export function UpcomingClassesClient({
         </Link>
         <div className="mt-7 flex items-center gap-3">
           {instructor.photoUrl ? (
-            <img src={instructor.photoUrl} alt="" className="size-12 rounded-full object-cover" />
+            <Image
+              src={instructor.photoUrl}
+              alt=""
+              width={48}
+              height={48}
+              sizes="48px"
+              className="size-12 rounded-full object-cover"
+            />
           ) : null}
           <p className="display text-xl">{instructor.name}</p>
         </div>

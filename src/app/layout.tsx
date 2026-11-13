@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
-import { Providers } from "./providers";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { Toaster } from "@/components/ui/sonner";
 import { siteDescription, siteKeywords, siteName, siteTitle, siteUrl } from "@/lib/site";
@@ -75,7 +74,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" className={`${fraunces.variable} ${dmSans.variable}`}>
       <body>
         <OfflineBanner />
-        <Providers>{children}</Providers>
+        {children}
         <Toaster position="top-center" />
         <Analytics />
         <SpeedInsights />

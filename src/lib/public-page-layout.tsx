@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import {
   Instagram,
@@ -234,12 +235,12 @@ export function ClassCardClassic({
       <div className="sm:hidden">
         <div className="flex gap-3">
           {c.coverUrl ? (
-            <img
+            <Image
               src={c.coverUrl}
               alt={c.name}
-              loading="lazy"
-              width={200}
-              height={200}
+              width={80}
+              height={80}
+              sizes="80px"
               className="size-20 shrink-0 rounded-sm object-cover"
             />
           ) : (
@@ -289,12 +290,12 @@ export function ClassCardClassic({
 
       <div className="hidden sm:contents">
         {c.coverUrl ? (
-          <img
+          <Image
             src={c.coverUrl}
             alt={c.name}
-            loading="lazy"
             width={1200}
             height={800}
+            sizes="192px"
             className="h-auto w-48 object-cover"
           />
         ) : (
@@ -408,12 +409,12 @@ export function ClassCardCoverGrid({
   return (
     <article className="surface flex h-full flex-col overflow-hidden">
       {c.coverUrl ? (
-        <img
+        <Image
           src={c.coverUrl}
           alt={c.name}
-          loading="lazy"
           width={800}
           height={600}
+          sizes="(min-width: 640px) 50vw, 100vw"
           className="aspect-4/3 w-full object-cover"
         />
       ) : (

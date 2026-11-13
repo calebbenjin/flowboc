@@ -1,6 +1,7 @@
 // Mirrors every top-level route under src/app — an instructor's public
 // booking page lives at /{slug}, so the slug can't collide with these.
 export const RESERVED_SLUGS = new Set([
+  "home", // landing page segment (served at "/" via rewrite)
   "about",
   "api",
   "auth",

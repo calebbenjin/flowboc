@@ -1,14 +1,19 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
-import { prisma } from "@/lib/db";
+import { getUpcomingPublicClasses } from "@/lib/public-instructor";
 import { canUseProOffers } from "@/lib/offer-access";
 import { newsletterButtonVisible } from "@/lib/newsletter/access";
 import { effectivePublicTheme } from "@/lib/public-page-theme";
 import { resolveBlockOrder } from "@/lib/public-page-blocks";
 
 // Both the public page and the authenticated live preview use this content.
+type UpcomingClasses = Awaited<ReturnType<typeof getUpcomingPublicClasses>>;
+
 export async function getPublicPageContent(
   instructor: Prisma.InstructorGetPayload<{ include: { socials: true; links: true } }>,
+  // The public page fetches classes in parallel with the instructor and
+  // passes them in; the dashboard preview lets this load them.
+  prefetchedClasses?: UpcomingClasses,
 ) {
   // Resolved against only the active links being rendered — an inactive
   // link's token is naturally dropped here without losing its stored
@@ -18,21 +23,7 @@ export async function getPublicPageContent(
     instructor.links.map((l) => l.id),
   );
 
-  const classes = await prisma.yogaClass.findMany({
-    where: {
-      instructorId: instructor.id,
-      status: { in: ["PUBLISHED", "FULL"] },
-      startAt: { gte: new Date() },
-    },
-    orderBy: { startAt: "asc" },
-    include: {
-      _count: {
-        select: {
-          bookings: { where: { status: "CONFIRMED", paymentStatus: { in: ["PAID", "PENDING"] } } },
-        },
-      },
-    },
-  });
+  const classes = prefetchedClasses ?? (await getUpcomingPublicClasses(instructor.slug));
 
   return {
     instructor: {
