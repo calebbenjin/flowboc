@@ -2,7 +2,6 @@
 
 import NextError from "next/error";
 import { useEffect } from "react";
-import posthog from "posthog-js";
 
 export default function GlobalError({
   error,
@@ -15,7 +14,7 @@ export default function GlobalError({
       process.env["NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN"] &&
       process.env["NEXT_PUBLIC_POSTHOG_HOST"]
     ) {
-      posthog.captureException(error);
+      void import("posthog-js").then(({ default: posthog }) => posthog.captureException(error));
     }
   }, [error]);
 

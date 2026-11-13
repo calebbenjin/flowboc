@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { prisma } from "@/lib/db";
+import { getPublicInstructor, getUpcomingPublicClasses } from "@/lib/public-instructor";
 import { effectivePublicTheme } from "@/lib/public-page-theme";
 import { UpcomingClassesClient } from "./upcoming-classes-client";
 
@@ -19,23 +19,11 @@ export default async function UpcomingClassesPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const instructor = await prisma.instructor.findUnique({ where: { slug } });
+  const [instructor, classes] = await Promise.all([
+    getPublicInstructor(slug),
+    getUpcomingPublicClasses(slug),
+  ]);
   if (!instructor || !instructor.onboardingCompletedAt) notFound();
-  const classes = await prisma.yogaClass.findMany({
-    where: {
-      instructorId: instructor.id,
-      status: { in: ["PUBLISHED", "FULL"] },
-      startAt: { gte: new Date() },
-    },
-    orderBy: { startAt: "asc" },
-    include: {
-      _count: {
-        select: {
-          bookings: { where: { status: "CONFIRMED", paymentStatus: { in: ["PAID", "PENDING"] } } },
-        },
-      },
-    },
-  });
   return (
     <UpcomingClassesClient
       instructor={{

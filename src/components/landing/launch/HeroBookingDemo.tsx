@@ -140,9 +140,9 @@ export function HeroBookingDemo({
           <span className={styles["island"]} />
           <span>5G ▰</span>
         </div>
-        <div className={styles["address"]}>
+        {/* <div className={styles["address"]}>
           <Lock size={10} /> flowboc.com/sarah-yoga
-        </div>
+        </div> */}
         <div
           ref={screen}
           onFocusCapture={() => setPlaying(false)}

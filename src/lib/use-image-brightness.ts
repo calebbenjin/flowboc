@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { BRIGHTNESS_SAMPLE_WIDTH, optimizedImageUrl } from "./public-page-background";
 
 const SAMPLE_SIZE = 32;
 const BRIGHT_THRESHOLD = 140;
@@ -53,7 +54,9 @@ export function useIsBrightImage(url: string | null | undefined): boolean {
     img.onerror = () => {
       if (!cancelled) setIsBright(false);
     };
-    img.src = url;
+    // A 64px-wide optimized variant is all the 32×32 sample needs — no
+    // point re-downloading the full background just to average its pixels.
+    img.src = optimizedImageUrl(url, BRIGHTNESS_SAMPLE_WIDTH);
 
     return () => {
       cancelled = true;

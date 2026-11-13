@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
-import { prisma } from "@/lib/db";
+import { getBookableClass } from "@/lib/public-instructor";
 import { formatClassDate, formatClassTime } from "@/lib/format-class-time";
 import { siteUrl } from "@/lib/site";
 import { canUseProDesign } from "@/lib/public-page-theme";
@@ -14,10 +14,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug, classId } = await params;
 
-  const cls = await prisma.yogaClass.findUnique({
-    where: { id: classId },
-    include: { instructor: true },
-  });
+  const cls = await getBookableClass(classId);
   if (!cls || cls.instructor.slug !== slug) return {};
 
   const title = `${cls.name} with ${cls.instructor.name} — Flowboc`;
@@ -39,20 +36,12 @@ export default async function BookingPage({
 }) {
   const { slug, classId } = await params;
 
-  const instructor = await prisma.instructor.findUnique({ where: { slug } });
-  if (!instructor || !instructor.onboardingCompletedAt) notFound();
-
-  const cls = await prisma.yogaClass.findUnique({
-    where: { id: classId },
-    include: {
-      _count: {
-        select: {
-          bookings: { where: { status: "CONFIRMED", paymentStatus: { in: ["PAID", "PENDING"] } } },
-        },
-      },
-    },
-  });
-  if (!cls || cls.instructorId !== instructor.id) notFound();
+  // One query (shared with generateMetadata via React cache) replaces the
+  // previous instructor lookup + class lookup pair.
+  const cls = await getBookableClass(classId);
+  if (!cls || cls.instructor.slug !== slug) notFound();
+  const instructor = cls.instructor;
+  if (!instructor.onboardingCompletedAt) notFound();
   if (cls.status !== "PUBLISHED" && cls.status !== "FULL") notFound();
 
   const spots = Math.max(0, cls.capacity - cls._count.bookings);

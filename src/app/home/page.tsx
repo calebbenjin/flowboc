@@ -17,6 +17,13 @@ import { LaunchFooter } from "@/components/landing/launch/LaunchFooter";
 import { TawkToWidget } from "@/components/landing/TawkToWidget";
 import { getActivePlansForCurrency } from "@/lib/subscription-plans";
 import Benefits from "@/components/landing/launch/Benefits";
+import { Providers } from "@/app/providers";
+// The landing page lives at /home and is served at "/" via a rewrite in
+// next.config.ts. As a bare app/page.tsx (or inside a route group, which
+// Next strips), its client-chunk manifest is merged into every sibling
+// route's manifest, and shared modules like next/link ended up pointing at
+// the landing bundle — so /[slug] pages downloaded the landing page, PostHog
+// and motion before they could hydrate. A real segment keeps it isolated.
 
 const title = "Flowboc — Booking software for independent yoga instructors";
 const description =
@@ -46,27 +53,29 @@ export default async function Landing() {
   const plans = await getActivePlansForCurrency("USD");
 
   return (
-    <LaunchDialogProvider plans={plans}>
-      <div className="min-h-screen overflow-x-clip bg-[#fcfbf7]">
-        <LaunchNavbar />
-        <main>
-          <LaunchHero />
-          <Benefits />
-          <WhyJourney />
-          <YourPage />
-          <Experience />
-          <Offers />
-          <Business />
-          <Community />
-          <Growth />
-          <Setup />
-          <Plans />
-          <LaunchFAQ />
-          <LaunchFinalCTA />
-        </main>
-        <LaunchFooter />
-      </div>
-      <TawkToWidget />
-    </LaunchDialogProvider>
+    <Providers>
+      <LaunchDialogProvider plans={plans}>
+        <div className="min-h-screen overflow-x-clip bg-[#fcfbf7]">
+          <LaunchNavbar />
+          <main>
+            <LaunchHero />
+            <Benefits />
+            <WhyJourney />
+            <YourPage />
+            <Experience />
+            <Offers />
+            <Business />
+            <Community />
+            <Growth />
+            <Setup />
+            <Plans />
+            <LaunchFAQ />
+            <LaunchFinalCTA />
+          </main>
+          <LaunchFooter />
+        </div>
+        <TawkToWidget />
+      </LaunchDialogProvider>
+    </Providers>
   );
 }
