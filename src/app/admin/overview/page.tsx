@@ -11,7 +11,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getAdminOverviewStats, getRecentActivity } from "./queries";
+import { money } from "@/lib/demo";
+import { getAdminOverviewStats, getMrrSummary, getRecentActivity } from "./queries";
 
 export const metadata: Metadata = {
   title: "Overview — Flowboc admin",
@@ -28,7 +29,11 @@ const activityIcons: Record<string, LucideIcon> = {
 };
 
 export default async function AdminOverviewPage() {
-  const [stats, activity] = await Promise.all([getAdminOverviewStats(), getRecentActivity()]);
+  const [stats, activity, mrr] = await Promise.all([
+    getAdminOverviewStats(),
+    getRecentActivity(),
+    getMrrSummary(),
+  ]);
 
   const cards = [
     { label: "Total instructors", value: stats.totalInstructors },
@@ -54,6 +59,50 @@ export default async function AdminOverviewPage() {
             <p className="display mt-2 text-3xl">{c.value}</p>
           </div>
         ))}
+      </div>
+
+      <div className="surface mt-4 bg-white p-5">
+        <p className="text-xs uppercase tracking-wider text-muted-foreground">
+          Monthly recurring revenue
+        </p>
+        <p className="display mt-2 text-3xl">
+          {money(mrr.usdTotal, "USD")}
+          <span className="ml-2 text-sm text-muted-foreground">USD equivalent</span>
+        </p>
+        {mrr.missingRates.length > 0 && (
+          <p className="mt-1 text-xs text-destructive">
+            Excludes {mrr.missingRates.join(", ")} — exchange rate unavailable right now.
+          </p>
+        )}
+        {mrr.byCurrency.length > 0 ? (
+          <ul className="mt-4 divide-y divide-border text-sm">
+            {mrr.byCurrency.map((c) => (
+              <li
+                key={c.currency}
+                className="flex flex-wrap items-center justify-between gap-2 py-2"
+              >
+                <span>
+                  {c.currency}{" "}
+                  <span className="text-muted-foreground">
+                    · {c.subscribers} {c.subscribers === 1 ? "subscriber" : "subscribers"}
+                  </span>
+                </span>
+                <span>
+                  {money(c.mrr, c.currency)}
+                  <span className="ml-2 text-muted-foreground">
+                    {c.usdMrr === null ? "≈ —" : `≈ ${money(c.usdMrr, "USD")}`}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 text-sm text-muted-foreground">No paying subscribers yet.</p>
+        )}
+        <p className="mt-3 text-xs text-muted-foreground">
+          Annual plans count as one twelfth of their price. USD figures use today&apos;s mid-market
+          rate and are for reporting only.
+        </p>
       </div>
 
       <h2 className="mt-8 text-xs uppercase tracking-[0.18em] text-muted-foreground">

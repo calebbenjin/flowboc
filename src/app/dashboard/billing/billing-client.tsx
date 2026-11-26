@@ -28,7 +28,7 @@ import { money } from "@/lib/demo";
 import { isTrialExpired } from "@/lib/trial";
 import { cn } from "@/lib/utils";
 import { startSubscription, cancelSubscription, refreshBillingStatus } from "./actions";
-import type { BillingInterval, PlanTier } from "@/generated/prisma/enums";
+import type { BillingInterval, CurrencyCode, PlanTier } from "@/generated/prisma/enums";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -59,9 +59,13 @@ const TARGET_PLAN_CODE = "flowboc:subscribing:planCode";
 
 export function BillingClient({
   plans,
+  billingCurrency,
   onboardingMood = null,
 }: {
   plans: Record<PlanTier, Record<BillingInterval, PlanInfo>>;
+  // Null when paid plans aren't offered in the instructor's currency yet —
+  // see resolveBillingCurrency in src/lib/billing-currency.ts.
+  billingCurrency: CurrencyCode | null;
   onboardingMood?: OnboardingMood | null;
 }) {
   const router = useRouter();
@@ -244,140 +248,150 @@ export function BillingClient({
                 <p>Compare your options and choose the rhythm that suits your teaching.</p>
               </div>
 
-              <div className={styles["interval"]}>
-                <div className={styles["intervalInner"]}>
-                  {(["MONTHLY", "ANNUAL"] as const).map((i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setInterval(i)}
-                      aria-pressed={interval === i}
-                      className={cn(
-                        "flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
-                        interval === i
-                          ? "bg-clay text-clay-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      {i === "MONTHLY" ? "Monthly" : "Annual"}
-                      {i === "ANNUAL" && annualSavingsPct ? (
-                        <span
+              {billingCurrency === null ? (
+                <p className="mt-6 text-sm text-muted-foreground">
+                  Paid plans aren&apos;t available in {instructor.currency} yet — we&apos;re
+                  bringing them to your region soon. You can keep using Flowboc in the meantime;
+                  reach out to us if your trial is running low.
+                </p>
+              ) : (
+                <>
+                  <div className={styles["interval"]}>
+                    <div className={styles["intervalInner"]}>
+                      {(["MONTHLY", "ANNUAL"] as const).map((i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setInterval(i)}
+                          aria-pressed={interval === i}
                           className={cn(
-                            "rounded-full px-1.5 py-0.5 text-[0.65rem] font-semibold",
-                            interval === "ANNUAL"
-                              ? "bg-white/20 text-clay-foreground"
-                              : "bg-success/15 text-success",
+                            "flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
+                            interval === i
+                              ? "bg-clay text-clay-foreground shadow-sm"
+                              : "text-muted-foreground hover:text-foreground",
                           )}
                         >
-                          Save {annualSavingsPct}%
-                        </span>
-                      ) : null}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                          {i === "MONTHLY" ? "Monthly" : "Annual"}
+                          {i === "ANNUAL" && annualSavingsPct ? (
+                            <span
+                              className={cn(
+                                "rounded-full px-1.5 py-0.5 text-[0.65rem] font-semibold",
+                                interval === "ANNUAL"
+                                  ? "bg-white/20 text-clay-foreground"
+                                  : "bg-success/15 text-success",
+                              )}
+                            >
+                              Save {annualSavingsPct}%
+                            </span>
+                          ) : null}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-              <div className={styles["plans"]}>
-                {TIERS.map((t) => {
-                  const plan = plans[t][interval];
-                  const selected = tier === t;
-                  return (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setTier(t)}
-                      aria-pressed={selected}
-                      data-selected={selected}
-                      data-tier={t}
-                      className={cn(
-                        styles["plan"],
-                        selected
-                          ? "border-2 border-clay bg-clay/5"
-                          : "border-border hover:border-clay/40",
-                      )}
-                    >
-                      {TIER_RECOMMENDED[t] && (
-                        <span className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full border border-clay bg-card px-2.5 py-0.5 text-[0.65rem] font-bold text-clay shadow-sm">
-                          <Star className="size-3 fill-current" /> Recommended
-                        </span>
-                      )}
-                      <span className={styles["tierIcon"]}>
-                        {t === "STARTER" ? (
-                          <Sprout size={22} strokeWidth={1.4} />
-                        ) : (
-                          <Flower2 size={22} strokeWidth={1.4} />
-                        )}
-                      </span>
-                      <p className="font-semibold">{TIER_LABEL[t]}</p>
-                      <span className={styles["tierNote"]}>
-                        {t === "STARTER"
-                          ? "Begin your teaching journey"
-                          : t === "PRO"
-                            ? "More ways to grow your practice"
-                            : "For a wider teaching community"}
-                      </span>
-                      <p className="mt-2">
-                        {plan ? (
+                  <div className={styles["plans"]}>
+                    {TIERS.map((t) => {
+                      const plan = plans[t][interval];
+                      const selected = tier === t;
+                      return (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setTier(t)}
+                          aria-pressed={selected}
+                          data-selected={selected}
+                          data-tier={t}
+                          className={cn(
+                            styles["plan"],
+                            selected
+                              ? "border-2 border-clay bg-clay/5"
+                              : "border-border hover:border-clay/40",
+                          )}
+                        >
+                          {TIER_RECOMMENDED[t] && (
+                            <span className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full border border-clay bg-card px-2.5 py-0.5 text-[0.65rem] font-bold text-clay shadow-sm">
+                              <Star className="size-3 fill-current" /> Recommended
+                            </span>
+                          )}
+                          <span className={styles["tierIcon"]}>
+                            {t === "STARTER" ? (
+                              <Sprout size={22} strokeWidth={1.4} />
+                            ) : (
+                              <Flower2 size={22} strokeWidth={1.4} />
+                            )}
+                          </span>
+                          <p className="font-semibold">{TIER_LABEL[t]}</p>
+                          <span className={styles["tierNote"]}>
+                            {t === "STARTER"
+                              ? "Begin your teaching journey"
+                              : t === "PRO"
+                                ? "More ways to grow your practice"
+                                : "For a wider teaching community"}
+                          </span>
+                          <p className="mt-2">
+                            {plan ? (
+                              <>
+                                <span className="text-2xl font-extrabold">
+                                  {money(plan.price, billingCurrency)}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  /{interval === "MONTHLY" ? "mo" : "yr"}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">Unavailable</span>
+                            )}
+                          </p>
+                          <ul className="mt-3 space-y-1.5">
+                            {TIER_FEATURES[t].map((f) => (
+                              <li
+                                key={f}
+                                className="flex items-start gap-1.5 text-xs text-muted-foreground"
+                              >
+                                <Check className="mt-0.5 size-3 shrink-0 text-clay" />
+                                {f}
+                              </li>
+                            ))}
+                          </ul>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {tierPlans.MONTHLY || tierPlans.ANNUAL ? (
+                    <>
+                      <Button
+                        variant="clay"
+                        className={styles["subscribe"]}
+                        disabled={!selectedPlan || starting || isCurrentPlan}
+                        onClick={() => void handleSubscribe()}
+                      >
+                        {starting ? (
                           <>
-                            <span className="text-2xl font-extrabold">
-                              {money(plan.price, "USD")}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              /{interval === "MONTHLY" ? "mo" : "yr"}
-                            </span>
+                            <Loader2 className="size-4 animate-spin" /> Redirecting…
                           </>
+                        ) : isCurrentPlan ? (
+                          "Your current plan"
+                        ) : isActive ? (
+                          `Switch to ${TIER_LABEL[tier]}`
                         ) : (
-                          <span className="text-sm text-muted-foreground">Unavailable</span>
+                          "Subscribe with card"
                         )}
+                      </Button>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {isActive && !isCurrentPlan
+                          ? `Starts a new ${TIER_LABEL[tier]} subscription and cancels your current one once the new charge confirms — no overlap in billing.`
+                          : "Paid by card only, so your subscription can auto-renew each billing cycle."}{" "}
+                        Use the email on your Flowboc account ({instructor.email}) at checkout so we
+                        can match the payment back to your account.
                       </p>
-                      <ul className="mt-3 space-y-1.5">
-                        {TIER_FEATURES[t].map((f) => (
-                          <li
-                            key={f}
-                            className="flex items-start gap-1.5 text-xs text-muted-foreground"
-                          >
-                            <Check className="mt-0.5 size-3 shrink-0 text-clay" />
-                            {f}
-                          </li>
-                        ))}
-                      </ul>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {tierPlans.MONTHLY || tierPlans.ANNUAL ? (
-                <>
-                  <Button
-                    variant="clay"
-                    className={styles["subscribe"]}
-                    disabled={!selectedPlan || starting || isCurrentPlan}
-                    onClick={() => void handleSubscribe()}
-                  >
-                    {starting ? (
-                      <>
-                        <Loader2 className="size-4 animate-spin" /> Redirecting…
-                      </>
-                    ) : isCurrentPlan ? (
-                      "Your current plan"
-                    ) : isActive ? (
-                      `Switch to ${TIER_LABEL[tier]}`
-                    ) : (
-                      "Subscribe with card"
-                    )}
-                  </Button>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {isActive && !isCurrentPlan
-                      ? `Starts a new ${TIER_LABEL[tier]} subscription and cancels your current one once the new charge confirms — no overlap in billing.`
-                      : "Paid by card only, so your subscription can auto-renew each billing cycle."}{" "}
-                    Use the email on your Flowboc account ({instructor.email}) at checkout so we can
-                    match the payment back to your account.
-                  </p>
+                    </>
+                  ) : (
+                    <p className="mt-6 text-sm text-muted-foreground">
+                      {TIER_LABEL[tier]} isn&apos;t available yet.
+                    </p>
+                  )}
                 </>
-              ) : (
-                <p className="mt-6 text-sm text-muted-foreground">
-                  {TIER_LABEL[tier]} isn&apos;t available yet.
-                </p>
               )}
             </div>
           )}

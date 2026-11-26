@@ -213,3 +213,28 @@
     background: #fcfbf7;
   }
 }
+
+.plot {
+  height: clamp(14rem, 26vw, 18rem);
+  font-variant-numeric: tabular-nums;
+}
+
+.tooltipRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.tooltipRow strong {
+  padding-inline-start: 10px;
+  text-align: end;
+  font-weight: 600;
+}
+
+.seriesDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}

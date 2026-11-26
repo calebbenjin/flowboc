@@ -4,8 +4,8 @@ import type { TransactionParams } from "@/lib/transactions/filters";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentInstructor } from "@/lib/get-current-instructor";
-import { getProAnalytics, getStarterStats } from "./queries";
-import { canUseProAnalytics } from "@/lib/analytics/access";
+import { getFullAnalytics, getStarterStats } from "./queries";
+import { canUseFullAnalytics } from "@/lib/analytics/access";
 import { illustrativeAnalytics } from "@/lib/analytics/metrics";
 import { AnalyticsClient } from "./analytics-client";
 
@@ -29,9 +29,9 @@ export default async function AnalyticsPage({
   const instructor = await getCurrentInstructor();
   if (!instructor) redirect("/onboarding");
 
-  const entitled = canUseProAnalytics(instructor);
+  const entitled = canUseFullAnalytics(instructor);
   const [analytics, transactions, starterStats] = await Promise.all([
-    entitled ? getProAnalytics() : illustrativeAnalytics(instructor.currency, instructor.timezone),
+    entitled ? getFullAnalytics() : illustrativeAnalytics(instructor.currency, instructor.timezone),
     getInstructorTransactions(params),
     entitled ? undefined : getStarterStats(),
   ]);

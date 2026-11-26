@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/require-admin";
 import { getActivePlan } from "@/lib/subscription-plans";
@@ -110,6 +111,10 @@ export async function adminSetPrices(input: {
     input.annual,
   );
   if (!annualResult.ok) return annualResult;
+
+  // The landing page (served at "/" via a rewrite to /home) renders these
+  // prices, so refresh it rather than wait for the next deploy.
+  revalidatePath("/home");
 
   return {
     ok: true,

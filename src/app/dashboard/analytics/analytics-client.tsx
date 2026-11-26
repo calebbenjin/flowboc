@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, type ReactNode } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { ArrowRight, Flower2, LockKeyhole } from "lucide-react";
 import { DashboardShell } from "@/components/DashboardShell";
@@ -33,7 +33,7 @@ const audienceConfig = {
   signups: { label: "Opt-ins", color: "#6355ff" },
   unsubscribes: { label: "Unsubscribes", color: "#b56d77" },
 } satisfies ChartConfig;
-const viewsConfig = { views: { label: "Page visits", color: "#a596ff" } } satisfies ChartConfig;
+const viewsConfig = { views: { label: "Page visits", color: "#7060cf" } } satisfies ChartConfig;
 
 function TrendChart({
   data,
@@ -48,55 +48,83 @@ function TrendChart({
   monetary?: boolean;
   currency: CurrencyCode;
 }) {
-  const axes = (
-    <>
-      <CartesianGrid vertical={false} />
-      <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={18} />
-      <YAxis
-        tickLine={false}
-        axisLine={false}
-        width={monetary ? 60 : 35}
-        allowDecimals={false}
-        tickFormatter={(value: number) => (monetary ? money(value, currency) : String(value))}
-      />
-      <ChartTooltip
-        content={
-          <ChartTooltipContent
-            formatter={(value) => (monetary ? money(Number(value), currency) : String(value))}
-          />
-        }
-      />
-      <ChartLegend content={<ChartLegendContent />} />
-    </>
-  );
+  const gradientId = useId();
+  const axes = [
+    <CartesianGrid key="grid" vertical={false} strokeDasharray="3 5" />,
+    <XAxis
+      key="date"
+      dataKey="label"
+      tickLine={false}
+      axisLine={false}
+      tickMargin={8}
+      minTickGap={18}
+    />,
+    <YAxis
+      key="value"
+      domain={[0, (maximum: number) => Math.max(maximum, 1)]}
+      tickLine={false}
+      axisLine={false}
+      width={monetary ? 60 : 35}
+      allowDecimals={false}
+      tickFormatter={(value: number) => (monetary ? money(value, currency) : String(value))}
+    />,
+    <ChartTooltip
+      key="tooltip"
+      cursor={bars ? { fill: "#6355ff", fillOpacity: 0.06 } : { strokeDasharray: "4 4" }}
+      content={
+        <ChartTooltipContent
+          formatter={(value, name) => (
+            <div className={styles["tooltipRow"]}>
+              <span
+                className={styles["seriesDot"]}
+                style={{ backgroundColor: config[name]?.color }}
+              />
+              <span>{config[name]?.label ?? name}</span>
+              <strong>{monetary ? money(Number(value), currency) : String(value)}</strong>
+            </div>
+          )}
+        />
+      }
+    />,
+    <ChartLegend key="legend" content={<ChartLegendContent />} />,
+  ];
   return (
-    <ChartContainer config={config} className="mt-5 aspect-auto h-64 w-full">
+    <ChartContainer config={config} className={cn("mt-5 aspect-auto w-full", styles["plot"])}>
       {bars ? (
-        <BarChart data={data} margin={{ left: 0, right: 5, top: 8 }}>
+        <BarChart accessibilityLayer data={data} barGap={4} margin={{ left: 0, right: 5, top: 8 }}>
           {axes}
-          {Object.keys(config).map((key) => (
+          {Object.entries(config).map(([key, { color }]) => (
             <Bar
               key={key}
               dataKey={key}
-              fill={`var(--color-${key})`}
-              radius={[3, 3, 0, 0]}
+              fill={color}
+              radius={[5, 5, 0, 0]}
               maxBarSize={24}
               isAnimationActive={false}
             />
           ))}
         </BarChart>
       ) : (
-        <AreaChart data={data} margin={{ left: 0, right: 5, top: 8 }}>
+        <AreaChart accessibilityLayer data={data} margin={{ left: 0, right: 5, top: 8 }}>
+          <defs>
+            {Object.entries(config).map(([key, { color }]) => (
+              <linearGradient key={key} id={`${gradientId}-${key}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={color} stopOpacity={0.24} />
+                <stop offset="100%" stopColor={color} stopOpacity={0.02} />
+              </linearGradient>
+            ))}
+          </defs>
           {axes}
-          {Object.keys(config).map((key) => (
+          {Object.entries(config).map(([key, { color }]) => (
             <Area
               key={key}
               type="monotone"
               dataKey={key}
-              stroke={`var(--color-${key})`}
-              fill={`var(--color-${key})`}
-              fillOpacity={0.08}
-              strokeWidth={2}
+              stroke={color}
+              fill={`url(#${gradientId}-${key})`}
+              strokeWidth={2.5}
+              dot={data.length === 1 ? { r: 3 } : false}
+              activeDot={{ r: 5, stroke: "#fcfbf7", strokeWidth: 2 }}
               isAnimationActive={false}
             />
           ))}
@@ -120,9 +148,9 @@ function ProCard({ locked, children }: { locked: boolean; children: ReactNode })
         <div className={styles["upgradeLayer"]}>
           <div className={styles["upgrade"]}>
             <LockKeyhole size={22} className="mx-auto text-[#6355ff]" aria-hidden="true" />
-            <p>Discover more with Pro</p>
+            <p>Restore access to analytics</p>
             <Link href="/dashboard/billing" className={styles["cta"]}>
-              Unlock your insights <ArrowRight size={16} />
+              Manage your plan <ArrowRight size={16} />
             </Link>
             <small>Illustrative chart preview</small>
           </div>
@@ -169,7 +197,7 @@ export function AnalyticsClient({
       </header>
       <section
         className={styles["proArea"]}
-        aria-label={locked ? "Pro analytics preview" : "Pro performance analytics"}
+        aria-label={locked ? "Analytics preview" : "Performance analytics"}
       >
         <div className={styles["charts"]}>
           <div className={styles["controls"]}>

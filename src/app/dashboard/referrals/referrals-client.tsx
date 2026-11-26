@@ -238,7 +238,7 @@ export function ReferralsClient({
               {payoutRequests.map((r) => (
                 <div key={r.id} className="flex flex-wrap items-center gap-4 p-4">
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium">{money(r.amount, instructor.currency)}</p>
+                    <p className="font-medium">{money(r.amount, r.currency)}</p>
                     <p className="text-sm text-muted-foreground">
                       Requested {r.requestedAt.toLocaleDateString()}
                       {r.status === "FAILED" && r.failureReason ? ` · ${r.failureReason}` : ""}
@@ -268,7 +268,11 @@ export function ReferralsClient({
                 </div>
                 <StatusPill tone={statusTone(r.status)}>{r.status.toLowerCase()}</StatusPill>
                 <div className="w-28 text-right">
-                  <p className="font-medium">{money(r.commissionEarned, instructor.currency)}</p>
+                  <p className="font-medium">
+                    {r.commissionPending
+                      ? "Converting…"
+                      : money(r.commissionEarned, r.commissionCurrency ?? instructor.currency)}
+                  </p>
                   <p className="text-xs text-muted-foreground">earned</p>
                 </div>
               </div>

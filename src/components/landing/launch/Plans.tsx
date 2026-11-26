@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { currencies, money } from "@/lib/demo";
 import { useLaunchDialog } from "./LaunchDialogContext";
 import { useAuthCta } from "./useAuthCta";
 import type { PlanKey } from "./data";
@@ -12,8 +13,16 @@ import type { PlanKey } from "./data";
 import { starterFeatures, proFeatures } from "@/lib/plan-features";
 
 export function Plans() {
-  const { selectedPlan, setSelectedPlan, billingInterval, setBillingInterval, planPrices } =
-    useLaunchDialog();
+  const {
+    selectedPlan,
+    setSelectedPlan,
+    billingInterval,
+    setBillingInterval,
+    planPrices,
+    pricingCurrency,
+    availableCurrencies,
+    setPricingCurrency,
+  } = useLaunchDialog();
   const { authed, rememberedDevice } = useAuthCta();
 
   const trialCta = (plan: PlanKey) =>
@@ -23,13 +32,24 @@ export function Plans() {
         ? { href: "/auth?mode=login", label: "Log in" }
         : { href: `/auth?plan=${plan}`, label: `Start my ${planPrices[plan].label} trial` };
 
-  const price = (plan: PlanKey) => planPrices[plan][billingInterval];
+  const currencyLabel =
+    currencies.find((c) => c.code === pricingCurrency)?.label ?? pricingCurrency;
+  const price = (plan: PlanKey) => money(planPrices[plan][billingInterval], pricingCurrency);
+  // Only the USD fallback prices are small enough for cents to matter in the
+  // monthly equivalent — local-currency prices round to whole units.
+  const monthlyEquivalent = (plan: PlanKey) => {
+    const amount = planPrices[plan].annual / 12;
+    return pricingCurrency === "USD"
+      ? `$${amount.toFixed(2)}`
+      : money(Math.round(amount), pricingCurrency);
+  };
   const billingDetail = (plan: PlanKey) =>
     billingInterval === "annual"
-      ? `Billed upfront · $${(planPrices[plan].annual / 12).toFixed(2)}/month equivalent · Save $${
-          planPrices[plan].monthly * 12 - planPrices[plan].annual
-        }/year`
-      : "Billed monthly in USD.";
+      ? `Billed upfront · ${monthlyEquivalent(plan)}/month equivalent · Save ${money(
+          planPrices[plan].monthly * 12 - planPrices[plan].annual,
+          pricingCurrency,
+        )}/year`
+      : `Billed monthly in ${pricingCurrency}.`;
 
   return (
     <section id="pricing" className="bg-[#f3efe5] px-5 py-16 sm:px-8 lg:py-24">
@@ -69,7 +89,26 @@ export function Plans() {
               </button>
             ))}
           </div>
-          <p className="mt-3 text-xs text-[#a08ba7]">All subscription prices are in USD.</p>
+          {availableCurrencies.length > 1 ? (
+            <label className="mt-3 inline-flex items-center gap-2 text-xs text-[#a08ba7]">
+              Prices in
+              <select
+                value={pricingCurrency}
+                onChange={(e) => setPricingCurrency(e.target.value as typeof pricingCurrency)}
+                className="rounded-full border border-[#e3d8e7] bg-[#fffdf8] px-3 py-1.5 text-xs text-[#4a4152]"
+              >
+                {availableCurrencies.map((code) => (
+                  <option key={code} value={code}>
+                    {currencies.find((c) => c.code === code)?.label ?? code} ({code})
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <p className="mt-3 text-xs text-[#a08ba7]">
+              All subscription prices are in {currencyLabel} ({pricingCurrency}).
+            </p>
+          )}
         </div>
 
         <div className="mx-auto mt-8 max-w-[500px] text-center">
@@ -125,7 +164,7 @@ export function Plans() {
             </p>
             <div className="mt-6">
               <div className="flex items-baseline gap-2">
-                <strong className="display text-5xl text-[#493150]">${price("starter")}</strong>
+                <strong className="display text-5xl text-[#493150]">{price("starter")}</strong>
                 <span className="text-sm text-[#ac90b3]">
                   / {billingInterval === "annual" ? "year" : "month"}
                 </span>
@@ -168,7 +207,7 @@ export function Plans() {
             </p>
             <div className="mt-6">
               <div className="flex items-baseline gap-2">
-                <strong className="display text-5xl text-[#fff9f1]">${price("pro")}</strong>
+                <strong className="display text-5xl text-[#fff9f1]">{price("pro")}</strong>
                 <span className="text-sm text-[#c1a7cb]">
                   / {billingInterval === "annual" ? "year" : "month"}
                 </span>

@@ -171,12 +171,12 @@ model Instructor {
   onboardingCompletedAt DateTime?
 
   // Public booking-page customization.
-  themeColor String     @default("#6355ff")
-  pageLayout PageLayout @default(CLASSIC)
-  pageTemplate String @default("STANDARD")
-  pageFont String @default("EDITORIAL")
-  coverImageUrl String?
-  newsletterEnabled Boolean @default(true)
+  themeColor        String     @default("#6355ff")
+  pageLayout        PageLayout @default(CLASSIC)
+  pageTemplate      String     @default("STANDARD")
+  pageFont          String     @default("EDITORIAL")
+  coverImageUrl     String?
+  newsletterEnabled Boolean    @default(true)
 
   // Which of the three background fields below is actually in effect.
   // IMAGE is the default so existing instructors (all pre-dating this
@@ -487,9 +487,29 @@ model Referral {
   referredInstructorId String     @unique
   referredInstructor   Instructor @relation("ReferredBy", fields: [referredInstructorId], references: [id], onDelete: Cascade)
 
-  status           ReferralStatus @default(PENDING)
-  plan             String?
-  commissionEarned Int            @default(0)
+  status             ReferralStatus @default(PENDING)
+  plan               String?
+  // Always in commissionCurrency — the referrer's currency at the time it
+  // was credited, converted from the bonus source below so a referrer has
+  // one balance they can withdraw through their own Paystack payout
+  // account, whatever currency the people they referred pay in.
+  commissionEarned   Int            @default(0)
+  // Null until converted — either the bonus hasn't been credited yet, or
+  // it was but the FX lookup failed at the time (see
+  // settlePendingReferralBonuses in src/lib/referral-code.ts, which retries).
+  commissionCurrency CurrencyCode?
+
+  // The one-time bonus as originally earned: commissionRate% of the
+  // referred instructor's first subscription payment, in that payment's
+  // currency. bonusFxRate is the source → commissionCurrency rate used, kept
+  // so a disputed payout can be checked against the numbers at the time.
+  // bonusCreditedAt is the "already credited" marker that makes the bonus
+  // one-time (commissionEarned > 0 used to be, but a credited bonus can now
+  // legitimately sit at 0 while its conversion is pending).
+  bonusSourceAmount   Int?
+  bonusSourceCurrency CurrencyCode?
+  bonusFxRate         Float?
+  bonusCreditedAt     DateTime?
 
   // Set the instant a payout request is created to "lock" this referral's
   // earned commission against being claimed by a second, concurrent
@@ -520,8 +540,12 @@ model ReferralPayoutRequest {
   instructorId String
   instructor   Instructor @relation(fields: [instructorId], references: [id], onDelete: Cascade)
 
-  amount Int // whole-currency units, same unit as Referral.commissionEarned
-  status ReferralPayoutStatus @default(PENDING)
+  amount   Int // whole-currency units, same unit as Referral.commissionEarned
+  // Every referral on a request shares this currency (requestReferralPayout
+  // only claims commission in the referrer's current currency), and it must
+  // match their Paystack transfer recipient's currency to be approved.
+  currency CurrencyCode
+  status   ReferralPayoutStatus @default(PENDING)
 
   referrals Referral[]
 

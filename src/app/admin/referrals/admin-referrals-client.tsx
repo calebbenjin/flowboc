@@ -170,7 +170,7 @@ export function AdminReferralsClient({ referrals }: { referrals: AdminReferralRo
                   {r.plan ? r.plan.toLowerCase() : "—"}
                 </TableCell>
                 <TableCell className="text-right">
-                  {money(r.commissionEarned, r.referrerCurrency)}
+                  {money(r.commissionEarned, r.commissionCurrency ?? r.referrerCurrency)}
                 </TableCell>
                 <TableCell className="text-right">
                   <Button

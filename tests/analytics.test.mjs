@@ -3,7 +3,7 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
 import { Prisma } from "../src/generated/prisma/client.ts";
-import { canUseProAnalytics } from "../src/lib/analytics/access.ts";
+import { canUseFullAnalytics } from "../src/lib/analytics/access.ts";
 import {
   analyticsWeekStarts,
   currencySeries,
@@ -48,7 +48,7 @@ function loadAnalytics(overrides = {}) {
       },
     },
     "@/lib/require-instructor": { requireInstructor: async () => ({ ...account, ...overrides }) },
-    "@/lib/analytics/access": { canUseProAnalytics },
+    "@/lib/analytics/access": { canUseFullAnalytics },
     "@/lib/analytics/metrics": { analyticsWeekStarts, emptyOfferMetrics },
     "@/lib/newsletter/consent": { NEWSLETTER_CONSENT_SOURCES },
     "@/lib/timezone": { zonedDateTimeToUtc },
@@ -68,21 +68,20 @@ function loadAnalytics(overrides = {}) {
   }, exports);
   return { ...exports, calls };
 }
-test("Pro analytics rejects Starter, canceled, and expired trial accounts before querying", async () => {
+test("Full analytics rejects canceled and expired trial accounts before querying", async () => {
   for (const overrides of [
-    { planTier: "STARTER" },
     { planStatus: "CANCELED" },
     { planStatus: "TRIALING", trialEndsAt: new Date(0) },
   ]) {
     const analytics = loadAnalytics(overrides);
-    await assert.rejects(() => analytics.getProAnalytics(), /active Pro/);
+    await assert.rejects(() => analytics.getFullAnalytics(), /eligible plan/);
     assert.equal(analytics.calls.length, 0);
   }
-  assert.equal(canUseProAnalytics({ ...account, planTier: "PREMIUM" }), true);
+  assert.equal(canUseFullAnalytics({ ...account, planTier: "PREMIUM" }), true);
 });
 test("revenue and successful orders include all three offers without mixing currencies", async () => {
-  const analytics = loadAnalytics();
-  const result = await analytics.getProAnalytics();
+  const analytics = loadAnalytics({ planTier: "STARTER" });
+  const result = await analytics.getFullAnalytics();
   const usd = currencySeries(result.weeks, "USD").at(-1),
     ngn = currencySeries(result.weeks, "NGN").at(-1);
   assert.equal(usd.revenue, 116);

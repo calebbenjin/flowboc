@@ -24,8 +24,8 @@ const faqs: [string, string][] = [
     "Yes. Recurring schedules are included in Starter and Pro, so you can publish regular sessions without recreating each one from scratch.",
   ],
   [
-    "Are subscriptions charged in US dollars?",
-    "Yes. Starter is $9 per month or $90 per year, and Pro is $19 per month or $190 per year. Annual plans are billed upfront. Your student class prices use your supported payment currency.",
+    "What currency are subscriptions charged in?",
+    "Your local currency. Subscriptions are currently available in Nigerian naira, Ghanaian cedi, Kenyan shilling, South African rand and West African CFA franc — see the pricing section above for prices in yours. Annual plans are billed upfront. Your student class prices use your supported payment currency.",
   ],
   [
     "Where can I accept payments?",

@@ -173,9 +173,7 @@ export function AdminReferralPayoutsClient({ requests }: { requests: AdminReferr
                 <TableCell>
                   <StatusPill tone={statusTone(r.status)}>{r.status.toLowerCase()}</StatusPill>
                 </TableCell>
-                <TableCell className="text-right">
-                  {money(r.amount, r.instructorCurrency)}
-                </TableCell>
+                <TableCell className="text-right">{money(r.amount, r.currency)}</TableCell>
                 <TableCell className="text-right">
                   {r.status === "PENDING" ? (
                     <Button
@@ -213,7 +211,7 @@ export function AdminReferralPayoutsClient({ requests }: { requests: AdminReferr
             <DialogTitle>Review payout request</DialogTitle>
             <DialogDescription>
               {reviewTarget?.instructorName} ·{" "}
-              {money(reviewTarget?.amount ?? 0, reviewTarget?.instructorCurrency ?? "NGN")}
+              {money(reviewTarget?.amount ?? 0, reviewTarget?.currency ?? "NGN")}
               {reviewTarget?.payoutBankLabel ? ` → ${reviewTarget.payoutBankLabel}` : ""}
             </DialogDescription>
           </DialogHeader>

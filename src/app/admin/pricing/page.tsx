@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { SUBSCRIPTION_CURRENCIES } from "@/lib/startbutton";
+import { SUBSCRIPTION_CURRENCIES } from "@/lib/billing-currency";
 import { getAllActivePlans } from "@/lib/subscription-plans";
 import type { PlanTier } from "@/generated/prisma/enums";
 import { PricingClient } from "./pricing-client";
