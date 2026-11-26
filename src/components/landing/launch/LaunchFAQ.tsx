@@ -6,7 +6,9 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
-const faqs: [string, string][] = [
+// Exported so the landing page can publish the same Q&A as FAQPage
+// structured data — one list, so the markup can't drift from what's shown.
+export const faqs: [string, string][] = [
   [
     "Do my students need an account?",
     "No. Students can view your page, choose a class, enter their details, and pay without creating a Flowboc account.",
@@ -29,7 +31,7 @@ const faqs: [string, string][] = [
   ],
   [
     "Where can I accept payments?",
-    "Online payments require a supported country and currency, together with a connected payout account. Check payment availability for your location before subscribing.",
+    "Online payments are live in Nigeria, Ghana, Kenya, South Africa and Côte d'Ivoire, through Paystack. Students pay by card or bank, and by mobile money (such as M-Pesa) where available. You connect a bank account or mobile money wallet for payouts. Other countries are coming — check payment availability for your location before subscribing.",
   ],
   [
     "Will Flowboc bring me new students?",

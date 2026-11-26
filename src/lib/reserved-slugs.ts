@@ -7,6 +7,7 @@ export const RESERVED_SLUGS = new Set([
   "auth",
   "contact",
   "dashboard",
+  "guides",
   "onboarding",
   "privacy",
   "r",
