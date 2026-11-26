@@ -18,6 +18,10 @@ import { TawkToWidget } from "@/components/landing/TawkToWidget";
 import { getLandingPlansByCurrency } from "@/lib/subscription-plans";
 import Benefits from "@/components/landing/launch/Benefits";
 import { Providers } from "@/app/providers";
+import { BeforeAfter } from "@/components/landing/launch/BeforeAfter";
+import { Testimonials } from "@/components/landing/launch/Testimonials";
+import { TrustStrip } from "@/components/landing/launch/TrustStrip";
+import { prisma } from "@/lib/db";
 import { JsonLd } from "@/components/JsonLd";
 import { siteMarkets, siteName, siteUrl } from "@/lib/site";
 // The landing page lives at /home and is served at "/" via a rewrite in
@@ -54,7 +58,10 @@ export const metadata: Metadata = {
 export default async function Landing() {
   // Every local currency with full pricing set — the client picks which
   // one to show (see LaunchDialogProvider).
-  const plansByCurrency = await getLandingPlansByCurrency();
+  const [plansByCurrency, instructorCount] = await Promise.all([
+    getLandingPlansByCurrency(),
+    prisma.instructor.count({ where: { onboardingCompletedAt: { not: null } } }),
+  ]);
 
   const areaServed = siteMarkets.map(({ country, code }) => ({
     "@type": "Country",
@@ -116,7 +123,9 @@ export default async function Landing() {
           <LaunchNavbar />
           <main>
             <LaunchHero />
+            <TrustStrip instructorCount={instructorCount} />
             <Benefits />
+            <BeforeAfter />
             <WhyJourney />
             <YourPage />
             <Experience />
@@ -125,6 +134,7 @@ export default async function Landing() {
             <Community />
             <Growth />
             <Setup />
+            {/* <Testimonials /> */}
             <Plans />
             <LaunchFAQ />
             <LaunchFinalCTA />

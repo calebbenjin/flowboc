@@ -25,7 +25,7 @@ export function WhyJourney() {
       <div className="mx-auto w-full max-w-[1230px] items-center">
         <div className="text-center mx-auto w-full lg:w-[630px]">
           <p className="text-[0.65rem] font-semibold uppercase tracking-[0.17em] text-primary">
-            A clearer next step
+            From discovery to a paid booking
           </p>
           <h2 className="display mt-4 text-4xl leading-[1.08] tracking-tight text-[#272334] sm:text-5xl">
             Make it easier for interest

@@ -12,6 +12,7 @@ const links = [
   { label: "How it works", href: "#experience" },
   { label: "Business tools", href: "#business" },
   { label: "Pricing", href: "#pricing" },
+  { label: "Guides", href: "/guides" },
 ];
 
 export function LaunchNavbar() {
@@ -21,11 +22,12 @@ export function LaunchNavbar() {
   return (
     <>
       <div className="bg-[#30293e] px-5 py-2.5 text-center text-xs text-[#ddd3ed] sm:px-8">
-        A new chapter for your teaching.{" "}
-        <strong className="font-semibold text-white">Launching 9 November.</strong>{" "}
-        <a href="#setup" className="ml-2 text-[#baffdc] underline-offset-2 hover:underline">
-          Meet your business home ↗
-        </a>
+        <strong className="font-semibold text-white">
+          Now live in Nigeria, Ghana, Kenya, South Africa &amp; Côte d&apos;Ivoire.
+        </strong>{" "}
+        <Link href="/auth" className="ml-2 text-[#baffdc] underline-offset-2 hover:underline">
+          Start your 14-day free trial ↗
+        </Link>
       </div>
       <header className="sticky top-0 z-40 border-b border-[#eee9e3] bg-[#fcfbf7]/95 backdrop-blur-md">
         <div className="mx-auto flex h-[88px] w-full max-w-[1320px] items-center justify-between gap-6 px-5 sm:px-8">
