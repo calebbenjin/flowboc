@@ -13,18 +13,15 @@ export function LaunchHero() {
         <div>
           <div className="flex items-center gap-2 text-[0.7rem] font-semibold uppercase tracking-[0.17em] text-primary">
             <span className="size-1.5 rounded-full bg-primary" />
-            For independent yoga instructors
+            For independent yoga instructors across Africa
           </div>
           <h1 className="display mt-6 text-4xl leading-[1.04] tracking-tight text-[#272334] font-bold sm:text-6xl lg:text-[4rem] capitalize">
-            Bring your classes, bookings, payments, and{" "}
-            {/* <br />
-            and
-            <br /> */}
-            <em className="font-bold italic text-primary">Student relationships together.</em>
+            Bookings and payments for your yoga classes,{" "}
+            <em className="font-bold italic text-primary">all in one link.</em>
           </h1>
           <p className="mt-6 max-w-[430px] text-base leading-[1.85] text-[#716277]">
             Give people one professional page to explore your teaching, choose a class, and pay
-            without creating an account.
+            online in naira, cedi, shilling, rand or CFA — without creating an account.
           </p>
           <div className="mt-7 flex flex-wrap items-center gap-6">
             <Button asChild size="xl" className="bg-[#6355ff] text-white hover:bg-[#5042e5]">
@@ -41,7 +38,8 @@ export function LaunchHero() {
           </div>
           <p className="mt-5 text-[11px] text-[#7c6b84]">
             <Check className="mr-1 inline size-3 text-primary" /> 14-day free trial{" "}
-            <span className="mx-2 text-[#aaa4ad]">·</span> No card required
+            <span className="mx-2 text-[#aaa4ad]">·</span> No card required{" "}
+            <span className="mx-2 text-[#aaa4ad]">·</span> 0% commission on your bookings
           </p>
         </div>
 
@@ -50,7 +48,7 @@ export function LaunchHero() {
             <HeroBookingDemo />
           </div>
           <Image
-            src="/hero-img.png"
+            src="/hero-instructor.png"
             alt="Yoga teacher pointing toward the interactive booking demo"
             width={1024}
             height={2688}

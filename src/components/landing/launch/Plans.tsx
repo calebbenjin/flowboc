@@ -56,7 +56,7 @@ export function Plans() {
       <div className="mx-auto w-full max-w-[1230px]">
         <div className="mx-auto max-w-[650px] text-center">
           <p className="text-[0.65rem] font-semibold uppercase tracking-[0.17em] text-[#6355ff]">
-            A foundation for your business
+            Pricing in naira, cedi, shilling, rand &amp; CFA
           </p>
           <h2 className="display mt-4 text-4xl leading-[1.08] tracking-tight text-[#272334] sm:text-5xl">
             Invest in the business
@@ -230,7 +230,7 @@ export function Plans() {
 
         <p className="mx-auto mt-8 max-w-[500px] text-center text-xs leading-[2] text-[#9f83aa]">
           <strong className="font-medium text-[#84618f]">0% Flowboc commission on sales.</strong>{" "}
-          Payment processor fees apply.
+          Payments are secured by Paystack; its processing fees apply.
           <br />
           14-day free trial · No card required
           <br />

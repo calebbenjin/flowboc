@@ -40,7 +40,7 @@ export function Setup() {
       <div className="mx-auto w-full max-w-[1230px]">
         <div className="mx-auto max-w-[730px] text-center">
           <p className="text-[0.65rem] font-semibold uppercase tracking-[0.17em] text-primary">
-            Your next chapter starts here
+            Set up your yoga booking page in 3 steps
           </p>
           <h2 className="display mt-4 text-4xl leading-[1.08] tracking-tight text-[#272334] sm:text-5xl">
             Build your home.
