@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db";
 import { requireInstructor } from "@/lib/require-instructor";
 import { logAdminActivity } from "@/lib/admin-activity";
+import { settlePendingReferralBonuses } from "@/lib/referral-code";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -30,11 +31,16 @@ export async function requestReferralPayout(): Promise<ActionResult> {
     return { ok: false, error: "You already have a payout request in progress." };
   }
 
+  // Only commission already converted into the instructor's current
+  // currency can go out — that's the currency of their Paystack transfer
+  // recipient. Settling first converts anything still pending.
+  await settlePendingReferralBonuses(instructor.id);
   const eligible = await prisma.referral.findMany({
     where: {
       referrerInstructorId: instructor.id,
       payoutRequestId: null,
       commissionEarned: { gt: 0 },
+      commissionCurrency: instructor.currency,
     },
     select: { id: true, commissionEarned: true },
   });
@@ -45,7 +51,7 @@ export async function requestReferralPayout(): Promise<ActionResult> {
 
   await prisma.$transaction(async (tx) => {
     const request = await tx.referralPayoutRequest.create({
-      data: { instructorId: instructor.id, amount },
+      data: { instructorId: instructor.id, amount, currency: instructor.currency },
     });
     await tx.referral.updateMany({
       where: { id: { in: eligible.map((r) => r.id) } },

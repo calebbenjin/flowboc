@@ -193,7 +193,7 @@ async function handleStartbuttonEvent(event: StartbuttonEvent, rawBody: string):
 
       await creditOneTimeReferralBonus(
         instructor.id,
-        plan ? { price: plan.price, interval: plan.interval } : null,
+        plan ? { price: plan.price, interval: plan.interval, currency: plan.currency } : null,
       );
       break;
     }

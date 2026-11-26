@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { sampleClasses, planPricing, type PlanKey } from "./data";
-import type { BillingInterval, PlanTier } from "@/generated/prisma/enums";
+import { SUBSCRIPTION_CURRENCIES } from "@/lib/billing-currency";
+import type { BillingInterval, CurrencyCode, PlanTier } from "@/generated/prisma/enums";
 
 type PlanInfo = { price: number; planCode: string } | null;
 // Shape returned by getActivePlansForCurrency() — live prices from the
@@ -17,6 +18,10 @@ type PlanInfo = { price: number; planCode: string } | null;
 type PlansByTier = Record<PlanTier, Record<BillingInterval, PlanInfo>>;
 
 const PLAN_KEY_TO_TIER: Record<PlanKey, PlanTier> = { starter: "STARTER", pro: "PRO" };
+
+// The visitor's own pick from the pricing currency switcher, remembered so
+// it wins over the location-based default on later visits.
+const PRICING_CURRENCY_KEY = "flowboc:pricing-currency";
 
 type View =
   | { kind: "closed" }
@@ -36,10 +41,14 @@ type LaunchDialogApi = {
   setSelectedPlan: (plan: PlanKey) => void;
   billingInterval: "monthly" | "annual";
   setBillingInterval: (interval: "monthly" | "annual") => void;
-  // Live DB price when configured in /admin/pricing, falling back to the
-  // numbers in data.ts so the page still renders sane prices before pricing
-  // has been set up for a tier/interval.
+  // Live DB prices in pricingCurrency when configured in /admin/pricing,
+  // falling back to the USD numbers in data.ts (pricingCurrency "USD") only
+  // while no local currency has full pricing set up yet.
   planPrices: Record<PlanKey, { label: string; monthly: number; annual: number }>;
+  pricingCurrency: CurrencyCode;
+  // Currencies the visitor can switch between — empty while on the fallback.
+  availableCurrencies: CurrencyCode[];
+  setPricingCurrency: (currency: CurrencyCode) => void;
 };
 
 const LaunchDialogCtx = React.createContext<LaunchDialogApi | null>(null);
@@ -74,16 +83,64 @@ function PreviewWarning() {
 
 export function LaunchDialogProvider({
   children,
-  plans,
+  plansByCurrency,
 }: {
   children: React.ReactNode;
-  plans?: PlansByTier;
+  plansByCurrency?: Partial<Record<CurrencyCode, PlansByTier>>;
 }) {
   const [view, setView] = React.useState<View>({ kind: "closed" });
   const [booking, setBooking] = React.useState<BookingInfo>({ name: "", email: "", phone: "" });
   const [selectedPlan, setSelectedPlan] = React.useState<PlanKey>("starter");
   const [billingInterval, setBillingInterval] = React.useState<"monthly" | "annual">("monthly");
   const [formError, setFormError] = React.useState<string | null>(null);
+
+  const availableCurrencies = React.useMemo(
+    () => SUBSCRIPTION_CURRENCIES.filter((c) => plansByCurrency?.[c]),
+    [plansByCurrency],
+  );
+  const [pricingCurrency, setPricingCurrencyState] = React.useState<CurrencyCode | null>(
+    availableCurrencies[0] ?? null,
+  );
+  const plans = pricingCurrency ? plansByCurrency?.[pricingCurrency] : undefined;
+
+  // The page is static, so the location-based default is picked after
+  // hydration: a remembered switcher choice first, then /api/geo. Pricing
+  // sits well below the fold, so the swap from the first currency isn't
+  // visible in practice.
+  React.useEffect(() => {
+    if (availableCurrencies.length < 2) return;
+    let saved: string | null = null;
+    try {
+      saved = window.localStorage.getItem(PRICING_CURRENCY_KEY);
+    } catch {
+      // Storage blocked (private mode etc.) — fall through to /api/geo.
+    }
+    if (saved && availableCurrencies.includes(saved as CurrencyCode)) {
+      setPricingCurrencyState(saved as CurrencyCode);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/geo")
+      .then((res) => res.json() as Promise<{ currency: CurrencyCode | null }>)
+      .then(({ currency }) => {
+        if (!cancelled && currency && availableCurrencies.includes(currency)) {
+          setPricingCurrencyState(currency);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [availableCurrencies]);
+
+  const setPricingCurrency = React.useCallback((currency: CurrencyCode) => {
+    setPricingCurrencyState(currency);
+    try {
+      window.localStorage.setItem(PRICING_CURRENCY_KEY, currency);
+    } catch {
+      // Not remembered across visits, but the switch itself still applies.
+    }
+  }, []);
 
   const planPrices = React.useMemo(() => {
     const keys: PlanKey[] = ["starter", "pro"];
@@ -117,8 +174,18 @@ export function LaunchDialogProvider({
       billingInterval,
       setBillingInterval,
       planPrices,
+      pricingCurrency: pricingCurrency ?? "USD",
+      availableCurrencies,
+      setPricingCurrency,
     }),
-    [selectedPlan, billingInterval, planPrices],
+    [
+      selectedPlan,
+      billingInterval,
+      planPrices,
+      pricingCurrency,
+      availableCurrencies,
+      setPricingCurrency,
+    ],
   );
 
   const close = () => setView({ kind: "closed" });

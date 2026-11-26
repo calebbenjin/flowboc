@@ -3,11 +3,8 @@ import type { CurrencyCode } from "@/generated/prisma/enums";
 
 const STARTBUTTON_BASE = "https://api.startbutton.tech";
 
-// Flowboc subscriptions bill in USD only, charged by card through
-// Startbutton's USD wallet — independent of whatever currency an instructor
-// charges their own students in (Instructor.currency, used for class
-// bookings/payouts, is unrelated to this).
-export const SUBSCRIPTION_CURRENCIES: CurrencyCode[] = ["USD"];
+// Which currencies subscriptions bill in (and how an instructor's is
+// picked) lives in src/lib/billing-currency.ts.
 
 export class StartbuttonError extends Error {
   constructor(

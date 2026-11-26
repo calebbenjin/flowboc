@@ -15,7 +15,7 @@ import { LaunchFAQ } from "@/components/landing/launch/LaunchFAQ";
 import { LaunchFinalCTA } from "@/components/landing/launch/LaunchFinalCTA";
 import { LaunchFooter } from "@/components/landing/launch/LaunchFooter";
 import { TawkToWidget } from "@/components/landing/TawkToWidget";
-import { getActivePlansForCurrency } from "@/lib/subscription-plans";
+import { getLandingPlansByCurrency } from "@/lib/subscription-plans";
 import Benefits from "@/components/landing/launch/Benefits";
 import { Providers } from "@/app/providers";
 // The landing page lives at /home and is served at "/" via a rewrite in
@@ -49,12 +49,13 @@ export const metadata: Metadata = {
 };
 
 export default async function Landing() {
-  // Subscriptions bill in USD only — see src/lib/startbutton.ts.
-  const plans = await getActivePlansForCurrency("USD");
+  // Every local currency with full pricing set — the client picks which
+  // one to show (see LaunchDialogProvider).
+  const plansByCurrency = await getLandingPlansByCurrency();
 
   return (
     <Providers>
-      <LaunchDialogProvider plans={plans}>
+      <LaunchDialogProvider plansByCurrency={plansByCurrency}>
         <div className="min-h-screen overflow-x-clip bg-[#fcfbf7]">
           <LaunchNavbar />
           <main>

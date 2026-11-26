@@ -11,6 +11,9 @@ export type AdminReferralRow = {
   status: ReferralStatus;
   plan: string | null;
   commissionEarned: number;
+  // Null when uncredited or still waiting on conversion — display falls
+  // back to referrerCurrency.
+  commissionCurrency: CurrencyCode | null;
   joinedAt: Date;
 };
 
@@ -33,6 +36,7 @@ export async function getAllReferrals(): Promise<AdminReferralRow[]> {
     status: r.status,
     plan: r.plan,
     commissionEarned: r.commissionEarned,
+    commissionCurrency: r.commissionCurrency,
     joinedAt: r.joinedAt,
   }));
 }

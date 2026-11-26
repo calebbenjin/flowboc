@@ -31,6 +31,15 @@ export async function adminApproveReferralPayout(requestId: string): Promise<Act
   if (instructor.payoutStatus !== "CONNECTED" || !instructor.payoutAccountId) {
     return { ok: false, error: `${instructor.name} no longer has a connected payout account.` };
   }
+  // The transfer recipient is created in (and cached for) the instructor's
+  // currency, so a request made before they changed currency can't go out
+  // as-is — reject it, which unlocks its referrals to be re-converted.
+  if (request.currency !== instructor.currency) {
+    return {
+      ok: false,
+      error: `This request is in ${request.currency} but ${instructor.name} now uses ${instructor.currency}. Reject it so they can request again.`,
+    };
+  }
 
   try {
     let recipientCode = instructor.paystackTransferRecipientCode;

@@ -21,9 +21,31 @@ export async function adminAdjustReferral(input: {
     return { ok: false, error: "Commission must be a non-negative whole number." };
   }
 
+  const referral = await prisma.referral.findUnique({
+    where: { id: input.referralId },
+    include: { referrerInstructor: { select: { currency: true } } },
+  });
+  if (!referral) return { ok: false, error: "Referral not found." };
+
+  // The admin's amount is in the referrer's current currency, and becomes
+  // the new bonus source too — otherwise settlePendingReferralBonuses would
+  // recompute over it from the original source after a currency change.
+  // A non-zero amount also marks the bonus credited so the webhook can't
+  // credit it a second time on top.
+  const currency = referral.referrerInstructor.currency;
   await prisma.referral.update({
     where: { id: input.referralId },
-    data: { status: input.status, commissionEarned: input.commissionEarned },
+    data: {
+      status: input.status,
+      commissionEarned: input.commissionEarned,
+      commissionCurrency: currency,
+      bonusSourceAmount: input.commissionEarned,
+      bonusSourceCurrency: currency,
+      bonusFxRate: 1,
+      ...(input.commissionEarned > 0 && !referral.bonusCreditedAt
+        ? { bonusCreditedAt: new Date() }
+        : {}),
+    },
   });
 
   return { ok: true };

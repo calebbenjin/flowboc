@@ -6,7 +6,8 @@ export type AdminReferralPayoutRow = {
   instructorId: string;
   instructorName: string;
   instructorEmail: string;
-  instructorCurrency: CurrencyCode;
+  // The request's own currency — what the transfer goes out in.
+  currency: CurrencyCode;
   payoutBankLabel: string | null;
   amount: number;
   status: ReferralPayoutStatus;
@@ -19,7 +20,7 @@ export async function getAllReferralPayoutRequests(): Promise<AdminReferralPayou
   const rows = await prisma.referralPayoutRequest.findMany({
     include: {
       instructor: {
-        select: { name: true, email: true, currency: true, payoutBankLabel: true },
+        select: { name: true, email: true, payoutBankLabel: true },
       },
     },
     orderBy: { requestedAt: "desc" },
@@ -30,7 +31,7 @@ export async function getAllReferralPayoutRequests(): Promise<AdminReferralPayou
     instructorId: r.instructorId,
     instructorName: r.instructor.name,
     instructorEmail: r.instructor.email,
-    instructorCurrency: r.instructor.currency,
+    currency: r.currency,
     payoutBankLabel: r.instructor.payoutBankLabel,
     amount: r.amount,
     status: r.status,

@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/db";
 import { requireInstructor } from "@/lib/require-instructor";
-import { getActivePlan } from "@/lib/subscription-plans";
+import { getActivePlan, getBillingCurrency } from "@/lib/subscription-plans";
 import { cancelSubscriber, StartbuttonError } from "@/lib/startbutton";
 import type { BillingInterval, PlanTier } from "@/generated/prisma/enums";
 
@@ -29,9 +29,14 @@ export async function startSubscription(
 ): Promise<{ ok: true; authorizationUrl: string } | { ok: false; error: string }> {
   const instructor = await requireInstructor();
 
-  // Subscriptions always bill in USD, regardless of the currency the
-  // instructor charges their own students in (instructor.currency).
-  const plan = await getActivePlan("USD", interval, tier);
+  // Bills in the instructor's local currency — see resolveBillingCurrency
+  // in src/lib/billing-currency.ts for how that's picked (and locked while
+  // they're already subscribed).
+  const currency = await getBillingCurrency(instructor);
+  if (!currency) {
+    return { ok: false, error: "Paid plans aren't available in your currency yet." };
+  }
+  const plan = await getActivePlan(currency, interval, tier);
   if (!plan) {
     return { ok: false, error: "That plan isn't available right now." };
   }

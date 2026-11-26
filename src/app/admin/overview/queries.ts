@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/db";
+import { getFxRate } from "@/lib/fx";
+import { summarizeMrr, type MrrSummary } from "@/lib/mrr";
+import type { CurrencyCode } from "@/generated/prisma/enums";
 
 export type AdminOverviewStats = {
   totalInstructors: number;
@@ -65,4 +68,29 @@ export async function getRecentActivity(limit = 50): Promise<AdminActivityEventR
     orderBy: { createdAt: "desc" },
     take: limit,
   });
+}
+
+// Paying subscribers only — COMPED access has no subscription behind it,
+// and PAST_DUE isn't collecting. Plans are looked up by code across every
+// row ever created (not just active ones), so subscribers still on a
+// superseded price count at what they actually pay.
+export async function getMrrSummary(): Promise<MrrSummary> {
+  const subscribers = await prisma.instructor.findMany({
+    where: { planStatus: "ACTIVE", subscriptionPlanCode: { not: null } },
+    select: { subscriptionPlanCode: true },
+  });
+  const codes = [...new Set(subscribers.map((s) => s.subscriptionPlanCode!))];
+  const plans = await prisma.subscriptionPlan.findMany({
+    where: { providerPlanCode: { in: codes } },
+    select: { providerPlanCode: true, price: true, interval: true, currency: true },
+  });
+  const planByCode = new Map(plans.map((p) => [p.providerPlanCode, p]));
+  const subscriptions = subscribers.flatMap((s) => planByCode.get(s.subscriptionPlanCode!) ?? []);
+
+  const currencies = [...new Set(subscriptions.map((s) => s.currency))];
+  const usdRates = Object.fromEntries(
+    await Promise.all(currencies.map(async (c) => [c, await getFxRate(c, "USD")] as const)),
+  ) as Partial<Record<CurrencyCode, number | null>>;
+
+  return summarizeMrr(subscriptions, usdRates);
 }

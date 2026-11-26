@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentInstructor } from "@/lib/get-current-instructor";
+import { settlePendingReferralBonuses } from "@/lib/referral-code";
 import { getReferralPayoutSummary, getReferrals } from "./queries";
 import { ReferralsClient } from "./referrals-client";
 
@@ -19,14 +20,21 @@ export default async function ReferralsPage() {
   const instructor = await getCurrentInstructor();
   if (!instructor) redirect("/onboarding");
 
+  // Converts any bonus still pending into the instructor's current
+  // currency before the balance is read — see settlePendingReferralBonuses.
+  await settlePendingReferralBonuses(instructor.id);
   const [referrals, payoutSummary] = await Promise.all([
     getReferrals(instructor.id),
-    getReferralPayoutSummary(instructor.id),
+    getReferralPayoutSummary(instructor),
   ]);
   const stats = {
     totalReferred: referrals.length,
     activeReferrals: referrals.filter((r) => r.status === "ACTIVE").length,
-    totalCommission: referrals.reduce((sum, r) => sum + r.commissionEarned, 0),
+    // Lifetime total in the current currency only — commission paid out
+    // before a currency change can't be summed with it meaningfully.
+    totalCommission: referrals
+      .filter((r) => r.commissionCurrency === instructor.currency)
+      .reduce((sum, r) => sum + r.commissionEarned, 0),
   };
 
   return (

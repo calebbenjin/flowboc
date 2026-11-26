@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { requireInstructor } from "@/lib/require-instructor";
-import { canUseProAnalytics } from "@/lib/analytics/access";
+import { canUseFullAnalytics } from "@/lib/analytics/access";
 import {
   analyticsWeekStarts,
   emptyOfferMetrics,
@@ -16,10 +16,10 @@ import { Prisma } from "@/generated/prisma/client";
 import type { CurrencyCode } from "@/lib/demo";
 export type { WeeklyMetric, TopClass } from "@/lib/analytics/metrics";
 
-export async function getProAnalytics(): Promise<AnalyticsData> {
+export async function getFullAnalytics(): Promise<AnalyticsData> {
   const instructor = await requireInstructor();
-  if (!canUseProAnalytics(instructor))
-    throw new Error("Pro analytics requires an active Pro plan.");
+  if (!canUseFullAnalytics(instructor))
+    throw new Error("Full analytics requires an eligible plan.");
   return loadAnalytics(instructor, true);
 }
 
