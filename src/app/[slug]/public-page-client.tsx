@@ -63,6 +63,7 @@ import {
   isFlatBackgroundBright,
 } from "@/lib/public-page-background";
 import { toast } from "sonner";
+import { CookieSettingsButton } from "@/components/CookieBanner";
 import {
   socialIcons,
   socialHref,
@@ -1480,6 +1481,7 @@ export function PublicPageClient({
                 <Link href="/privacy">Privacy</Link>
                 <Link href="/terms">Terms</Link>
                 <Link href="/contact">Report</Link>
+                <CookieSettingsButton />
               </nav>
             </footer>
           ) : (
@@ -1508,6 +1510,8 @@ export function PublicPageClient({
                 <a href="/contact" className="hover:underline">
                   Report
                 </a>
+                <span>·</span>
+                <CookieSettingsButton className="hover:underline" />
               </div>
               <p className="text-center text-xs text-muted-foreground">
                 Booking powered by <span className="display text-foreground">Flowboc</span>
