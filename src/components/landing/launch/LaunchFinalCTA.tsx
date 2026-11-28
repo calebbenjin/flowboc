@@ -12,7 +12,7 @@ export function LaunchFinalCTA() {
     ? "Go to my account"
     : rememberedDevice
       ? "Log in"
-      : "Create my Flowboc page";
+      : "Start your free trial";
 
   return (
     <section

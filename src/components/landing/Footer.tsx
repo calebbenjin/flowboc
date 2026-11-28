@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Instagram, Youtube, Music2 } from "lucide-react";
 import Image from "next/image";
+import { CookieSettingsButton } from "@/components/CookieBanner";
 
 const columns = [
   // {
@@ -75,8 +76,9 @@ export function Footer() {
           </div>
         ))}
       </div>
-      <div className="mx-auto mt-12 w-full max-w-[1200px] border-t border-border pt-6 text-sm text-muted-foreground">
-        © 2026 Flowboc. All rights reserved.
+      <div className="mx-auto mt-12 flex w-full max-w-[1200px] flex-wrap items-center justify-between gap-3 border-t border-border pt-6 text-sm text-muted-foreground">
+        <span>© 2026 Flowboc. All rights reserved.</span>
+        <CookieSettingsButton className="hover:text-foreground" />
       </div>
     </footer>
   );

@@ -27,7 +27,7 @@ export const faqs: [string, string][] = [
   ],
   [
     "What currency are subscriptions charged in?",
-    "Your local currency. Subscriptions are currently available in Nigerian naira, Ghanaian cedi, Kenyan shilling, South African rand and West African CFA franc — see the pricing section above for prices in yours. Annual plans are billed upfront. Your student class prices use your supported payment currency.",
+    "Your local currency. Subscriptions are currently available in Nigerian naira, Ghanaian cedi, Kenyan shilling, South African rand and West African CFA franc — see the pricing page for prices in yours. Annual plans are billed upfront. Your student class prices use your supported payment currency.",
   ],
   [
     "Where can I accept payments?",

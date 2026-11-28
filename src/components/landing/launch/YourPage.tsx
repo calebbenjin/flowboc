@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { HeroBookingDemo } from "./HeroBookingDemo";
+import { PhoneArch } from "./PhoneArch";
 import { useAuthCta } from "./useAuthCta";
 import { themeMap, type ThemeKey } from "./data";
 
@@ -27,15 +28,26 @@ export function YourPage() {
   return (
     <section id="your-page" className="bg-[#eef1e8] px-5 py-16 sm:px-8 lg:py-24">
       <div className="mx-auto grid w-full max-w-[1230px] items-center gap-16 lg:grid-cols-2">
-        <div className="relative rounded-3xl bg-[#e0e7d8] p-3 sm:p-6">
-          <div className="mb-5 flex items-center justify-between text-[0.6rem] font-semibold uppercase tracking-[0.1em] text-[#8a927b]">
+        <div className="relative">
+          {/* <div className="mb-5 flex items-center justify-between text-[0.6rem] font-semibold uppercase tracking-[0.1em] text-[#8a927b]">
             <span>Your page, your personality</span>
             <span>↗</span>
-          </div>
+          </div> */}
 
-          <HeroBookingDemo staticPreview mood={active} />
+          <PhoneArch
+            mirrored
+            tones={{
+              arch: "from-[#f6e6d6] to-[#e8c8a8]",
+              outline: "border-[#e3c9b0]",
+              blob: "text-[#e4e0ff]",
+              dots: "#c9a27e",
+              accent: "bg-[#c9c1ff]",
+            }}
+          >
+            <HeroBookingDemo staticPreview mood={active} />
+          </PhoneArch>
 
-          <div className="mt-6 flex items-center justify-center gap-5 text-xs text-[#818a73]">
+          {/* <div className="mt-6 flex items-center justify-center gap-5 text-xs text-[#818a73]">
             <span>Try a different mood</span>
             <div className="flex gap-2" aria-label="Page theme">
               {(Object.keys(themeMap) as ThemeKey[]).map((key) => (
@@ -53,7 +65,7 @@ export function YourPage() {
                 />
               ))}
             </div>
-          </div>
+          </div> */}
         </div>
 
         <div>

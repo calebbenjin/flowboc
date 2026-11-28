@@ -2,15 +2,12 @@ import type { Metadata } from "next";
 import { LaunchDialogProvider } from "@/components/landing/launch/LaunchDialogContext";
 import { LaunchNavbar } from "@/components/landing/launch/LaunchNavbar";
 import { LaunchHero } from "@/components/landing/launch/LaunchHero";
-import { WhyJourney } from "@/components/landing/launch/WhyJourney";
+import { HowYouTeach } from "@/components/landing/launch/HowYouTeach";
 import { YourPage } from "@/components/landing/launch/YourPage";
 import { Experience } from "@/components/landing/launch/Experience";
 import { Offers } from "@/components/landing/launch/Offers";
-import { Business } from "@/components/landing/launch/Business";
-import { Community } from "@/components/landing/launch/Community";
-import { Growth } from "@/components/landing/launch/Growth";
+import { WhatYouGet } from "@/components/landing/launch/WhatYouGet";
 import { Setup } from "@/components/landing/launch/Setup";
-import { Plans } from "@/components/landing/launch/Plans";
 import { faqs, LaunchFAQ } from "@/components/landing/launch/LaunchFAQ";
 import { LaunchFinalCTA } from "@/components/landing/launch/LaunchFinalCTA";
 import { LaunchFooter } from "@/components/landing/launch/LaunchFooter";
@@ -21,6 +18,8 @@ import { Providers } from "@/app/providers";
 import { BeforeAfter } from "@/components/landing/launch/BeforeAfter";
 import { Testimonials } from "@/components/landing/launch/Testimonials";
 import { TrustStrip } from "@/components/landing/launch/TrustStrip";
+import { WhoItsFor } from "@/components/landing/launch/WhoItsFor";
+import { testimonials } from "@/components/landing/launch/testimonial-data";
 import { prisma } from "@/lib/db";
 import { JsonLd } from "@/components/JsonLd";
 import { siteMarkets, siteName, siteUrl } from "@/lib/site";
@@ -123,19 +122,19 @@ export default async function Landing() {
           <LaunchNavbar />
           <main>
             <LaunchHero />
-            <TrustStrip instructorCount={instructorCount} />
+            {/* <TrustStrip instructorCount={instructorCount} /> */}
             <Benefits />
+            <Setup quote={testimonials[0]} />
             <BeforeAfter />
-            <WhyJourney />
+            <HowYouTeach />
+            <WhoItsFor />
             <YourPage />
-            <Experience />
-            <Offers />
-            <Business />
-            <Community />
-            <Growth />
-            <Setup />
+            {/* <Experience /> */}
+            {/* <Offers /> */}
+            <WhatYouGet />
+            {/* <Community /> */}
+            {/* <Growth /> */}
             {/* <Testimonials /> */}
-            <Plans />
             <LaunchFAQ />
             <LaunchFinalCTA />
           </main>

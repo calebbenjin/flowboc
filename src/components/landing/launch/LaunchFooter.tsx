@@ -1,8 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
+import { CookieSettingsButton } from "@/components/CookieBanner";
 
 const links = [
   { label: "About", href: "/about" },
+  { label: "Features", href: "/features" },
+  { label: "Pricing", href: "/pricing" },
   { label: "Guides", href: "/guides" },
   { label: "Contact", href: "/contact" },
   { label: "Terms", href: "/terms" },
@@ -40,6 +43,7 @@ export function LaunchFooter() {
       </div>
       <div className="mx-auto mt-10 flex w-full max-w-[1230px] flex-wrap items-center justify-between gap-3 border-t border-[#eadfec] pt-5 text-xs text-[#b69bbe]">
         <span>© 2026 Flowboc</span>
+        <CookieSettingsButton className="hover:text-[#6355ff]" />
       </div>
     </footer>
   );

@@ -60,12 +60,38 @@ const sections = [
   },
   {
     heading: "4. Cookies",
+    id: "cookies",
     body: (
-      <p>
-        We use cookies and similar technologies to keep you signed in, remember your preferences,
-        and understand how Flowboc is used. You can control cookies through your browser settings,
-        though some parts of Flowboc may not work properly without them.
-      </p>
+      <>
+        <p>
+          The first time you visit, we ask whether you accept optional cookies. You can change your
+          choice at any time with the &ldquo;Cookie settings&rdquo; link in the footer of any
+          Flowboc page.
+        </p>
+        <p>
+          <strong className="font-medium text-foreground">Always on (essential).</strong> Cookies
+          that keep you signed in, let a student complete a booking and payment, and remember your
+          cookie choice. Flowboc does not work without them.
+        </p>
+        <p>
+          <strong className="font-medium text-foreground">Analytics (optional).</strong> We use
+          PostHog to understand how Flowboc is used, for example which pages are visited and where
+          people get stuck. If you accept, PostHog stores a random identifier in a cookie and local
+          storage so it can recognise return visits, and may record anonymised sessions with typed
+          text masked. If you reject, no analytics cookies are set: visits are counted anonymously
+          using an identifier generated on PostHog&rsquo;s servers that changes every day.
+        </p>
+        <p>
+          <strong className="font-medium text-foreground">Support chat (optional).</strong> Our
+          Tawk.to chat on the Flowboc website sets its own cookies to keep your conversation. It
+          only loads if you accept.
+        </p>
+        <p>
+          <strong className="font-medium text-foreground">Performance.</strong> Vercel Speed
+          Insights measures how fast pages load for a sample of visits. It does not use cookies or
+          identify you.
+        </p>
+      </>
     ),
   },
   {
@@ -134,7 +160,7 @@ export default function PrivacyPage() {
   return (
     <LegalLayout
       title="Privacy Policy"
-      updated="August 12, 2026"
+      updated="November 28, 2026"
       intro="This policy explains what information Flowboc collects, how we use it, and the choices you have. It applies to instructors using Flowboc to manage their business and to students booking classes through a Flowboc page."
       sections={sections}
     />

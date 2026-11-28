@@ -1,6 +1,8 @@
-// Real quotes from instructors using Flowboc. Get written permission to use
-// each name, photo and quote, and never add invented quotes here — this
-// list is what production shows.
+// Real quotes from instructors using Flowboc. Order matters: the first sits
+// beside How it works (so a quote about getting set up fits best), the
+// second beside Who it's for, and the Testimonials section shows them all.
+// Get written permission to use each name, photo and quote, and never add
+// invented quotes here — this list is what production shows.
 export type Testimonial = {
   quote: string;
   name: string;
@@ -18,10 +20,19 @@ const realTestimonials: Testimonial[] = [];
 const sampleTestimonials: Testimonial[] = [
   {
     quote:
+      "I set up my page between two classes. That evening I put the link on my WhatsApp status, and my first paid booking came in before bed.",
+    name: "Rosemary M.",
+    city: "Observatory, Cape Town",
+    sample: true,
+    photoUrl: "/tes/rose-img.jpg",
+  },
+  {
+    quote:
       "I used to spend Sunday evenings matching bank transfers to a Google Form. Now students book and pay from the link in my bio, and I just check who's coming.",
-    name: "Sample instructor",
+    name: "Sharon Baron",
     city: "Lekki, Lagos",
     sample: true,
+    photoUrl: "/tes/sharon-img.png",
   },
   {
     quote:
