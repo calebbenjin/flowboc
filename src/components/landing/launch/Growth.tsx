@@ -92,7 +92,7 @@ export function Growth() {
 
         <div>
           <p className="text-[0.65rem] font-semibold uppercase tracking-[0.17em] text-primary">
-            Grow with a clearer picture
+            Booking &amp; revenue insights
           </p>
           <h2 className="display mt-4 text-4xl leading-[1.08] tracking-tight text-[#272334] sm:text-5xl">
             See what is working.

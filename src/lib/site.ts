@@ -10,15 +10,31 @@ export const siteName = "Flowboc";
 export const supportEmail = "hello@flowboc.com";
 export const contactEmail = "mail@flowboc.com";
 
-export const siteTitle = "Flowboc — Simple booking for yoga instructors";
+export const siteTitle = "Flowboc — Booking and payments for yoga instructors in Africa";
 
 export const siteDescription =
-  "Create your class, share your booking link, get paid. Booking software for independent yoga teachers.";
+  "Create your class, share your booking link, get paid in naira, cedi, shilling, rand or CFA. Booking software for independent yoga instructors in Nigeria, Ghana, Kenya, South Africa and West Africa.";
 
 export const siteKeywords = [
   "yoga booking software",
-  "yoga class scheduling",
-  "booking link for yoga teachers",
+  "yoga booking app Nigeria",
+  "yoga class booking Lagos",
+  "yoga booking software Ghana",
+  "yoga booking software Kenya",
+  "yoga booking software South Africa",
+  "accept payments for yoga classes",
+  "Paystack booking page",
+  "mobile money class payments",
   "independent yoga instructor tools",
-  "yoga class payments",
+];
+
+// Where online payments and subscriptions are live — kept in step with
+// PAYSTACK_CURRENCIES / SUBSCRIPTION_CURRENCIES. Feeds areaServed in the
+// landing page's structured data so search engines see the actual market.
+export const siteMarkets = [
+  { country: "Nigeria", code: "NG" },
+  { country: "Ghana", code: "GH" },
+  { country: "Kenya", code: "KE" },
+  { country: "South Africa", code: "ZA" },
+  { country: "Côte d'Ivoire", code: "CI" },
 ];

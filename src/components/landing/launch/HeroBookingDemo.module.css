@@ -1,10 +1,10 @@
 .demo {
-  width: 100%;
-  max-width: 510px;
+  /* width: 100%; */
+  /* max-width: 510px; */
   margin: auto;
-  padding: 22px 16px 16px;
-  border-radius: 36px;
-  background: radial-gradient(ellipse at 50% 40%, #dce4d2, transparent 65%), #eeeee5;
+  /* padding: 22px 16px 16px; */
+  /* border-radius: 36px; */
+  /* background: radial-gradient(ellipse at 50% 40%, #dce4d2, transparent 65%), #eeeee5; */
   color: #303b2d;
 }
 .heading {

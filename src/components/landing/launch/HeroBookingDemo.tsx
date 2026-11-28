@@ -131,9 +131,9 @@ export function HeroBookingDemo({
       className={styles["demo"]}
       aria-label="Interactive student booking demonstration"
     >
-      <div className="text-sm text-[#272334] mb-4 lg:mb-6 text-center">
+      {/* <div className="text-sm text-[#272334] mb-4 lg:mb-6 text-center">
         <span>{staticPreview ? "YOUR PUBLIC PAGE" : "THE STUDENT EXPERIENCE"}</span>
-      </div>
+      </div> */}
       <div className={styles["phone"]}>
         <div className={styles["status"]} aria-hidden="true">
           <span>9:41</span>
@@ -465,7 +465,7 @@ export function HeroBookingDemo({
         </div>
         <div className={styles["homeIndicator"]} aria-hidden="true" />
       </div>
-      {!staticPreview && (
+      {/* {!staticPreview && (
         <div className={styles["controls"]}>
           <div className={styles["steps"]}>
             {stages.map((label, index) => (
@@ -497,7 +497,7 @@ export function HeroBookingDemo({
         {staticPreview
           ? "Example public page · Sage Pro theme"
           : "Interactive demo · Example bookings & purchases"}
-      </p>
+      </p> */}
     </div>
   );
 }

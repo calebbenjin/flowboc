@@ -28,7 +28,7 @@ export function Offers() {
       <div className="mx-auto w-full max-w-[1230px]">
         <div className="max-w-[600px]">
           <p className="text-[0.65rem] font-semibold uppercase tracking-[0.17em] text-primary">
-            Room for the way you work
+            Group classes, 1:1 sessions &amp; ebooks
           </p>
           <h2 className="display mt-4 text-4xl leading-[1.08] tracking-tight text-[#272334] sm:text-5xl">
             Build your offers around

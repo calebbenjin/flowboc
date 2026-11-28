@@ -17,10 +17,14 @@ export async function generateMetadata({
   const instructor = await getPublicInstructor(slug);
   if (!instructor) return {};
 
-  const title = `${instructor.name} — Book a yoga class`;
+  // Location goes in the title, not just the description — "yoga classes in
+  // Lekki" is how students search, and the title carries the most weight.
+  const title = instructor.location
+    ? `Yoga classes in ${instructor.location} with ${instructor.name}`
+    : `${instructor.name} — Book a yoga class`;
   return {
     title,
-    description: `Book upcoming yoga classes with ${instructor.name}${instructor.location ? ` in ${instructor.location}` : ""}. No account needed.`,
+    description: `Book upcoming yoga classes with ${instructor.name}${instructor.location ? ` in ${instructor.location}` : ""}. See live availability and pay online. No account needed.`,
     alternates: { canonical: `/${slug}` },
     openGraph: {
       title,
@@ -59,9 +63,56 @@ export default async function PublicPage({ params }: { params: Promise<{ slug: s
       : {}),
   };
 
+  // Each upcoming class as a schema.org Event, which makes it eligible for
+  // Google's event results ("yoga class Lagos this weekend"). Capped so a
+  // long recurring schedule doesn't bloat the page.
+  const eventsJsonLd = classes.slice(0, 20).map((cls) => {
+    const url = `${siteUrl}/${instructor.slug}/book/${cls.id}`;
+    const spotsLeft = cls.capacity - cls._count.bookings;
+    return {
+      "@context": "https://schema.org",
+      "@type": "Event",
+      name: cls.name,
+      ...(cls.description ? { description: cls.description } : {}),
+      ...(cls.coverUrl ? { image: cls.coverUrl } : {}),
+      url,
+      startDate: cls.startAt.toISOString(),
+      endDate: new Date(cls.startAt.getTime() + cls.durationMinutes * 60_000).toISOString(),
+      eventStatus: "https://schema.org/EventScheduled",
+      eventAttendanceMode:
+        cls.mode === "ONLINE"
+          ? "https://schema.org/OnlineEventAttendanceMode"
+          : "https://schema.org/OfflineEventAttendanceMode",
+      // The join link is only shared after booking, so the booking page
+      // stands in as the virtual location's URL.
+      location:
+        cls.mode === "ONLINE"
+          ? { "@type": "VirtualLocation", url }
+          : {
+              "@type": "Place",
+              name: cls.location ?? instructor.location ?? instructor.name,
+              address: cls.location ?? instructor.location ?? undefined,
+            },
+      organizer: { "@type": "Person", name: instructor.name, url: `${siteUrl}/${instructor.slug}` },
+      performer: { "@type": "Person", name: instructor.name },
+      offers: {
+        "@type": "Offer",
+        url,
+        price: cls.price,
+        priceCurrency: instructor.currency,
+        availability:
+          cls.status === "FULL" || spotsLeft <= 0
+            ? "https://schema.org/SoldOut"
+            : "https://schema.org/InStock",
+        ...(cls.publishedAt ? { validFrom: cls.publishedAt.toISOString() } : {}),
+      },
+    };
+  });
+
   return (
     <>
       <JsonLd data={personJsonLd} />
+      {eventsJsonLd.length > 0 ? <JsonLd data={eventsJsonLd} /> : null}
       <PublicPageClient {...content} />
     </>
   );

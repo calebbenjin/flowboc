@@ -63,6 +63,7 @@ import {
   isFlatBackgroundBright,
 } from "@/lib/public-page-background";
 import { toast } from "sonner";
+import { CookieSettingsButton } from "@/components/CookieBanner";
 import {
   socialIcons,
   socialHref,
@@ -1149,7 +1150,7 @@ function ClassesSection({
   }
 
   return (
-    <div className={`sm:mt-12 mt-2 ${layoutListClassName[instructor.pageLayout]}`}>
+    <div className={`sm:my-10 my-4 ${layoutListClassName[instructor.pageLayout]}`}>
       {groups.map((group, i) => {
         const delay = Math.min(i, 6) * 0.08;
 
@@ -1418,7 +1419,7 @@ export function PublicPageClient({
                   className={cn(
                     isSage
                       ? "sage-link-row"
-                      : "surface mb-6 block font-medium transition-colors hover:bg-accent",
+                      : "surface mb-4 block font-medium transition-colors hover:bg-accent",
                     link.imageUrl ? "flex items-center gap-3 p-3" : "px-6 py-4 text-center",
                   )}
                 >
@@ -1480,6 +1481,7 @@ export function PublicPageClient({
                 <Link href="/privacy">Privacy</Link>
                 <Link href="/terms">Terms</Link>
                 <Link href="/contact">Report</Link>
+                <CookieSettingsButton />
               </nav>
             </footer>
           ) : (
@@ -1508,6 +1510,8 @@ export function PublicPageClient({
                 <a href="/contact" className="hover:underline">
                   Report
                 </a>
+                <span>·</span>
+                <CookieSettingsButton className="hover:underline" />
               </div>
               <p className="text-center text-xs text-muted-foreground">
                 Booking powered by <span className="display text-foreground">Flowboc</span>

@@ -8,10 +8,11 @@ import { Button } from "@/components/ui/button";
 import { useAuthCta } from "./useAuthCta";
 
 const links = [
-  { label: "Your page", href: "#your-page" },
-  { label: "How it works", href: "#experience" },
-  { label: "Business tools", href: "#business" },
-  { label: "Pricing", href: "#pricing" },
+  { label: "Your page", href: "/#your-page" },
+  { label: "How it works", href: "/#setup" },
+  { label: "Features", href: "/features" },
+  { label: "Pricing Plans", href: "/pricing" },
+  { label: "Guides", href: "/guides" },
 ];
 
 export function LaunchNavbar() {
@@ -21,21 +22,22 @@ export function LaunchNavbar() {
   return (
     <>
       <div className="bg-[#30293e] px-5 py-2.5 text-center text-xs text-[#ddd3ed] sm:px-8">
-        A new chapter for your teaching.{" "}
-        <strong className="font-semibold text-white">Launching 9 November.</strong>{" "}
-        <a href="#setup" className="ml-2 text-[#baffdc] underline-offset-2 hover:underline">
-          Meet your business home ↗
-        </a>
+        <strong className="font-semibold text-white">
+          Now live in Nigeria, Ghana, Kenya, South Africa &amp; Côte d&apos;Ivoire.
+        </strong>{" "}
+        <Link href="/auth" className="ml-2 text-[#baffdc] underline-offset-2 hover:underline">
+          Start your 14-day free trial ↗
+        </Link>
       </div>
       <header className="sticky top-0 z-40 border-b border-[#eee9e3] bg-[#fcfbf7]/95 backdrop-blur-md">
-        <div className="mx-auto flex h-[88px] w-full max-w-[1320px] items-center justify-between gap-6 px-5 sm:px-8">
-          <a href="#home" aria-label="Flowboc home" className="flex items-center">
+        <div className="mx-auto flex h-[88px] w-full max-w-[1320px] items-center justify-between gap-6 px-5 sm:px-0">
+          <a href="/" aria-label="Flowboc home" className="flex">
             <Image
               src="/flowboc-launch/assets/flowboc-logo.png"
               alt="Flowboc"
-              width={132}
+              width={100}
               height={35}
-              className="h-auto w-[132px] lg:flex hidden"
+              className="h-auto lg:flex hidden"
             />
             <Image
               src="/flowboc-launch/assets/flowboc-logo.png"
@@ -109,7 +111,7 @@ export function LaunchNavbar() {
                   className="bg-[#6355ff] text-white hover:bg-[#5042e5] md:h-10 md:px-6 md:text-base"
                 >
                   <Link href="/auth">
-                    Start my page <ArrowRight className="size-3.5" />
+                    Get started for free <ArrowRight className="size-3.5" />
                   </Link>
                 </Button>
                 <button
@@ -127,7 +129,7 @@ export function LaunchNavbar() {
         </div>
         {open ? (
           <nav className="border-t border-[#e2dfd7] px-5 pb-6 pt-3 md:hidden">
-            {links.concat([{ label: "FAQs", href: "#faq" }]).map((l) => (
+            {links.concat([{ label: "FAQs", href: "/#faq" }]).map((l) => (
               <a
                 key={l.label}
                 href={l.href}

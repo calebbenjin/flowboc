@@ -20,7 +20,7 @@ export function Business() {
         <div className="grid gap-10 pb-12 lg:grid-cols-[1fr_0.9fr] lg:gap-28">
           <div>
             <p className="text-[0.65rem] font-semibold uppercase tracking-[0.17em] text-[#c1accf]">
-              The business behind your teaching
+              Bookings, payments &amp; student records
             </p>
             <h2 className="display mt-4 text-4xl leading-[1.08] text-[#fff8ed] sm:text-5xl">
               Run the details

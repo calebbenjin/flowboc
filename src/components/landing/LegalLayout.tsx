@@ -12,7 +12,7 @@ export function LegalLayout({
   title: string;
   updated: string;
   intro?: string;
-  sections: { heading: string; body: ReactNode }[];
+  sections: { heading: string; body: ReactNode; id?: string }[];
 }) {
   return (
     <div className="min-h-screen overflow-x-clip bg-background">
@@ -31,7 +31,7 @@ export function LegalLayout({
         <Section>
           <div className="mx-auto max-w-2xl divide-y divide-border">
             {sections.map((s) => (
-              <div key={s.heading} className="py-6 first:pt-0">
+              <div key={s.heading} id={s.id} className="scroll-mt-24 py-6 first:pt-0">
                 <h2 className="text-lg font-medium">{s.heading}</h2>
                 <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground">
                   {s.body}
