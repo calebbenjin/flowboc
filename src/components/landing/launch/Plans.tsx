@@ -58,11 +58,11 @@ export function Plans() {
           <p className="text-[0.65rem] font-semibold uppercase tracking-[0.17em] text-[#6355ff]">
             Pricing in naira, cedi, shilling, rand &amp; CFA
           </p>
-          <h2 className="display mt-4 text-4xl leading-[1.08] tracking-tight text-[#272334] sm:text-5xl">
+          <h1 className="display mt-4 text-4xl leading-[1.08] tracking-tight text-[#272334] sm:text-5xl">
             Invest in the business
             <br />
             <em className="font-normal italic text-[#6355ff]">you are building.</em>
-          </h2>
+          </h1>
           <p className="mt-5 text-sm leading-[1.85] text-[#716277]">
             Give your teaching a professional home. Start with a 14-day free trial, then choose the
             plan that fits your business.

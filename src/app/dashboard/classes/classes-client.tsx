@@ -13,10 +13,14 @@ import {
   Copy,
   Loader2,
   MoreHorizontal,
+  Pencil,
+  Plus,
+  Settings2,
   Trash2,
   XCircle,
 } from "lucide-react";
 import { DashboardShell } from "@/components/DashboardShell";
+import { MobileSheet, SheetAction, sheetActionClass } from "@/components/MobileSheet";
 import { EmptyState } from "@/components/EmptyState";
 import { StatusPill } from "@/components/StatusPill";
 import { Button } from "@/components/ui/button";
@@ -101,6 +105,7 @@ export function ClassesClient({ classes }: { classes: ClassWithBookingCount[] })
   const [confirmPending, setConfirmPending] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [expandedSeries, setExpandedSeries] = useState<Set<string>>(new Set());
+  const [sheetClass, setSheetClass] = useState<ClassWithBookingCount | null>(null);
 
   const [compact, setCompact] = useState(true);
   const [search, setSearch] = useState("");
@@ -165,7 +170,7 @@ export function ClassesClient({ classes }: { classes: ClassWithBookingCount[] })
           </p>
         </div>
         {classes.length > 0 && (
-          <Button asChild variant="clay">
+          <Button asChild variant="clay" className="hidden md:inline-flex">
             <Link href="/dashboard/classes/new">Create class</Link>
           </Button>
         )}
@@ -173,17 +178,21 @@ export function ClassesClient({ classes }: { classes: ClassWithBookingCount[] })
 
       {classes.length > 0 ? (
         <div className="mt-6 space-y-3">
-          <label className="block max-w-sm text-sm font-medium">
-            Search classes
+          <label className="block text-sm font-medium md:max-w-sm">
+            <span className="sr-only md:not-sr-only">Search classes</span>
             <Input
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by class name"
-              className="mt-1"
+              className="mt-1 text-base md:text-sm"
             />
           </label>
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Filter classes">
+          <div
+            className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] md:mx-0 md:flex-wrap md:overflow-visible md:px-0"
+            role="group"
+            aria-label="Filter classes"
+          >
             {classFilters.map(({ value, label }) => (
               <Button
                 key={value}
@@ -191,6 +200,7 @@ export function ClassesClient({ classes }: { classes: ClassWithBookingCount[] })
                 variant={filter === value ? "clay" : "quiet"}
                 aria-pressed={filter === value}
                 onClick={() => setFilter(value)}
+                className="shrink-0"
               >
                 {label}
               </Button>
@@ -218,13 +228,14 @@ export function ClassesClient({ classes }: { classes: ClassWithBookingCount[] })
             <Button
               size="sm"
               variant="quiet"
+              className="hidden md:inline-flex"
               aria-pressed={compact}
               onClick={() => setCompact((value) => !value)}
             >
               {compact ? "Switch to card view" : "Switch to compact view"}
             </Button>
           ) : null}
-          <p className="text-sm text-muted-foreground" role="status">
+          <p className="text-sm text-muted-foreground md:ml-0" role="status">
             {filteredClasses.length} matching {filteredClasses.length === 1 ? "class" : "classes"}
           </p>
         </div>
@@ -253,34 +264,168 @@ export function ClassesClient({ classes }: { classes: ClassWithBookingCount[] })
           }
         />
       ) : (
-        <div className={compact ? "mt-6 space-y-3" : "mt-6 grid gap-4 md:grid-cols-2"}>
-          {groups.map((group) =>
-            group.type === "single" ? (
-              <ClassCard
-                key={group.cls.id}
-                cls={group.cls}
-                compact={compact}
-                duplicatingId={duplicatingId}
-                onDuplicate={handleDuplicate}
-                onCancel={(id) => setConfirmTarget({ id, action: "cancel" })}
-                onDelete={(id) => setConfirmTarget({ id, action: "delete" })}
-              />
-            ) : (
-              <SeriesCard
-                key={group.seriesId}
-                occurrences={group.occurrences}
-                compact={compact}
-                expanded={expandedSeries.has(group.seriesId)}
-                onToggle={() => toggleSeries(group.seriesId)}
-                duplicatingId={duplicatingId}
-                onDuplicate={handleDuplicate}
-                onCancel={(id) => setConfirmTarget({ id, action: "cancel" })}
-                onDelete={(id) => setConfirmTarget({ id, action: "delete" })}
-              />
-            ),
-          )}
-        </div>
+        <>
+          <ul className="mb-20 mt-5 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-white md:hidden">
+            {groups.map((group) =>
+              group.type === "single" ? (
+                <li key={group.cls.id}>
+                  <MobileClassRow cls={group.cls} onMore={() => setSheetClass(group.cls)} />
+                </li>
+              ) : (
+                <li key={group.seriesId}>
+                  <MobileClassRow
+                    cls={group.occurrences[0]!}
+                    dates={group.occurrences.length}
+                    expanded={expandedSeries.has(group.seriesId)}
+                    onToggle={() => toggleSeries(group.seriesId)}
+                    onMore={() => setSheetClass(group.occurrences[0]!)}
+                  />
+                  {expandedSeries.has(group.seriesId) ? (
+                    <ul className="border-t border-border bg-[#faf8fc] py-1">
+                      {group.occurrences.map((o) => (
+                        <li key={o.id} className="flex items-center">
+                          <Link
+                            href={`/dashboard/classes/${o.id}`}
+                            className="flex min-h-12 flex-1 items-center justify-between gap-3 pl-[5.25rem] pr-2 active:bg-secondary"
+                          >
+                            <span>
+                              <span className="block text-sm">{formatClassDate(o)}</span>
+                              <span className="block text-xs text-muted-foreground">
+                                {formatClassTime(o)} · {o._count.bookings}/{o.capacity} booked
+                              </span>
+                            </span>
+                            <StatusPill tone={tone(o.status)}>{o.status.toLowerCase()}</StatusPill>
+                          </Link>
+                          <button
+                            type="button"
+                            aria-label={`More actions for ${formatClassDate(o)}`}
+                            onClick={() => setSheetClass(o)}
+                            className="grid size-12 shrink-0 place-items-center text-muted-foreground active:bg-secondary"
+                          >
+                            <MoreHorizontal className="size-4" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </li>
+              ),
+            )}
+          </ul>
+          <div
+            className={
+              compact
+                ? "mt-6 hidden space-y-3 md:block"
+                : "mt-6 hidden gap-4 md:grid md:grid-cols-2"
+            }
+          >
+            {groups.map((group) =>
+              group.type === "single" ? (
+                <ClassCard
+                  key={group.cls.id}
+                  cls={group.cls}
+                  compact={compact}
+                  duplicatingId={duplicatingId}
+                  onDuplicate={handleDuplicate}
+                  onCancel={(id) => setConfirmTarget({ id, action: "cancel" })}
+                  onDelete={(id) => setConfirmTarget({ id, action: "delete" })}
+                />
+              ) : (
+                <SeriesCard
+                  key={group.seriesId}
+                  occurrences={group.occurrences}
+                  compact={compact}
+                  expanded={expandedSeries.has(group.seriesId)}
+                  onToggle={() => toggleSeries(group.seriesId)}
+                  duplicatingId={duplicatingId}
+                  onDuplicate={handleDuplicate}
+                  onCancel={(id) => setConfirmTarget({ id, action: "cancel" })}
+                  onDelete={(id) => setConfirmTarget({ id, action: "delete" })}
+                />
+              ),
+            )}
+          </div>
+        </>
       )}
+
+      {classes.length > 0 ? (
+        <Link
+          href="/dashboard/classes/new"
+          aria-label="Create class"
+          className="fixed right-4 z-30 grid size-14 place-items-center rounded-full bg-clay text-white shadow-lg transition-transform active:scale-95 md:hidden"
+          style={{ bottom: "calc(5rem + env(safe-area-inset-bottom))" }}
+        >
+          <Plus className="size-6" />
+        </Link>
+      ) : null}
+
+      <MobileSheet
+        open={sheetClass !== null}
+        onOpenChange={(open) => !open && setSheetClass(null)}
+        title={sheetClass?.name ?? ""}
+        description={
+          sheetClass
+            ? `${formatClassDate(sheetClass)} · ${formatClassTime(sheetClass)} ${timezoneLabel(sheetClass.timezone)}`
+            : undefined
+        }
+      >
+        {sheetClass ? (
+          <div className="-mx-3">
+            <Link href={`/dashboard/classes/${sheetClass.id}`} className={sheetActionClass}>
+              <Settings2 className="size-5 text-muted-foreground" /> Manage bookings
+            </Link>
+            <Link href={`/dashboard/classes/edit/${sheetClass.id}`} className={sheetActionClass}>
+              <Pencil className="size-5 text-muted-foreground" /> Edit class
+            </Link>
+            <SheetAction
+              icon={
+                duplicatingId === sheetClass.id ? (
+                  <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                ) : (
+                  <Copy className="size-5 text-muted-foreground" />
+                )
+              }
+              disabled={duplicatingId === sheetClass.id}
+              onClick={() => {
+                const cls = sheetClass;
+                setSheetClass(null);
+                void handleDuplicate(cls);
+              }}
+            >
+              Duplicate class
+            </SheetAction>
+            {sheetClass.status !== "CANCELLED" ? (
+              <div className="my-1 border-t border-border" />
+            ) : null}
+            {sheetClass.status !== "CANCELLED" ? (
+              <SheetAction
+                destructive
+                icon={<XCircle className="size-5" />}
+                onClick={() => {
+                  const id = sheetClass.id;
+                  setSheetClass(null);
+                  setConfirmTarget({ id, action: "cancel" });
+                }}
+              >
+                Cancel class
+              </SheetAction>
+            ) : null}
+            {sheetClass.status === "DRAFT" ? (
+              <SheetAction
+                destructive
+                icon={<Trash2 className="size-5" />}
+                onClick={() => {
+                  const id = sheetClass.id;
+                  setSheetClass(null);
+                  setConfirmTarget({ id, action: "delete" });
+                }}
+              >
+                Delete class
+              </SheetAction>
+            ) : null}
+          </div>
+        ) : null}
+      </MobileSheet>
 
       <AlertDialog
         open={confirmTarget !== null}
@@ -329,6 +474,96 @@ type ClassActionsProps = {
   onCancel: (id: string) => void;
   onDelete: (id: string) => void;
 };
+
+// Phone row: thumbnail, name, when, and how full. Tapping opens the class
+// (or, for a series, its dates); `⋯` opens the action sheet.
+function MobileClassRow({
+  cls: c,
+  dates,
+  expanded = false,
+  onToggle,
+  onMore,
+}: {
+  cls: ClassWithBookingCount;
+  dates?: number;
+  expanded?: boolean;
+  onToggle?: () => void;
+  onMore: () => void;
+}) {
+  const instructor = useInstructor();
+  const fill = Math.min(100, (c._count.bookings / c.capacity) * 100);
+  const body = (
+    <>
+      {c.coverUrl ? (
+        <img
+          src={c.coverUrl}
+          alt=""
+          loading="lazy"
+          width={112}
+          height={112}
+          className="size-14 shrink-0 rounded-xl object-cover"
+        />
+      ) : (
+        <span className="size-14 shrink-0 rounded-xl bg-sand" />
+      )}
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2">
+          <span className="truncate text-[0.95rem] font-medium">{c.name}</span>
+          {dates ? (
+            <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+              {dates} dates
+              {expanded ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
+            </span>
+          ) : (
+            <StatusPill tone={tone(c.status)}>{c.status.toLowerCase()}</StatusPill>
+          )}
+        </span>
+        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+          {dates
+            ? `${c.recurringLabel ?? "Recurring"} · Next ${formatClassDate(c)}`
+            : (c.recurringLabel ?? formatClassDate(c))}{" "}
+          · {formatClassTime(c)}
+        </span>
+        <span className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+          <span className="h-1 flex-1 rounded-full bg-secondary">
+            <span className="block h-1 rounded-full bg-clay" style={{ width: `${fill}%` }} />
+          </span>
+          <span className="shrink-0 tabular-nums">
+            {c._count.bookings}/{c.capacity}
+          </span>
+          <PriceTag
+            price={c.price}
+            currency={instructor.currency}
+            priceClassName="font-medium text-foreground"
+          />
+        </span>
+      </span>
+    </>
+  );
+  const rowClass = "flex min-w-0 flex-1 items-center gap-3 py-3 pl-4 text-left active:bg-[#f8f5fc]";
+
+  return (
+    <div className="flex items-center">
+      {dates && onToggle ? (
+        <button type="button" onClick={onToggle} aria-expanded={expanded} className={rowClass}>
+          {body}
+        </button>
+      ) : (
+        <Link href={`/dashboard/classes/${c.id}`} className={rowClass}>
+          {body}
+        </Link>
+      )}
+      <button
+        type="button"
+        aria-label={`More actions for ${c.name}`}
+        onClick={onMore}
+        className="grid w-12 shrink-0 place-items-center self-stretch text-muted-foreground active:bg-secondary"
+      >
+        <MoreHorizontal className="size-5" />
+      </button>
+    </div>
+  );
+}
 
 function ClassMenu({ cls, duplicatingId, onDuplicate, onCancel, onDelete }: ClassActionsProps) {
   return (

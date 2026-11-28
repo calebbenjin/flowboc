@@ -115,7 +115,7 @@ export default async function GuidePage({ params }: { params: Promise<{ guide: s
                 currency. Try it free for 14 days — no card required.
               </p>
               <Button asChild className="mt-5">
-                <Link href="/auth">Create my Flowboc page</Link>
+                <Link href="/auth">Start your free trial</Link>
               </Button>
             </div>
           </article>

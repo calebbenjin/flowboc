@@ -2,9 +2,9 @@ import React from "react";
 import { Check } from "lucide-react";
 
 const benefits = [
-  "A page that feels like you",
-  "Students book without an account",
-  "Your business, brought together",
+  "Your own booking page and link",
+  "Students book and pay, no account needed",
+  "Confirmations and reminders sent for you",
 ];
 
 const Benefits = () => {

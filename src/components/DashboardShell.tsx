@@ -148,10 +148,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           />
         </Link>
 
-        <nav className="flex-1 space-y-1 mt-8">
+        <nav className="flex-1 space-y-1 mt-8 sm:pt-6">
           {navGroups.map((group) => (
             <div key={group.label} className="mb-5">
-              <p className="mb-2 px-3 text-xs font-bold text-black">{group.label}</p>
+              <p className="mb-2 px-3 text-sm font-bold text-black border-b border-primary/20 pb-1">{group.label}</p>
               {group.paths
                 .map((to) => nav.find((item) => item.to === to)!)
                 .map((item) => {

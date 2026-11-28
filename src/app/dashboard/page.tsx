@@ -126,13 +126,72 @@ export default async function Dashboard() {
         </div>
       ) : null}
 
+      <div>
+        <div className="mt-10 lg:mt-20 grid gap-4 grid-cols-2 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            {
+              label: "Revenue this month",
+              value: money(stats.revenueThisMonth, instructor.currency),
+              icon: Wallet,
+              tone: "clay",
+            },
+            {
+              label: "Upcoming classes",
+              value: stats.upcomingClasses,
+              icon: dashboardIcons.classes,
+              tone: "clay",
+            },
+            {
+              label: "All-time bookings",
+              value: stats.totalBookings,
+              icon: dashboardIcons.classes,
+              tone: "clay",
+            },
+            {
+              label: "All-time students",
+              value: stats.totalStudents,
+              icon: dashboardIcons.students,
+              tone: "clay",
+            },
+          ].map((s) => (
+            <div
+              key={s.label}
+              className={cn(
+                "rounded-xl border p-5 shadow-(--shadow-soft)",
+                statCardToneClasses[s.tone as keyof typeof statCardToneClasses],
+              )}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">{s.label}</p>
+                <span
+                  className={cn(
+                    "grid size-9 shrink-0 place-items-center border border-primary/20 rounded-full bg-primary/40",
+                    statToneClasses[s.tone as keyof typeof statToneClasses],
+                  )}
+                >
+                  <s.icon className="size-6" />
+                </span>
+              </div>
+              <p className="display mt-2 sm:text-3xl text-2xl">{s.value}</p>
+            </div>
+          ))}
+        </div>
+
+        <p className="mt-2 text-xs text-muted-foreground">
+          Revenue includes paid classes, 1:1 sessions, and ebooks in {instructor.currency}, recorded
+          this calendar month in {instructor.timezone}, before payout deductions.
+        </p>
+      </div>
+
       <OfferDiscovery />
 
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
+
         <div className="min-w-0 lg:col-span-2">
           <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
             Your teaching schedule
           </h2>
+
           {upcoming.length === 0 && showWelcome && !hasPublishedClass ? (
             <p className="mt-3 rounded-xl border border-dashed border-[#cbd4bf] bg-[#f6f7f0] p-6 text-sm leading-relaxed text-muted-foreground">
               Your schedule will take shape here as you add your classes.
@@ -224,6 +283,7 @@ export default async function Dashboard() {
               View all transactions →
             </Link>
           </div>
+
           {recent.rows.length ? (
             <TransactionTable rows={recent.rows} compact />
           ) : (
@@ -297,61 +357,8 @@ export default async function Dashboard() {
             </div>
           )}
         </div>
+        
       </div>
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          {
-            label: "Revenue this month",
-            value: money(stats.revenueThisMonth, instructor.currency),
-            icon: Wallet,
-            tone: "clay",
-          },
-          {
-            label: "Upcoming classes",
-            value: stats.upcomingClasses,
-            icon: dashboardIcons.classes,
-            tone: "clay",
-          },
-          {
-            label: "All-time bookings",
-            value: stats.totalBookings,
-            icon: dashboardIcons.classes,
-            tone: "clay",
-          },
-          {
-            label: "All-time students",
-            value: stats.totalStudents,
-            icon: dashboardIcons.students,
-            tone: "clay",
-          },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className={cn(
-              "rounded-xl border p-5 shadow-(--shadow-soft)",
-              statCardToneClasses[s.tone as keyof typeof statCardToneClasses],
-            )}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground">{s.label}</p>
-              <span
-                className={cn(
-                  "grid size-9 shrink-0 place-items-center rounded-full bg-primary/20",
-                  statToneClasses[s.tone as keyof typeof statToneClasses],
-                )}
-              >
-                <s.icon className="size-4" />
-              </span>
-            </div>
-            <p className="display mt-2 text-3xl">{s.value}</p>
-          </div>
-        ))}
-      </div>
-
-      <p className="mt-2 text-xs text-muted-foreground">
-        Revenue includes paid classes, 1:1 sessions, and ebooks in {instructor.currency}, recorded
-        this calendar month in {instructor.timezone}, before payout deductions.
-      </p>
     </DashboardShell>
   );
 }

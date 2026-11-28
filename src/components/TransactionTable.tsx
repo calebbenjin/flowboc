@@ -1,6 +1,7 @@
 import { money } from "@/lib/demo";
 import type { TransactionRow } from "@/lib/transactions/queries";
 import { StatusPill, paymentTone } from "@/components/StatusPill";
+import { TransactionList } from "@/components/TransactionList";
 const typeLabels = { CLASS: "Class", SESSION: "1:1 session", EBOOK: "Ebook" };
 export function TransactionTable({
   rows,
@@ -12,11 +13,31 @@ export function TransactionTable({
   compact?: boolean;
 }) {
   return (
+    <>
+      {/* Phones get a tappable list; the full table starts at md. */}
+      <div className="md:hidden">
+        <TransactionList rows={rows} admin={admin} />
+      </div>
+      <TransactionGrid rows={rows} admin={admin} compact={compact} />
+    </>
+  );
+}
+
+function TransactionGrid({
+  rows,
+  admin,
+  compact,
+}: {
+  rows: TransactionRow[];
+  admin: boolean;
+  compact: boolean;
+}) {
+  return (
     <div
       role="region"
       aria-label="Transaction table, scroll horizontally for more columns"
       tabIndex={0}
-      className="min-w-0 max-w-full overflow-x-auto rounded-2xl border border-border bg-white focus-visible:outline-2 focus-visible:outline-primary"
+      className="hidden min-w-0 max-w-full overflow-x-auto rounded-2xl md:block border border-border bg-white focus-visible:outline-2 focus-visible:outline-primary"
     >
       <table className={`w-full ${compact ? "min-w-[600px]" : "min-w-[840px]"} text-left text-sm`}>
         <caption className="sr-only">

@@ -1149,7 +1149,7 @@ function ClassesSection({
   }
 
   return (
-    <div className={`sm:mt-12 mt-2 ${layoutListClassName[instructor.pageLayout]}`}>
+    <div className={`sm:my-10 my-4 ${layoutListClassName[instructor.pageLayout]}`}>
       {groups.map((group, i) => {
         const delay = Math.min(i, 6) * 0.08;
 
@@ -1418,7 +1418,7 @@ export function PublicPageClient({
                   className={cn(
                     isSage
                       ? "sage-link-row"
-                      : "surface mb-6 block font-medium transition-colors hover:bg-accent",
+                      : "surface mb-4 block font-medium transition-colors hover:bg-accent",
                     link.imageUrl ? "flex items-center gap-3 p-3" : "px-6 py-4 text-center",
                   )}
                 >
