@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, DM_Sans } from "next/font/google";
 import type { ReactNode } from "react";
-import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import { OfflineBanner } from "@/components/OfflineBanner";
@@ -77,8 +76,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <OfflineBanner />
         {children}
         <Toaster position="top-center" />
-        <Analytics />
-        <SpeedInsights />
+        {/* Page views are tracked in PostHog. Speed Insights samples 10% of
+            visits, enough to spot slow pages within the Hobby data-point limit. */}
+        <SpeedInsights sampleRate={0.1} />
       </body>
     </html>
   );

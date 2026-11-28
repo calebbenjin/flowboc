@@ -50,8 +50,8 @@ export function WhoItsFor() {
             <em className="font-normal italic text-primary">however you teach.</em>
           </h2>
           <p className="mt-5 text-lg leading-[1.85] text-[#716277]">
-            One booking page for every way you teach, from your first regular class to a full
-            weekly schedule.
+            One booking page for every way you teach, from your first regular class to a full weekly
+            schedule.
           </p>
         </div>
 

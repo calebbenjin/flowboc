@@ -186,7 +186,6 @@ export default async function Dashboard() {
       <OfferDiscovery />
 
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
-
         <div className="min-w-0 lg:col-span-2">
           <h2 className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
             Your teaching schedule
@@ -357,7 +356,6 @@ export default async function Dashboard() {
             </div>
           )}
         </div>
-        
       </div>
     </DashboardShell>
   );
